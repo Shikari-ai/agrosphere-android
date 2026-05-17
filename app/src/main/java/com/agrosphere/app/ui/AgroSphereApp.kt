@@ -102,6 +102,8 @@ fun AgroSphereApp() {
                     onOpenField = { id -> navController.navigate(Dest.FieldDetail.build(id)) },
                     onOpenScanner = { navController.navigate(Dest.Scanner.route) },
                     onOpenAssistant = { navController.navigate(Dest.Assistant.route) },
+                    onOpenWeather = { navController.navigate(Dest.Weather.route) },
+                    onOpenFields = { navController.navigate(Dest.Fields.route) },
                 )
             }
             composable(Dest.Fields.route) {
