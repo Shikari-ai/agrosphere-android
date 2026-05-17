@@ -128,24 +128,6 @@ fun ProfileScreen(
                     onClick = { onOpenSection(ProfileSections.SUBSCRIPTION) })
             }
 
-            item { GroupLabel("Intelligence") }
-            item {
-                MenuItem(Icons.Rounded.Psychology, "AI preferences", "Tone, units, recommendations", AgroPalette.Iris,
-                    onClick = { onOpenSection(ProfileSections.AI_PREFS) })
-            }
-            item {
-                MenuItem(Icons.Rounded.Shield, "AI reliability", "Data freshness · model health", Color(0xFF67D4F0),
-                    onClick = { onOpenSection(ProfileSections.AI_RELIABILITY) })
-            }
-            item {
-                MenuItem(Icons.Rounded.History, "Learning evolution", "What AgroSphere is learning", AgroPalette.Iris,
-                    onClick = { onOpenSection(ProfileSections.LEARNING) })
-            }
-            item {
-                MenuItem(Icons.Rounded.Public, "Regional intelligence", "Anonymous network — 23 farms nearby", Color(0xFF22D3EE),
-                    onClick = onOpenRegional)
-            }
-
             item { GroupLabel("Account") }
             item {
                 MenuItem(Icons.Rounded.Person, "Account settings", "Name, email, phone, security", AgroPalette.Sky,
@@ -184,6 +166,24 @@ fun ProfileScreen(
                     tint = AgroPalette.Amber,
                     onClick = { onOpenSection(ProfileSections.LANGUAGE) },
                 )
+            }
+
+            item { GroupLabel("Intelligence") }
+            item {
+                MenuItem(Icons.Rounded.Psychology, "AI preferences", "Tone, units, recommendations", AgroPalette.Iris,
+                    onClick = { onOpenSection(ProfileSections.AI_PREFS) })
+            }
+            item {
+                MenuItem(Icons.Rounded.Shield, "AI reliability", "Data freshness · model health", Color(0xFF67D4F0),
+                    onClick = { onOpenSection(ProfileSections.AI_RELIABILITY) })
+            }
+            item {
+                MenuItem(Icons.Rounded.History, "Learning evolution", "What AgroSphere is learning", AgroPalette.Iris,
+                    onClick = { onOpenSection(ProfileSections.LEARNING) })
+            }
+            item {
+                MenuItem(Icons.Rounded.Public, "Regional intelligence", "Anonymous network — 23 farms nearby", Color(0xFF22D3EE),
+                    onClick = onOpenRegional)
             }
 
             item { GroupLabel("Support") }
