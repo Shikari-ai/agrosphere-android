@@ -201,7 +201,7 @@
     <string name="profile_sub_help">डॉक्स, संपर्क, राय</string>
     <string name="profile_sub_about">v0.1.0 · बिल्ड नोट्स</string>
     <string name="profile_sub_developer">लॉग, फ्लैग, टेस्ट</string>
-    <string name="profile_made_with_care">मया से बनाए · AgroSphere 0.1.0</string>
+    <string name="profile_made_with_care">मया से बनाया · AgroSphere 0.1.0</string>
     <string name="profile_toggle_units">यूनिट</string>
     <string name="profile_toggle_dark">डार्क थीम</string>
 </resources>
