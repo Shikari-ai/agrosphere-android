@@ -391,8 +391,22 @@ private fun RadarDot() {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun HeroBlock(snapshot: WeatherSnapshot) {
-    GlassCard(radius = 26.dp, padding = 22.dp) {
-        Column {
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(heroBrushFor(snapshot.kind, snapshot.tempC), shape)
+            .border(1.dp, AgroPalette.SurfaceGlassBorder, shape),
+    ) {
+        // Atmospheric overlay tied to the current condition.
+        HeroAtmosphere(
+            kind = snapshot.kind,
+            windKph = snapshot.windKph,
+            modifier = Modifier.matchParentSize().clip(shape),
+        )
+
+        Column(modifier = Modifier.padding(22.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -400,30 +414,58 @@ private fun HeroBlock(snapshot: WeatherSnapshot) {
                         style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.sp),
                         color = AgroPalette.Sky,
                     )
-                    Spacer(Modifier.height(2.dp))
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            "${snapshot.tempC}°",
-                            style = MaterialTheme.typography.displayLarge.copy(fontSize = 72.sp),
-                            color = AgroPalette.Ink,
-                            fontWeight = FontWeight.Black,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "feels ${snapshot.feelsLikeC}°",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = AgroPalette.InkMuted,
-                            modifier = Modifier.padding(bottom = 14.dp),
-                        )
-                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "${snapshot.tempC}°",
+                        style = MaterialTheme.typography.displayLarge.copy(fontSize = 92.sp),
+                        color = heroTempColor(snapshot.tempC),
+                        fontWeight = FontWeight.Black,
+                    )
+                    Text(
+                        "feels like ${snapshot.feelsLikeC}°",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = AgroPalette.InkMuted,
+                    )
+                    Spacer(Modifier.height(8.dp))
                     Text(snapshot.condition, style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
                 }
                 BigConditionIcon(kind = snapshot.kind)
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(18.dp))
             SunTrack(sunrise = snapshot.sunrise, sunset = snapshot.sunset)
         }
     }
+}
+
+/** Background gradient per condition, with warm/cool blend by temperature. */
+private fun heroBrushFor(kind: ConditionKind, tempC: Int): Brush {
+    val heat = ((tempC + 5) / 45f).coerceIn(0f, 1f)
+    val warmth = androidx.compose.ui.graphics.lerp(
+        Color(0x111E40AF),
+        Color(0x22F59E0B),
+        heat,
+    )
+    val base: List<Color> = when (kind) {
+        ConditionKind.Clear -> listOf(Color(0xFF1F2937), Color(0xFF0F172A))
+        ConditionKind.PartlyCloudy -> listOf(Color(0xFF1E293B), Color(0xFF0B1220))
+        ConditionKind.Cloudy -> listOf(Color(0xFF1F2937), Color(0xFF111827))
+        ConditionKind.Rain -> listOf(Color(0xFF0F2A3F), Color(0xFF06121C))
+        ConditionKind.Storm -> listOf(Color(0xFF1A1335), Color(0xFF06030F))
+        ConditionKind.Night -> listOf(Color(0xFF050B18), Color(0xFF02040A))
+    }
+    return Brush.linearGradient(listOf(base[0].overlay(warmth), base[1]))
+}
+
+private fun Color.overlay(other: Color): Color =
+    androidx.compose.ui.graphics.lerp(this, other.copy(alpha = 1f), other.alpha)
+
+private fun heroTempColor(tempC: Int): Color = when {
+    tempC < 5 -> Color(0xFF60A5FA)
+    tempC < 15 -> Color(0xFFA5B4FC)
+    tempC < 25 -> AgroPalette.Ink
+    tempC < 32 -> Color(0xFFFCD34D)
+    tempC < 38 -> Color(0xFFFB923C)
+    else -> Color(0xFFEF4444)
 }
 
 @Composable
@@ -447,6 +489,16 @@ private fun BigConditionIcon(kind: ConditionKind) {
 
 @Composable
 private fun SunTrack(sunrise: String, sunset: String) {
+    val now = java.time.LocalTime.now()
+    val sunriseT = parseHm(sunrise) ?: java.time.LocalTime.of(6, 0)
+    val sunsetT = parseHm(sunset) ?: java.time.LocalTime.of(18, 0)
+
+    // Daylight progress 0..1 — clamps to edges outside the day.
+    val totalDayMins = java.time.Duration.between(sunriseT, sunsetT).toMinutes().coerceAtLeast(1)
+    val sinceSunriseMins = java.time.Duration.between(sunriseT, now).toMinutes().coerceIn(0, totalDayMins)
+    val daylightProgress = sinceSunriseMins / totalDayMins.toFloat()
+    val isDaytime = !now.isBefore(sunriseT) && !now.isAfter(sunsetT)
+
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -460,21 +512,75 @@ private fun SunTrack(sunrise: String, sunset: String) {
                 Icon(Icons.Rounded.NightlightRound, null, tint = AgroPalette.Iris, modifier = Modifier.size(16.dp))
             }
         }
-        Spacer(Modifier.height(6.dp))
-        Canvas(modifier = Modifier.fillMaxWidth().height(8.dp)) {
-            drawLine(
+        Spacer(Modifier.height(8.dp))
+        // Curved sun-path: half-circle arc from sunrise to sunset with a glowing
+        // sun marker pinned at the current daylight fraction.
+        val pulse by rememberInfiniteTransition(label = "sun").animateFloat(
+            0.65f, 1f,
+            infiniteRepeatable(tween(2200), RepeatMode.Reverse),
+            label = "p",
+        )
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp),
+        ) {
+            val w = size.width
+            val h = size.height
+            val padX = 8f
+            val baselineY = h - 4f
+            val arcWidth = w - padX * 2
+            val arcHeight = h - 6f
+
+            // The dashed half-arc itself
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(padX, baselineY)
+                quadraticBezierTo(
+                    x1 = w / 2f, y1 = -arcHeight * 0.8f,
+                    x2 = padX + arcWidth, y2 = baselineY,
+                )
+            }
+            drawPath(
+                path,
                 brush = Brush.horizontalGradient(
                     listOf(AgroPalette.Amber, AgroPalette.Sky, AgroPalette.Iris)
                 ),
-                start = Offset(0f, size.height / 2),
-                end = Offset(size.width, size.height / 2),
-                strokeWidth = 2f,
-                cap = StrokeCap.Round,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 1.6f,
+                    cap = StrokeCap.Round,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f),
+                ),
             )
+
+            if (isDaytime) {
+                // Sample the bezier at daylightProgress for the sun marker position.
+                val t = daylightProgress.coerceIn(0f, 1f)
+                val x = (1 - t) * (1 - t) * padX +
+                    2 * (1 - t) * t * (w / 2f) +
+                    t * t * (padX + arcWidth)
+                val y = (1 - t) * (1 - t) * baselineY +
+                    2 * (1 - t) * t * (-arcHeight * 0.8f) +
+                    t * t * baselineY
+
+                val sunColor = androidx.compose.ui.graphics.lerp(AgroPalette.Amber, AgroPalette.Orange, t)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        0f to sunColor.copy(alpha = 0.50f * pulse),
+                        1f to Color.Transparent,
+                    ),
+                    radius = 18f * pulse,
+                    center = Offset(x, y),
+                )
+                drawCircle(color = sunColor, radius = 5f, center = Offset(x, y))
+            }
         }
     }
 }
+
+/** Parse "HH:mm" or "HH:mm:ss" — returns null on anything else. */
+private fun parseHm(text: String): java.time.LocalTime? = try {
+    java.time.LocalTime.parse(text.take(5))
+} catch (_: Throwable) { null }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chip row
@@ -558,33 +664,65 @@ private fun HourlyStrip(hours: List<HourSlot>) {
 
 @Composable
 private fun HourCurve(hours: List<HourSlot>, minT: Int, range: Int) {
-    Canvas(modifier = Modifier.fillMaxWidth().height(54.dp)) {
+    Canvas(modifier = Modifier.fillMaxWidth().height(68.dp)) {
         if (hours.size < 2) return@Canvas
         val w = size.width
         val h = size.height
-        val padX = 12f
-        val padY = 8f
+        val padX = 14f
+        val padY = 10f
         val usableW = w - padX * 2
         val usableH = h - padY * 2
         val step = usableW / (hours.size - 1)
 
-        val path = Path()
+        // 1) Filled area gradient under the curve.
+        val fillPath = Path()
         hours.forEachIndexed { i, slot ->
             val nx = padX + step * i
             val ratio = (slot.tempC - minT).toFloat() / range
             val ny = padY + usableH - ratio * usableH
-            if (i == 0) path.moveTo(nx, ny) else path.lineTo(nx, ny)
+            if (i == 0) {
+                fillPath.moveTo(nx, h - padY)
+                fillPath.lineTo(nx, ny)
+            } else {
+                fillPath.lineTo(nx, ny)
+            }
+        }
+        fillPath.lineTo(padX + usableW, h - padY)
+        fillPath.close()
+        drawPath(
+            fillPath,
+            brush = Brush.verticalGradient(
+                0f to AgroPalette.Amber.copy(alpha = 0.35f),
+                0.6f to AgroPalette.Primary.copy(alpha = 0.18f),
+                1f to Color.Transparent,
+            ),
+        )
+
+        // 2) Stroke the curve on top.
+        val linePath = Path()
+        hours.forEachIndexed { i, slot ->
+            val nx = padX + step * i
+            val ratio = (slot.tempC - minT).toFloat() / range
+            val ny = padY + usableH - ratio * usableH
+            if (i == 0) linePath.moveTo(nx, ny) else linePath.lineTo(nx, ny)
         }
         drawPath(
-            path,
+            linePath,
             brush = Brush.horizontalGradient(listOf(AgroPalette.Amber, AgroPalette.Primary, AgroPalette.Sky)),
             style = Stroke(width = 2.5f, cap = StrokeCap.Round),
         )
+
+        // 3) Per-point markers; the first ("Now") is bigger with a halo.
         hours.forEachIndexed { i, slot ->
             val nx = padX + step * i
             val ratio = (slot.tempC - minT).toFloat() / range
             val ny = padY + usableH - ratio * usableH
-            drawCircle(color = AgroPalette.Ink, radius = 2.4f, center = Offset(nx, ny))
+            if (i == 0) {
+                drawCircle(color = AgroPalette.Primary.copy(alpha = 0.35f), radius = 8f, center = Offset(nx, ny))
+                drawCircle(color = AgroPalette.Primary, radius = 4f, center = Offset(nx, ny))
+            } else {
+                drawCircle(color = AgroPalette.Ink, radius = 2.4f, center = Offset(nx, ny))
+            }
         }
     }
 }
@@ -592,20 +730,43 @@ private fun HourCurve(hours: List<HourSlot>, minT: Int, range: Int) {
 @Composable
 private fun HourCell(slot: HourSlot) {
     val (icon, tint) = iconAndTintFor(slot.kind)
+    val isNow = slot.label == "Now"
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+    val cellModifier = Modifier
+        .width(60.dp)
+        .clip(shape)
+        .then(
+            if (isNow) Modifier
+                .background(
+                    Brush.verticalGradient(
+                        0f to AgroPalette.Primary.copy(alpha = 0.20f),
+                        1f to AgroPalette.Primary.copy(alpha = 0.05f),
+                    )
+                )
+                .border(1.dp, AgroPalette.Primary.copy(alpha = 0.45f), shape)
+            else Modifier
+        )
+        .padding(vertical = 10.dp, horizontal = 6.dp)
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(54.dp),
+        modifier = cellModifier,
     ) {
         Text(
             slot.label,
             style = MaterialTheme.typography.labelSmall,
-            color = if (slot.label == "Now") AgroPalette.Primary else AgroPalette.InkMuted,
-            fontWeight = if (slot.label == "Now") FontWeight.Bold else FontWeight.Medium,
+            color = if (isNow) AgroPalette.Primary else AgroPalette.InkMuted,
+            fontWeight = if (isNow) FontWeight.Bold else FontWeight.Medium,
         )
-        Spacer(Modifier.height(6.dp))
-        Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.height(6.dp))
-        Text("${slot.tempC}°", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(8.dp))
+        Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "${slot.tempC}°",
+            style = MaterialTheme.typography.titleSmall,
+            color = AgroPalette.Ink,
+            fontWeight = if (isNow) FontWeight.Black else FontWeight.SemiBold,
+        )
         Spacer(Modifier.height(2.dp))
         Text(
             if (slot.rainProb > 0) "${slot.rainProb}%" else "—",
@@ -761,4 +922,156 @@ private fun iconAndTintFor(kind: ConditionKind): Pair<ImageVector, Color> = when
     ConditionKind.Rain -> Icons.Rounded.WaterDrop to AgroPalette.Sky
     ConditionKind.Storm -> Icons.Rounded.Thunderstorm to AgroPalette.Iris
     ConditionKind.Night -> Icons.Rounded.NightlightRound to AgroPalette.Iris
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hero atmosphere — animated overlay drawn inside the hero card.
+// (Same pattern as the Home weather card; duplicated here so the two screens
+// can evolve independently.)
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun HeroAtmosphere(kind: ConditionKind, windKph: Int, modifier: Modifier = Modifier) {
+    val tr = rememberInfiniteTransition(label = "hero-fx")
+    val t by tr.animateFloat(
+        0f, 1f,
+        infiniteRepeatable(tween(4_000, easing = LinearEasing)),
+        label = "t",
+    )
+    val windScalar = (windKph / 15f).coerceIn(0.10f, 2.5f)
+
+    Canvas(modifier = modifier) {
+        when (kind) {
+            ConditionKind.Clear -> heroSunHalo()
+            ConditionKind.PartlyCloudy -> { heroSunHalo(); heroClouds(t, windScalar) }
+            ConditionKind.Cloudy -> heroClouds(t, windScalar)
+            ConditionKind.Rain -> { heroCloudWash(); heroRain(t) }
+            ConditionKind.Storm -> { heroStorm(t); heroRain(t) }
+            ConditionKind.Night -> heroStars(t)
+        }
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.heroSunHalo() {
+    drawCircle(
+        brush = Brush.radialGradient(
+            0f to Color(0xFFFCD34D).copy(alpha = 0.35f),
+            0.55f to Color(0xFFF59E0B).copy(alpha = 0.08f),
+            1f to Color.Transparent,
+            center = Offset(size.width * 0.85f, size.height * 0.20f),
+            radius = size.width * 0.7f,
+        ),
+        radius = size.width * 0.7f,
+        center = Offset(size.width * 0.85f, size.height * 0.20f),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.heroCloudWash() {
+    drawCircle(
+        brush = Brush.radialGradient(
+            0f to Color(0xFFCBD5E1).copy(alpha = 0.15f),
+            1f to Color.Transparent,
+            center = Offset(size.width * 0.25f, size.height * 0.35f),
+            radius = size.width * 0.6f,
+        ),
+        radius = size.width * 0.6f,
+        center = Offset(size.width * 0.25f, size.height * 0.35f),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.heroClouds(t: Float, windScalar: Float) {
+    val w = size.width
+    val h = size.height
+    val puffs = listOf(
+        Triple( 0.00f,  0.05f, 1.00f),
+        Triple(-0.55f,  0.15f, 0.70f),
+        Triple( 0.55f,  0.15f, 0.70f),
+        Triple(-0.30f, -0.25f, 0.80f),
+        Triple( 0.30f, -0.30f, 0.75f),
+        Triple( 0.00f, -0.45f, 0.55f),
+    )
+    fun puff(cx: Float, cy: Float, scale: Float, alpha: Float) {
+        if (alpha < 0.01f) return
+        puffs.forEach { (dx, dy, sf) ->
+            val r = scale * sf
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to Color(0xFFE5E7EB).copy(alpha = alpha),
+                    0.55f to Color(0xFFE5E7EB).copy(alpha = alpha * 0.5f),
+                    1f to Color.Transparent,
+                    center = Offset(cx + dx * scale, cy + dy * scale),
+                    radius = r,
+                ),
+                radius = r,
+                center = Offset(cx + dx * scale, cy + dy * scale),
+            )
+        }
+    }
+    val baseScale = h * 0.22f
+    listOf(
+        Triple(0.30f, 0.40f, Pair(0.20f, 0.00f)) to Triple(baseScale,        0.22f,  1f),
+        Triple(0.70f, 0.25f, Pair(0.16f, 0.42f)) to Triple(baseScale * 0.80f, 0.18f, -1f),
+        Triple(0.50f, 0.55f, Pair(0.22f, 0.78f)) to Triple(baseScale * 0.65f, 0.14f,  1f),
+    ).forEach { (a, b) ->
+        val (ax, ay, drift) = a
+        val (scale, maxAlpha, dir) = b
+        val periodFactor = 0.16f
+        val angle = ((t * periodFactor * windScalar + drift.second) % 1f) * 2f * PI.toFloat()
+        val cx = w * ax + sin(angle) * w * drift.first * dir
+        val cy = h * ay + sin(angle * 1.7f + 0.6f) * h * 0.04f
+        val fade = sin(angle).let { it * it }
+        val alpha = maxAlpha * fade
+        val s = scale * (0.92f + 0.16f * sin(angle * 0.5f + 1.2f))
+        puff(cx, cy, s, alpha)
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.heroRain(t: Float) {
+    val w = size.width
+    val h = size.height
+    val count = 42
+    for (i in 0 until count) {
+        val seed = (i * 73 + 11) % 100 / 100f
+        val x = w * (((i * 47) % 100) / 100f)
+        val travel = h + 60f
+        val y = ((t + seed) % 1f) * travel - 30f
+        val len = 14f + (i % 4) * 4f
+        drawLine(
+            color = Color(0xFF93C5FD).copy(alpha = 0.55f),
+            start = Offset(x, y),
+            end = Offset(x + 1.5f, y + len),
+            strokeWidth = 1.2f,
+            cap = StrokeCap.Round,
+        )
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.heroStorm(t: Float) {
+    val pulse = sin(t * PI.toFloat() * 2f) * 0.5f + 0.5f
+    val flash = if (((t * 8f) % 1f) > 0.92f) 0.28f else 0f
+    drawCircle(
+        brush = Brush.radialGradient(
+            0f to Color(0xFFA78BFA).copy(alpha = 0.22f * (0.4f + pulse * 0.6f) + flash),
+            1f to Color.Transparent,
+            center = Offset(size.width * 0.5f, size.height * 0.20f),
+            radius = size.width * 0.9f,
+        ),
+        radius = size.width * 0.9f,
+        center = Offset(size.width * 0.5f, size.height * 0.20f),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.heroStars(t: Float) {
+    val w = size.width
+    val h = size.height
+    repeat(34) { i ->
+        val seed = (i * 137 + 7) % 1000 / 1000f
+        val sx = w * (((i * 53) % 100) / 100f)
+        val sy = h * (((i * 31) % 95) / 100f)
+        val twinkle = 0.45f + 0.55f * (sin(t * 1.6f + seed * 6.28f) * 0.5f + 0.5f)
+        drawCircle(
+            color = Color(0xFFF8FAFC).copy(alpha = 0.10f + 0.35f * twinkle),
+            radius = 1.0f + (i % 3) * 0.4f,
+            center = Offset(sx, sy),
+        )
+    }
 }
