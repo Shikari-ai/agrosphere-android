@@ -15,5 +15,5 @@
         Paste it here, replacing the placeholder. Until you do, the Google button
         will surface a clear error instead of crashing.
     -->
-    <string name="default_web_client_id" translatable="false">REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
+    <string name="default_web_client_id" translatable="false">1059596626185-tm2t1nin4ggk250srl7do22mj1ughbnf.apps.googleusercontent.com</string>
 </resources>
