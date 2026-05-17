@@ -58,8 +58,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
 import com.agrosphere.app.data.model.Field
-import com.agrosphere.app.data.repo.MockRepository
+import com.agrosphere.app.data.repo.FieldRepository
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.ScreenTitle
 import com.agrosphere.app.ui.theme.AgroPalette
@@ -73,7 +74,7 @@ import kotlin.math.sin
 // ═════════════════════════════════════════════════════════════════════════════
 @Composable
 fun MapScreen(onBack: () -> Unit, onOpenField: (String) -> Unit) {
-    val fields = MockRepository.fields
+    val fields by FieldRepository.fields.collectAsState()
     var selected by remember { mutableStateOf(fields.firstOrNull()) }
     var layerStyle by remember { mutableStateOf(LayerStyle.Satellite) }
     var zoom by remember { mutableStateOf(1f) }

@@ -80,6 +80,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
+import com.agrosphere.app.data.repo.FieldRepository
 import com.agrosphere.app.data.repo.MockRepository
 import com.agrosphere.app.ui.components.GhostButton
 import com.agrosphere.app.ui.components.GlassCard
@@ -413,11 +415,12 @@ private fun Field(
 @Composable
 private fun MyFarmsPanel(snackbar: SnackbarHostState) {
     val scope = rememberCoroutineScope()
+    val fields by FieldRepository.fields.collectAsState()
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        items(MockRepository.fields) { field ->
+        items(fields) { field ->
             GlassCard(radius = 18.dp, padding = 14.dp, onClick = {
                 scope.launch { snackbar.showSnackbar("Open the Fields tab to manage ${field.name}.") }
             }) {

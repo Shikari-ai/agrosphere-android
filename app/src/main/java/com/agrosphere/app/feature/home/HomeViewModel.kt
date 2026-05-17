@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.agrosphere.app.data.auth.AuthRepository
 import com.agrosphere.app.data.model.AlertItem
 import com.agrosphere.app.data.model.WeatherSnapshot
+import com.agrosphere.app.data.repo.FieldRepository
 import com.agrosphere.app.data.repo.MockRepository
 import com.agrosphere.app.data.weather.WeatherRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,10 +38,10 @@ data class HomeUiState(
     val cropHealthVerdict: String = "Strong",
     val pestRiskLevel: String = "Low",
     val pestRiskBlip: Float = 0.25f,          // 0..1 — radius fraction
-    val fieldsCount: Int = MockRepository.fields.size,
-    val totalAreaHa: Double = MockRepository.fields.sumOf { it.areaHa },
-    val cropsCount: Int = MockRepository.fields.map { it.crop }.distinct().size,
-    val avgMoisture: Int = MockRepository.fields.map { it.moisturePct }.average().toInt(),
+    val fieldsCount: Int = 0,
+    val totalAreaHa: Double = 0.0,
+    val cropsCount: Int = 0,
+    val avgMoisture: Int = 0,
 )
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
@@ -58,6 +59,18 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                             ?: user?.email?.substringBefore('@')?.replaceFirstChar { c -> c.uppercase() }
                             ?: "farmer",
                         photoUrl = user?.photoUrl?.toString(),
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            FieldRepository.fields.collect { fields ->
+                _state.update {
+                    it.copy(
+                        fieldsCount = fields.size,
+                        totalAreaHa = fields.sumOf { f -> f.areaHa },
+                        cropsCount = fields.map { f -> f.crop }.distinct().size,
+                        avgMoisture = if (fields.isNotEmpty()) fields.map { f -> f.moisturePct }.average().toInt() else 0,
                     )
                 }
             }

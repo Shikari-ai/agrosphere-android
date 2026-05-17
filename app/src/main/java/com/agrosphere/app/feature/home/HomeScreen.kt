@@ -70,6 +70,7 @@ import coil.compose.AsyncImage
 import com.agrosphere.app.data.model.AlertItem
 import com.agrosphere.app.data.model.ConditionKind
 import com.agrosphere.app.data.model.WeatherSnapshot
+import com.agrosphere.app.data.repo.FieldRepository
 import com.agrosphere.app.data.repo.MockRepository
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.SectionHeader
@@ -839,8 +840,9 @@ private fun GlanceCard(item: GlanceItem, modifier: Modifier = Modifier) {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun MyFieldsCarousel(onOpenField: (String) -> Unit) {
+    val fields by FieldRepository.fields.collectAsState()
     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        items(MockRepository.fields) { field ->
+        items(fields) { field ->
             GlassCard(
                 modifier = Modifier.width(220.dp),
                 radius = 22.dp,

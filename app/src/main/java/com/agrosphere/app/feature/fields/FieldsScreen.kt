@@ -52,8 +52,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agrosphere.app.data.model.Field
-import com.agrosphere.app.data.repo.MockRepository
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.ScreenTitle
 import com.agrosphere.app.ui.theme.AgroPalette
@@ -67,15 +68,17 @@ fun FieldsScreen(
     padding: PaddingValues,
     onOpenField: (String) -> Unit,
     onOpenMap: () -> Unit = {},
+    vm: FieldsViewModel = viewModel(factory = FieldsViewModel.Factory),
 ) {
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(FilterChip.All) }
     var sort by remember { mutableStateOf(SortOrder.Health) }
+    var showAddSheet by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val all = MockRepository.fields
-    val filtered = remember(query, filter, sort) {
+    val all by vm.fields.collectAsState()
+    val filtered = remember(all, query, filter, sort) {
         all.asSequence()
             .filter { f ->
                 val q = query.trim().lowercase()
@@ -157,9 +160,7 @@ fun FieldsScreen(
         }
 
         FloatingActionButton(
-            onClick = {
-                scope.launch { snackbar.showSnackbar("Field creation flow lands in v1.1.") }
-            },
+            onClick = { showAddSheet = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(WindowInsets.statusBars)
@@ -177,6 +178,19 @@ fun FieldsScreen(
                 .fillMaxWidth()
                 .padding(16.dp)
                 .windowInsetsPadding(WindowInsets.statusBars),
+        )
+    }
+
+    if (showAddSheet) {
+        AddFieldSheet(
+            crops = vm.cropPresets,
+            stages = vm.stagePresets,
+            accents = vm.accentPresets,
+            onDismiss = { showAddSheet = false },
+            onSubmit = { name, crop, area, stage, moisture, accent ->
+                vm.addField(name, crop, area, stage, moisture, accent)
+                scope.launch { snackbar.showSnackbar("$name added.") }
+            },
         )
     }
 }

@@ -15,14 +15,10 @@ import com.agrosphere.app.ui.theme.AgroPalette
 
 object MockRepository {
 
-    val fields: List<Field> = listOf(
-        Field("f1", "North Paddock", "Wheat", 4.2, 86, 62, "Tillering", 38, AgroPalette.Primary),
-        Field("f2", "Lake Plot", "Soybean", 2.6, 71, 48, "Flowering", 64, AgroPalette.Sky),
-        Field("f3", "Hilltop", "Maize", 5.1, 92, 70, "V8", 52, AgroPalette.Amber),
-        Field("f4", "Riverside", "Rice", 3.4, 58, 84, "Booting", 71, AgroPalette.Iris),
-    )
+    /** Delegates to [FieldRepository] so additions/removals propagate everywhere. */
+    val fields: List<Field> get() = FieldRepository.current()
 
-    fun field(id: String): Field? = fields.firstOrNull { it.id == id }
+    fun field(id: String): Field? = FieldRepository.byId(id)
 
     val weekForecast: List<WeatherDay> = listOf(
         WeatherDay("Today", 31, 22, "Partly cloudy", 0, 54),
