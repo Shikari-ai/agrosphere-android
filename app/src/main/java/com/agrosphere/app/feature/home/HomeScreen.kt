@@ -53,7 +53,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -101,7 +103,7 @@ fun HomeScreen(
     vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
-    var showNotifications by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showNotifications by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         HomeBackdrop(isDay = state.timeOfDay.isDay)
