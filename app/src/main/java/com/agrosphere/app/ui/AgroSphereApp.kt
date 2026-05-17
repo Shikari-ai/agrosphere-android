@@ -22,10 +22,12 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.agrosphere.app.data.auth.AuthRepository
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -49,7 +51,10 @@ import com.agrosphere.app.ui.theme.AgroPalette
 @Composable
 fun AgroSphereApp() {
     val navController = rememberNavController()
-    var loggedIn by remember { mutableStateOf(false) }
+    // Observe Firebase auth state — drives both start destination + bottom-bar visibility.
+    val authRepo = remember { AuthRepository() }
+    val currentUser by authRepo.userFlow.collectAsState(initial = authRepo.currentUser)
+    val loggedIn = currentUser != null
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -83,7 +88,7 @@ fun AgroSphereApp() {
         ) {
             composable(Dest.Auth.route) {
                 AuthScreen(onAuthenticated = {
-                    loggedIn = true
+                    // Auth state is observed at the top; just navigate.
                     navController.navigate(Dest.Home.route) {
                         popUpTo(Dest.Auth.route) { inclusive = true }
                     }
@@ -121,7 +126,7 @@ fun AgroSphereApp() {
                 ProfileScreen(
                     onBack = { navController.popBackStack() },
                     onSignOut = {
-                        loggedIn = false
+                        authRepo.signOut()
                         navController.navigate(Dest.Auth.route) {
                             popUpTo(0) { inclusive = true }
                         }

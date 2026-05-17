@@ -1,6 +1,8 @@
 # AgroSphere — Android
 
-A brand-new native Android app inspired by the Agro Sphere web project (a "Farm OS" for smallholders). Built with **Kotlin + Jetpack Compose + Material 3**, single-module, no backend wired yet — runs on a fresh emulator out of the box against mock data so you can see the whole experience before any cloud setup.
+A brand-new native Android app inspired by the Agro Sphere web project (a "Farm OS" for smallholders). Built with **Kotlin + Jetpack Compose + Material 3**, single-module. Real Firebase Auth is wired (email + Google + anonymous) against the existing `agritech-4d1ba` project; the rest of the app still runs on a mock repository.
+
+> **First-time build:** You need a `google-services.json` for the project before the build will succeed. Full step-by-step in [`docs/FIREBASE_SETUP.md`](docs/FIREBASE_SETUP.md).
 
 ```
 android/

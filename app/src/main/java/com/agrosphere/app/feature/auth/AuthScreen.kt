@@ -81,6 +81,17 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.agrosphere.app.R
 import com.agrosphere.app.ui.components.GoogleLogo
 import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.theme.AgroBrushes
@@ -90,12 +101,33 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
-fun AuthScreen(onAuthenticated: () -> Unit) {
+fun AuthScreen(
+    onAuthenticated: () -> Unit,
+    vm: AuthViewModel = viewModel(factory = AuthViewModel.Factory),
+) {
     var tab by remember { mutableStateOf(0) } // 0 = Sign in, 1 = Sign up
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+
+    val state by vm.state.collectAsState()
+    val isLoading = state is AuthUiState.Loading
+    val context = LocalContext.current
+    val webClientId = stringResource(R.string.default_web_client_id)
+    val snackbar = remember { SnackbarHostState() }
+
+    // Surface auth errors via snackbar; route on success.
+    LaunchedEffect(state) {
+        when (val s = state) {
+            is AuthUiState.Success -> onAuthenticated()
+            is AuthUiState.Error -> {
+                snackbar.showSnackbar(message = s.message, duration = SnackbarDuration.Long)
+                vm.dismissError()
+            }
+            else -> Unit
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(AuthBackgroundBrush())) {
         // Animated background particle field
@@ -149,10 +181,11 @@ fun AuthScreen(onAuthenticated: () -> Unit) {
                             email = email,
                             password = password,
                             showPassword = showPassword,
+                            isLoading = isLoading,
                             onEmail = { email = it },
                             onPassword = { password = it },
                             onTogglePassword = { showPassword = !showPassword },
-                            onSubmit = onAuthenticated,
+                            onSubmit = { vm.signIn(email, password) },
                         )
                     } else {
                         SignUpForm(
@@ -160,11 +193,12 @@ fun AuthScreen(onAuthenticated: () -> Unit) {
                             email = email,
                             password = password,
                             showPassword = showPassword,
+                            isLoading = isLoading,
                             onName = { name = it },
                             onEmail = { email = it },
                             onPassword = { password = it },
                             onTogglePassword = { showPassword = !showPassword },
-                            onSubmit = onAuthenticated,
+                            onSubmit = { vm.signUp(name, email, password) },
                         )
                     }
                 }
@@ -177,14 +211,49 @@ fun AuthScreen(onAuthenticated: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    SocialButton(null, "Google", AgroPalette.Ink.copy(alpha = 0.85f), Modifier.weight(1f), googleLogo = true) { onAuthenticated() }
-                    SocialButton(null, "Phone", AgroPalette.Iris, Modifier.weight(1f), icon = Icons.Rounded.Phone) { onAuthenticated() }
+                    SocialButton(
+                        glyph = null, label = "Google",
+                        accent = AgroPalette.Ink.copy(alpha = 0.85f),
+                        modifier = Modifier.weight(1f),
+                        googleLogo = true,
+                    ) { vm.signInGoogle(context, webClientId) }
+                    SocialButton(
+                        glyph = null, label = "Phone",
+                        accent = AgroPalette.Iris,
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Rounded.Phone,
+                    ) {
+                        // Phone OTP not yet wired — fall back to guest for now.
+                        vm.signInAsGuest()
+                    }
                 }
             }
 
             Spacer(Modifier.height(20.dp))
-            GuestEntry(onClick = onAuthenticated)
+            GuestEntry(onClick = { vm.signInAsGuest() })
             Spacer(Modifier.height(16.dp))
+        }
+
+        // Snackbar host overlays the bottom of the screen.
+        SnackbarHost(
+            hostState = snackbar,
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(Alignment.Bottom)
+                .padding(16.dp)
+                .windowInsetsPadding(WindowInsets.systemBars),
+        )
+
+        // Centered loader overlay while a request is in flight.
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x66000000)),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = AgroPalette.Primary)
+            }
         }
     }
 }
@@ -417,6 +486,7 @@ private fun SignInForm(
     email: String,
     password: String,
     showPassword: Boolean,
+    isLoading: Boolean,
     onEmail: (String) -> Unit,
     onPassword: (String) -> Unit,
     onTogglePassword: () -> Unit,
@@ -457,9 +527,9 @@ private fun SignInForm(
         )
         Spacer(Modifier.height(10.dp))
         PrimaryButton(
-            text = "Continue",
+            text = if (isLoading) "Signing in…" else "Continue",
             icon = Icons.Rounded.ArrowForward,
-            enabled = email.isNotBlank() && password.length >= 4,
+            enabled = !isLoading && email.isNotBlank() && password.length >= 4,
             onClick = onSubmit,
         )
     }
@@ -471,6 +541,7 @@ private fun SignUpForm(
     email: String,
     password: String,
     showPassword: Boolean,
+    isLoading: Boolean,
     onName: (String) -> Unit,
     onEmail: (String) -> Unit,
     onPassword: (String) -> Unit,
@@ -509,9 +580,9 @@ private fun SignUpForm(
         )
         Spacer(Modifier.height(14.dp))
         PrimaryButton(
-            text = "Create account",
+            text = if (isLoading) "Creating…" else "Create account",
             icon = Icons.Rounded.ArrowForward,
-            enabled = name.isNotBlank() && email.isNotBlank() && password.length >= 6,
+            enabled = !isLoading && name.isNotBlank() && email.isNotBlank() && password.length >= 6,
             onClick = onSubmit,
         )
     }

@@ -2,4 +2,18 @@
 <resources>
     <string name="app_name">AgroSphere</string>
     <string name="app_tagline">Your fields. Smarter.</string>
+
+    <!--
+        OAuth 2.0 Web Client ID — required for Google Sign-In via Credential Manager.
+
+        Where to get it:
+          Firebase Console → Project settings → General →
+          "Your apps" section → Web SDK config → "Web client ID"
+          (alternatively: Google Cloud Console → APIs &amp; Services →
+           Credentials → OAuth 2.0 Client IDs → "Web client (auto created by Google Service)")
+
+        Paste it here, replacing the placeholder. Until you do, the Google button
+        will surface a clear error instead of crashing.
+    -->
+    <string name="default_web_client_id" translatable="false">REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
 </resources>
