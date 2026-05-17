@@ -38,6 +38,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.agrosphere.app.feature.assistant.AssistantScreen
 import com.agrosphere.app.feature.auth.AuthScreen
+import com.agrosphere.app.feature.copilot.CopilotScreen
 import com.agrosphere.app.feature.fields.FieldDetailScreen
 import com.agrosphere.app.feature.fields.FieldsScreen
 import com.agrosphere.app.feature.home.HomeScreen
@@ -104,6 +105,7 @@ fun AgroSphereApp() {
                     onOpenAssistant = { navController.navigate(Dest.Assistant.route) },
                     onOpenWeather = { navController.navigate(Dest.Weather.route) },
                     onOpenFields = { navController.navigate(Dest.Fields.route) },
+                    onOpenCopilot = { navController.navigate(Dest.Copilot.route) },
                 )
             }
             composable(Dest.Fields.route) {
@@ -124,6 +126,9 @@ fun AgroSphereApp() {
             }
             composable(Dest.Assistant.route) {
                 AssistantScreen(padding = innerPadding)
+            }
+            composable(Dest.Copilot.route) {
+                CopilotScreen(onBack = { navController.popBackStack() })
             }
             composable(Dest.Profile.route) {
                 ProfileScreen(

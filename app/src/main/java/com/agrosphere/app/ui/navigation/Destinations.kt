@@ -19,6 +19,7 @@ sealed class Dest(val route: String) {
     data object Scanner : Dest("scanner")
     data object Weather : Dest("weather")
     data object Assistant : Dest("assistant")
+    data object Copilot : Dest("copilot")
     data object Profile : Dest("profile")
     data object ProfileDetail : Dest("profile/{section}") {
         fun build(section: String) = "profile/$section"

@@ -95,6 +95,7 @@ fun HomeScreen(
     onOpenAssistant: () -> Unit,
     onOpenWeather: () -> Unit = {},
     onOpenFields: () -> Unit = {},
+    onOpenCopilot: () -> Unit = {},
     vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
@@ -128,7 +129,7 @@ fun HomeScreen(
                     onScan = onOpenScanner,
                     onAddField = onOpenFields,
                     onIrrigation = onOpenWeather,
-                    onCopilot = onOpenAssistant,
+                    onCopilot = onOpenCopilot,
                     onAssistant = onOpenAssistant,
                 )
             }
