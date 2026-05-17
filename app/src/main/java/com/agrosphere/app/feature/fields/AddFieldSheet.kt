@@ -81,7 +81,6 @@ fun AddFieldSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .imePadding()
-                .windowInsetsPadding(WindowInsets.ime)
                 .padding(horizontal = 22.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
