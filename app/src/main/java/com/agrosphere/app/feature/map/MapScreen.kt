@@ -132,6 +132,23 @@ fun MapScreen(onBack: () -> Unit, onOpenField: (String) -> Unit) {
             ) {
                 SelectedFieldCard(field = selected!!, layerStyle = layerStyle, onOpen = { onOpenField(selected!!.id) })
             }
+        } else if (fields.isEmpty()) {
+            // Friendly empty state in the centre of the map
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(32.dp),
+            ) {
+                GlassCard(radius = 22.dp, padding = 24.dp) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(androidx.compose.material.icons.Icons.Rounded.MyLocation, null, tint = AgroPalette.Sky, modifier = Modifier.size(34.dp))
+                        Spacer(Modifier.height(10.dp))
+                        Text("No fields to map yet", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Add a field from the Fields tab — it'll appear here.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                    }
+                }
+            }
         }
     }
 }

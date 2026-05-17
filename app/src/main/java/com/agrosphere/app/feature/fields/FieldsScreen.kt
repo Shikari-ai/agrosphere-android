@@ -153,8 +153,10 @@ fun FieldsScreen(
                 )
             }
             items(filtered, key = { it.id }) { field -> FieldRow(field = field, onClick = { onOpenField(field.id) }) }
-            if (filtered.isEmpty()) {
-                item { EmptyState() }
+            if (all.isEmpty()) {
+                item { FirstFieldHero(onAdd = { showAddSheet = true }) }
+            } else if (filtered.isEmpty()) {
+                item { FilteredEmptyState() }
             }
             item { Spacer(Modifier.height(72.dp)) }
         }
@@ -338,7 +340,7 @@ private fun FieldRow(field: Field, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EmptyState() {
+private fun FilteredEmptyState() {
     GlassCard(radius = 22.dp, padding = 28.dp) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Rounded.Search, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(40.dp))
@@ -349,6 +351,40 @@ private fun EmptyState() {
                 "Try clearing the search or switching filters.",
                 style = MaterialTheme.typography.bodySmall,
                 color = AgroPalette.InkMuted,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FirstFieldHero(onAdd: () -> Unit) {
+    GlassCard(
+        background = com.agrosphere.app.ui.theme.AgroBrushes.leafCard,
+        radius = 26.dp,
+        padding = 28.dp,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(AgroPalette.PrimaryDim),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Rounded.Grass, null, tint = AgroPalette.Primary, modifier = Modifier.size(36.dp)) }
+            Spacer(Modifier.height(14.dp))
+            Text("Add your first field", style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "AgroSphere comes alive once you tell it what you're growing.\nName a plot, pick a crop, set the area — takes 20 seconds.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = AgroPalette.InkMuted,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            Spacer(Modifier.height(16.dp))
+            com.agrosphere.app.ui.components.PrimaryButton(
+                text = "Add a field",
+                icon = Icons.Rounded.Add,
+                onClick = onAdd,
             )
         }
     }

@@ -42,12 +42,8 @@ object FieldRepository {
         _fields.update { list -> list.filterNot { it.id == id } }
     }
 
-    private fun initialFields(): List<Field> = listOf(
-        Field("f1", "North Paddock", "Wheat", 4.2, 86, 62, "Tillering", 38, AgroPalette.Primary),
-        Field("f2", "Lake Plot", "Soybean", 2.6, 71, 48, "Flowering", 64, AgroPalette.Sky),
-        Field("f3", "Hilltop", "Maize", 5.1, 92, 70, "V8", 52, AgroPalette.Amber),
-        Field("f4", "Riverside", "Rice", 3.4, 58, 84, "Booting", 71, AgroPalette.Iris),
-    )
+    /** Empty by default — every field comes from the user via Add Field. */
+    private fun initialFields(): List<Field> = emptyList()
 
     /** Preset accent colors offered in the Add field sheet. */
     val accentPresets: List<androidx.compose.ui.graphics.Color> = listOf(

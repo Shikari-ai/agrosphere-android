@@ -157,7 +157,7 @@ fun HomeScreen(
             item { AtAGlanceGrid(state = state) }
 
             item { SectionHeader(title = "My fields", trailing = "Manage all") }
-            item { MyFieldsCarousel(onOpenField = onOpenField) }
+            item { MyFieldsCarousel(onOpenField = onOpenField, onAddField = onOpenFields) }
 
             item { SectionHeader(title = "Insights") }
             item { InsightsCarousel() }
@@ -839,8 +839,28 @@ private fun GlanceCard(item: GlanceItem, modifier: Modifier = Modifier) {
 // My Fields carousel
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun MyFieldsCarousel(onOpenField: (String) -> Unit) {
+private fun MyFieldsCarousel(onOpenField: (String) -> Unit, onAddField: () -> Unit = {}) {
     val fields by FieldRepository.fields.collectAsState()
+    if (fields.isEmpty()) {
+        GlassCard(radius = 22.dp, padding = 18.dp, onClick = onAddField) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(AgroPalette.PrimaryDim),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Rounded.Grass, null, tint = AgroPalette.Primary) }
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("No fields yet", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                    Text("Tap to add your first plot — takes 20 seconds.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                }
+                Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.Primary)
+            }
+        }
+        return
+    }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(fields) { field ->
             GlassCard(

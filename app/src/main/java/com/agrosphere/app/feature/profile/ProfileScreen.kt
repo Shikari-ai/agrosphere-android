@@ -476,11 +476,20 @@ private fun StarsRow(rating: Float) {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun StatsGrid(onOpen: () -> Unit) {
+    val fields by com.agrosphere.app.data.repo.FieldRepository.fields.collectAsState()
     val stats = listOf(
-        Triple("Farms", "4", AgroPalette.Primary),
-        Triple("Area", "15.3 ha", AgroPalette.Sky),
-        Triple("Crops", "4 types", AgroPalette.Amber),
-        Triple("Avg health", "76", AgroPalette.Iris),
+        Triple("Farms", "${fields.size}", AgroPalette.Primary),
+        Triple(
+            "Area",
+            if (fields.isEmpty()) "—" else "%.1f ha".format(fields.sumOf { it.areaHa }),
+            AgroPalette.Sky,
+        ),
+        Triple("Crops", if (fields.isEmpty()) "—" else "${fields.map { it.crop }.distinct().size} types", AgroPalette.Amber),
+        Triple(
+            "Avg health",
+            if (fields.isEmpty()) "—" else "${fields.map { it.healthScore }.average().toInt()}",
+            AgroPalette.Iris,
+        ),
     )
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         stats.chunked(2).forEach { row ->

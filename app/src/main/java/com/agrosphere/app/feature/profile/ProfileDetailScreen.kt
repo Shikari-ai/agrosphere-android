@@ -179,11 +179,18 @@ private fun DetailTopBar(title: String, onBack: () -> Unit) {
 
 @Composable
 private fun FarmOverviewPanel() {
+    val fields by FieldRepository.fields.collectAsState()
     val stats = listOf(
-        StatItem("Total farms", "4", "active", AgroPalette.Primary, "+1 this month"),
-        StatItem("Total area", "15.3", "ha mapped", AgroPalette.Sky, "Mapped"),
-        StatItem("Crops", "4", "types tracked", Color(0xFF84CC16), "All season"),
-        StatItem("Avg health", "76", "last 30 days", AgroPalette.Iris, "Good"),
+        StatItem("Total farms", "${fields.size}", if (fields.isEmpty()) "—" else "active", AgroPalette.Primary, if (fields.isEmpty()) "Empty" else "Live"),
+        StatItem("Total area", if (fields.isEmpty()) "—" else "%.1f".format(fields.sumOf { it.areaHa }), "ha mapped", AgroPalette.Sky, if (fields.isEmpty()) "—" else "Mapped"),
+        StatItem("Crops", "${fields.map { it.crop }.distinct().size}", "types tracked", Color(0xFF84CC16), if (fields.isEmpty()) "—" else "All season"),
+        StatItem(
+            label = "Avg health",
+            value = if (fields.isEmpty()) "—" else "${fields.map { it.healthScore }.average().toInt()}",
+            sub = "last 30 days",
+            tint = AgroPalette.Iris,
+            pill = if (fields.isEmpty()) "—" else "Good",
+        ),
     )
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
@@ -199,7 +206,15 @@ private fun FarmOverviewPanel() {
             }
         }
         item { SectionHeader(title = "Recent activity") }
-        items(sampleActivity()) { a -> ActivityRow(a) }
+        if (fields.isEmpty()) {
+            item {
+                GlassCard(radius = 16.dp, padding = 14.dp) {
+                    Text("No activity yet — add a field and your operations will show up here.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                }
+            }
+        } else {
+            items(sampleActivity()) { a -> ActivityRow(a) }
+        }
         item { Spacer(Modifier.height(40.dp)) }
     }
 }
@@ -420,6 +435,19 @@ private fun MyFarmsPanel(snackbar: SnackbarHostState) {
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        if (fields.isEmpty()) {
+            item {
+                GlassCard(radius = 22.dp, padding = 24.dp) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Rounded.Grass, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(36.dp))
+                        Spacer(Modifier.height(10.dp))
+                        Text("You haven't added any fields yet.", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Open the Fields tab to add your first plot.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                    }
+                }
+            }
+        }
         items(fields) { field ->
             GlassCard(radius = 18.dp, padding = 14.dp, onClick = {
                 scope.launch { snackbar.showSnackbar("Open the Fields tab to manage ${field.name}.") }
