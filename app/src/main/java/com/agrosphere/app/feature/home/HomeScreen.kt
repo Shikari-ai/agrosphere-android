@@ -601,64 +601,85 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCloudWash() {
 }
 
 /**
- * Puffy cluster of soft circles with radial alpha falloff — looks like a real
- * cloud, not a sliding rectangle. Each cloud is a fixed silhouette of
- * overlapping puff offsets relative to its centre; only the centre drifts.
+ * Hovering puffy clouds. Each one is a cluster of soft radial circles that
+ * fades into view, drifts gently along a sinusoidal path with vertical wobble,
+ * then dissolves back out. No conveyor belt — every cloud has its own period,
+ * direction, and lifecycle phase, so the card breathes naturally.
  */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDriftingClouds(t: Float) {
     val w = size.width
     val h = size.height
 
-    // Silhouette of a cloud as relative (dx, dy, radiusFraction) puffs around
-    // the cloud's centre. Hand-tuned for a fluffy cumulus feel.
+    // Cumulus silhouette — offsets relative to cloud centre.
     val puffs = listOf(
-        Triple( 0.00f,  0.05f, 1.00f),   // main belly
-        Triple(-0.55f,  0.15f, 0.70f),   // left lower lump
-        Triple( 0.55f,  0.15f, 0.70f),   // right lower lump
-        Triple(-0.30f, -0.25f, 0.80f),   // upper-left bulge
-        Triple( 0.30f, -0.30f, 0.75f),   // upper-right bulge
-        Triple( 0.00f, -0.45f, 0.55f),   // top crown
-        Triple(-0.85f,  0.20f, 0.45f),   // far-left wisp
-        Triple( 0.85f,  0.25f, 0.50f),   // far-right wisp
+        Triple( 0.00f,  0.05f, 1.00f),
+        Triple(-0.55f,  0.15f, 0.70f),
+        Triple( 0.55f,  0.15f, 0.70f),
+        Triple(-0.30f, -0.25f, 0.80f),
+        Triple( 0.30f, -0.30f, 0.75f),
+        Triple( 0.00f, -0.45f, 0.55f),
+        Triple(-0.85f,  0.20f, 0.45f),
+        Triple( 0.85f,  0.25f, 0.50f),
     )
 
-    fun puffCloud(centerX: Float, centerY: Float, scale: Float, alpha: Float) {
+    fun puffCloud(cx: Float, cy: Float, scale: Float, alpha: Float) {
+        if (alpha < 0.01f) return // entirely faded — skip the whole draw
         puffs.forEach { (dx, dy, sizeFraction) ->
             val radius = scale * sizeFraction
-            val cx = centerX + dx * scale
-            val cy = centerY + dy * scale
+            val px = cx + dx * scale
+            val py = cy + dy * scale
             drawCircle(
                 brush = Brush.radialGradient(
                     0f to Color(0xFFE5E7EB).copy(alpha = alpha),
                     0.55f to Color(0xFFE5E7EB).copy(alpha = alpha * 0.5f),
                     1f to Color.Transparent,
-                    center = Offset(cx, cy),
+                    center = Offset(px, py),
                     radius = radius,
                 ),
                 radius = radius,
-                center = Offset(cx, cy),
+                center = Offset(px, py),
             )
         }
     }
 
-    /**
-     * Drift each cloud continuously left → right. The wrap from end back to
-     * start happens while the cloud silhouette is entirely off-canvas (we
-     * leave extra padding equal to the cloud's outer radius), so no visible
-     * snap-back.
-     */
-    fun cloudAt(phase: Float, yFrac: Float, scale: Float, alpha: Float) {
-        val pad = scale * 1.5f // cloud silhouette half-width including far wisps
-        val totalTravel = w + pad * 2f
-        val phaseT = ((t + phase) % 1f)
-        val cx = -pad + phaseT * totalTravel
-        val cy = h * yFrac
-        puffCloud(cx, cy, scale, alpha)
-    }
+    // Each cloud has a unique base anchor + drift radius + period + phase.
+    // localPhase ∈ 0..1 cycles independently per cloud.
+    data class CloudSpec(
+        val anchorX: Float, val anchorY: Float,
+        val driftX: Float, val wobbleY: Float,
+        val periodFactor: Float, val phaseOffset: Float,
+        val baseScale: Float, val maxAlpha: Float,
+        val driftDirection: Float,
+    )
 
     val baseScale = h * 0.22f
-    cloudAt(phase = 0.00f, yFrac = 0.40f, scale = baseScale,        alpha = 0.18f)
-    cloudAt(phase = 0.55f, yFrac = 0.25f, scale = baseScale * 0.75f, alpha = 0.13f)
+    val clouds = listOf(
+        // (anchor, drift, period, phase, scale, alpha, dir)
+        CloudSpec(0.30f, 0.40f, 0.20f, 0.06f, 0.55f, 0.00f, baseScale,        0.22f,  1f),
+        CloudSpec(0.70f, 0.25f, 0.16f, 0.05f, 0.38f, 0.42f, baseScale * 0.80f, 0.18f, -1f),
+        CloudSpec(0.50f, 0.55f, 0.22f, 0.04f, 0.28f, 0.78f, baseScale * 0.65f, 0.14f,  1f),
+    )
+
+    clouds.forEach { c ->
+        // Each cloud's own clock — independent period gives organic feel.
+        val localPhase = ((t * c.periodFactor + c.phaseOffset) % 1f)
+        val angle = localPhase * 2f * PI.toFloat()
+
+        // Drift along a horizontal sine wave (direction signed), plus a small
+        // vertical wobble at a different rate so the path doesn't loop visibly.
+        val cx = w * c.anchorX + sin(angle) * w * c.driftX * c.driftDirection
+        val cy = h * c.anchorY + sin(angle * 1.7f + 0.6f) * h * c.wobbleY
+
+        // Alpha bell-curve over the cycle: invisible → visible → invisible.
+        // sin(angle) maps to 0..1 alpha when squared.
+        val fade = (sin(angle).let { it * it }) // 0..1 with bell shape
+        val alpha = c.maxAlpha * fade
+
+        // Subtle scale pulse so the cloud breathes while it hovers.
+        val scale = c.baseScale * (0.92f + 0.16f * sin(angle * 0.5f + 1.2f))
+
+        puffCloud(cx, cy, scale, alpha)
+    }
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainStreaks(t: Float) {
