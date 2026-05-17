@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -281,7 +282,7 @@ private fun CenterOrb(active: Boolean, hasResponse: Boolean) {
         )
         // Rotating sweep ring
         Canvas(modifier = Modifier.size((124 * scale).dp)) {
-            androidx.compose.ui.graphics.drawscope.withTransform({ rotate(rot) }) {
+            withTransform({ rotate(rot) }) {
                 drawCircle(
                     brush = Brush.sweepGradient(
                         listOf(

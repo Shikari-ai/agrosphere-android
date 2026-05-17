@@ -30,6 +30,8 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Email
@@ -140,7 +142,7 @@ fun ProfileScreen(
                     onClick = { onOpenSection(ProfileSections.LEARNING) })
             }
             item {
-                MenuItem(androidx.compose.material.icons.Icons.Rounded.Public, "Regional intelligence", "Anonymous network — 23 farms nearby", Color(0xFF22D3EE),
+                MenuItem(Icons.Rounded.Public, "Regional intelligence", "Anonymous network — 23 farms nearby", Color(0xFF22D3EE),
                     onClick = onOpenRegional)
             }
 
@@ -189,7 +191,7 @@ fun ProfileScreen(
                     onClick = { onOpenSection(ProfileSections.ABOUT) })
             }
             item {
-                MenuItem(androidx.compose.material.icons.Icons.Rounded.Code, "Developer panel", "Logs, flags, test injection", AgroPalette.Iris,
+                MenuItem(Icons.Rounded.Code, "Developer panel", "Logs, flags, test injection", AgroPalette.Iris,
                     onClick = onOpenDeveloper)
             }
 

@@ -27,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Grass
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material3.FloatingActionButton
@@ -125,7 +126,7 @@ fun FieldsScreen(
                             .padding(start = 12.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(androidx.compose.material.icons.Icons.Rounded.Map, null, tint = AgroPalette.Sky, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.Map, null, tint = AgroPalette.Sky, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Map", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
                         }
