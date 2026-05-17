@@ -2,6 +2,7 @@ package com.agrosphere.app.feature.home
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -405,14 +406,27 @@ private fun initialsOf(name: String): String {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap: () -> Unit) {
+    val kind = snapshot?.kind ?: ConditionKind.Cloudy
+    val temp = snapshot?.tempC ?: 0
     val (icon, tint) = if (snapshot != null) iconAndTintFor(snapshot.kind) else Icons.Rounded.Cloud to AgroPalette.InkMuted
-    GlassCard(
-        background = AgroBrushes.coolCard,
-        radius = 24.dp,
-        padding = 18.dp,
-        onClick = onTap,
+    val tempColor = colorForTemp(temp, snapshot != null)
+
+    val shape = RoundedCornerShape(24.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(weatherCardBrush(kind, temp), shape)
+            .border(1.dp, AgroPalette.SurfaceGlassBorder, shape)
+            .clickable(onClick = onTap),
     ) {
-        Column {
+        // Live atmospheric overlay tied to the current condition.
+        WeatherAtmosphere(
+            kind = kind,
+            modifier = Modifier.matchParentSize().clip(shape),
+        )
+
+        Column(modifier = Modifier.padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -429,8 +443,8 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             snapshot?.let { "${it.tempC}°" } ?: "—",
-                            style = MaterialTheme.typography.displayLarge.copy(fontSize = 56.sp),
-                            color = AgroPalette.Ink,
+                            style = MaterialTheme.typography.displayLarge.copy(fontSize = 60.sp),
+                            color = tempColor,
                             fontWeight = FontWeight.Black,
                         )
                         Spacer(Modifier.width(10.dp))
@@ -442,20 +456,28 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
                         )
                     }
                 }
+                // Pulsing condition icon halo
+                val tr = rememberInfiniteTransition(label = "icon-pulse")
+                val pulse by tr.animateFloat(
+                    0.55f, 1f,
+                    infiniteRepeatable(tween(2200), RepeatMode.Reverse),
+                    label = "p",
+                )
                 Box(
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(78.dp)
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
-                                0f to tint.copy(alpha = 0.25f),
+                                0f to tint.copy(alpha = 0.35f * pulse),
+                                0.7f to tint.copy(alpha = 0.08f * pulse),
                                 1f to Color.Transparent,
                             )
                         ),
                     contentAlignment = Alignment.Center,
-                ) { Icon(icon, null, tint = tint, modifier = Modifier.size(42.dp)) }
+                ) { Icon(icon, null, tint = tint, modifier = Modifier.size(44.dp)) }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -481,6 +503,167 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
                 }
             }
         }
+    }
+}
+
+/** Backgrounds per condition; rotated through a warm/cold lerp by temperature. */
+private fun weatherCardBrush(kind: ConditionKind, tempC: Int): Brush {
+    // 0..1 hotness — 0°C = cold, 40°C = scorching.
+    val heat = ((tempC + 5) / 45f).coerceIn(0f, 1f)
+    val warmTint = androidx.compose.ui.graphics.lerp(
+        Color(0x111E40AF), // cool steel-blue tint
+        Color(0x22F59E0B), // warm amber tint
+        heat,
+    )
+    return when (kind) {
+        ConditionKind.Clear -> Brush.linearGradient(
+            listOf(Color(0xFF1F2937).blendOver(warmTint), Color(0xFF0F172A))
+        )
+        ConditionKind.PartlyCloudy -> Brush.linearGradient(
+            listOf(Color(0xFF1E293B).blendOver(warmTint), Color(0xFF0B1220))
+        )
+        ConditionKind.Cloudy -> Brush.linearGradient(
+            listOf(Color(0xFF1F2937), Color(0xFF111827))
+        )
+        ConditionKind.Rain -> Brush.linearGradient(
+            listOf(Color(0xFF0F2A3F), Color(0xFF06121C))
+        )
+        ConditionKind.Storm -> Brush.linearGradient(
+            listOf(Color(0xFF1A1335), Color(0xFF06030F))
+        )
+        ConditionKind.Night -> Brush.linearGradient(
+            listOf(Color(0xFF050B18), Color(0xFF02040A))
+        )
+    }
+}
+
+private fun Color.blendOver(other: Color): Color =
+    androidx.compose.ui.graphics.lerp(this, other.copy(alpha = 1f), other.alpha)
+
+/** Temperature colours the temp number itself — cold = blue, hot = orange/red. */
+private fun colorForTemp(tempC: Int, hasData: Boolean): Color {
+    if (!hasData) return AgroPalette.Ink
+    return when {
+        tempC < 5 -> Color(0xFF60A5FA)   // icy blue
+        tempC < 15 -> Color(0xFFA5B4FC)  // cool indigo
+        tempC < 25 -> AgroPalette.Ink    // neutral comfort
+        tempC < 32 -> Color(0xFFFCD34D)  // warm amber
+        tempC < 38 -> Color(0xFFFB923C)  // hot orange
+        else -> Color(0xFFEF4444)        // scorch red
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Atmospheric overlay — picks a Canvas animation by condition.
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun WeatherAtmosphere(kind: ConditionKind, modifier: Modifier = Modifier) {
+    val tr = rememberInfiniteTransition(label = "weather-fx")
+    val t by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(4_000, easing = LinearEasing)), label = "t")
+
+    Canvas(modifier = modifier) {
+        when (kind) {
+            ConditionKind.Clear -> drawSunHalo()
+            ConditionKind.PartlyCloudy -> { drawSunHalo(); drawDriftingClouds(t) }
+            ConditionKind.Cloudy -> drawDriftingClouds(t)
+            ConditionKind.Rain -> { drawCloudWash(); drawRainStreaks(t) }
+            ConditionKind.Storm -> { drawStormPulse(t); drawRainStreaks(t) }
+            ConditionKind.Night -> drawStarfield(t)
+        }
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunHalo() {
+    drawCircle(
+        brush = Brush.radialGradient(
+            0f to Color(0xFFFCD34D).copy(alpha = 0.30f),
+            0.55f to Color(0xFFF59E0B).copy(alpha = 0.06f),
+            1f to Color.Transparent,
+            center = Offset(size.width * 0.85f, size.height * 0.15f),
+            radius = size.width * 0.7f,
+        ),
+        radius = size.width * 0.7f,
+        center = Offset(size.width * 0.85f, size.height * 0.15f),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCloudWash() {
+    drawCircle(
+        brush = Brush.radialGradient(
+            0f to Color(0xFFCBD5E1).copy(alpha = 0.12f),
+            1f to Color.Transparent,
+            center = Offset(size.width * 0.25f, size.height * 0.3f),
+            radius = size.width * 0.6f,
+        ),
+        radius = size.width * 0.6f,
+        center = Offset(size.width * 0.25f, size.height * 0.3f),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDriftingClouds(t: Float) {
+    // Two translucent ovals drifting horizontally.
+    val drift = (t * size.width * 0.4f) % size.width
+    val cloudColor = Color(0xFFE5E7EB).copy(alpha = 0.10f)
+    drawOval(
+        color = cloudColor,
+        topLeft = Offset(drift - size.width * 0.3f, size.height * 0.15f),
+        size = androidx.compose.ui.geometry.Size(size.width * 0.5f, size.height * 0.2f),
+    )
+    drawOval(
+        color = cloudColor.copy(alpha = 0.07f),
+        topLeft = Offset(size.width - drift, size.height * 0.05f),
+        size = androidx.compose.ui.geometry.Size(size.width * 0.6f, size.height * 0.2f),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainStreaks(t: Float) {
+    val w = size.width
+    val h = size.height
+    val count = 36
+    for (i in 0 until count) {
+        val seed = (i * 73 + 11) % 100 / 100f
+        val x = w * (((i * 47) % 100) / 100f)
+        val travel = h + 60f
+        val y = ((t + seed) % 1f) * travel - 30f
+        val len = 12f + (i % 4) * 4f
+        drawLine(
+            color = Color(0xFF93C5FD).copy(alpha = 0.55f),
+            start = Offset(x, y),
+            end = Offset(x + 1.5f, y + len),
+            strokeWidth = 1.2f,
+            cap = StrokeCap.Round,
+        )
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStormPulse(t: Float) {
+    val pulse = sin(t * PI.toFloat() * 2f) * 0.5f + 0.5f
+    val flash = if (((t * 8f) % 1f) > 0.92f) 0.25f else 0f
+    drawCircle(
+        brush = Brush.radialGradient(
+            0f to Color(0xFFA78BFA).copy(alpha = 0.20f * (0.4f + pulse * 0.6f) + flash),
+            1f to Color.Transparent,
+            center = Offset(size.width * 0.5f, size.height * 0.20f),
+            radius = size.width * 0.9f,
+        ),
+        radius = size.width * 0.9f,
+        center = Offset(size.width * 0.5f, size.height * 0.20f),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStarfield(t: Float) {
+    val w = size.width
+    val h = size.height
+    repeat(28) { i ->
+        val seed = (i * 137 + 7) % 1000 / 1000f
+        val sx = w * (((i * 53) % 100) / 100f)
+        val sy = h * (((i * 31) % 95) / 100f)
+        val twinkle = 0.45f + 0.55f * (sin(t * 1.6f + seed * 6.28f) * 0.5f + 0.5f)
+        drawCircle(
+            color = Color(0xFFF8FAFC).copy(alpha = 0.10f + 0.35f * twinkle),
+            radius = 1.0f + (i % 3) * 0.4f,
+            center = Offset(sx, sy),
+        )
     }
 }
 
