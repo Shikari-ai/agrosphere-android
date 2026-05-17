@@ -17,21 +17,4 @@
     -->
     <string name="default_web_client_id" translatable="false">1059596626185-tm2t1nin4ggk250srl7do22mj1ughbnf.apps.googleusercontent.com</string>
 
-    <!--
-        Google Maps API key — required for the "Draw field on map" picker.
-
-        Where to get it:
-          Google Cloud Console (same project as Firebase: agritech-4d1ba)
-          → APIs &amp; Services → Library → enable "Maps SDK for Android"
-          → Credentials → Create Credentials → API key
-          → Restrict to Android apps:
-              package: com.agrosphere.app.debug + com.agrosphere.app
-              SHA-1:   33:AD:38:43:A9:BD:A9:89:BC:C5:98:D9:CD:AD:D1:1D:76:A5:22:5A
-                       (same debug SHA-1 you already added to Firebase)
-
-        Paste the key here, replacing the placeholder. Until you do, the
-        map screen will render grey with a "For development purposes only"
-        watermark — but tap-to-draw + area calc still work.
-    -->
-    <string name="maps_api_key" translatable="false">REPLACE_WITH_MAPS_API_KEY</string>
 </resources>

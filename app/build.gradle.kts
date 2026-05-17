@@ -85,10 +85,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.play.services.location)
 
-    // Google Maps (field picker — satellite + polygon area)
-    implementation(libs.play.services.maps)
-    implementation(libs.maps.compose)
-    implementation(libs.android.maps.utils)
+    // Mission-Planner-style satellite map (Esri WorldImagery via osmdroid).
+    implementation(libs.osmdroid.android)
 
     debugImplementation(libs.androidx.ui.tooling)
 

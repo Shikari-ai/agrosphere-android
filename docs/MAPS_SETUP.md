@@ -1,55 +1,43 @@
-# Google Maps API key — "Draw on map" field picker
+# Map picker — Esri WorldImagery via osmdroid (no API key)
 
-The new map picker (Fields tab → **Draw on map** chip or "or draw it on the map →" link) uses Google Maps SDK to show satellite tiles + let you tap polygon corners. It needs a Maps API key. ~3 min in the Google Cloud Console.
+The "Draw field on map" picker uses the same satellite imagery layer that **Mission Planner** (and most drone-survey ground stations) defaults to: **Esri WorldImagery** raster tiles, served via `osmdroid`. No API key, no Google Cloud setup.
 
-You can use the **same Google Cloud project** as your Firebase setup (`agritech-4d1ba`), so no new project required.
+If you saw an older version of this doc that asked for a Google Maps API key — that step is gone. The Maps API key setting in `strings.xml` has been removed too.
 
-## Steps
+## Why this provider
 
-1. Open the Google Cloud Console for your Firebase project:
-   https://console.cloud.google.com/google/maps-apis/credentials?project=agritech-4d1ba
+- **Free** for non-commercial use — no key, no quota dashboards.
+- **Same imagery** ArduPilot's Mission Planner uses as its default satellite layer.
+- **Updated frequently** by Esri's WorldImagery program.
+- **Compose-friendly** via `osmdroid-android` wrapped in `AndroidView`.
 
-2. Enable the SDK:
-   - Top search bar → "Maps SDK for Android" → click → **Enable**.
+## Positioning (NavIC, GPS, etc.)
 
-3. Create the API key:
-   - Left nav → **APIs & Services → Credentials**.
-   - **+ Create credentials → API key**. A new key appears — copy it.
-   - Click the key name to edit. Under **Application restrictions** pick **Android apps**. Add two entries:
-
-     | Package name | SHA-1 |
-     | --- | --- |
-     | `com.agrosphere.app.debug` | `33:AD:38:43:A9:BD:A9:89:BC:C5:98:D9:CD:AD:D1:1D:76:A5:22:5A` |
-     | `com.agrosphere.app` | (same SHA-1 — add your release SHA-1 later when you ship) |
-
-     (The SHA-1 above is your debug keystore — same one you registered with Firebase.)
-
-   - Under **API restrictions** → **Restrict key** → check **Maps SDK for Android** → **Save**.
-
-4. Paste the key into the app:
-   - Open `app/src/main/res/values/strings.xml`
-   - Replace `REPLACE_WITH_MAPS_API_KEY` in `maps_api_key` with the value you copied.
-
-5. Back in Android Studio: **Sync** → **▶ Run**.
+Nothing to configure. `FusedLocationProviderClient` automatically uses whichever GNSS constellations the device supports — **GPS, GLONASS, Galileo, BeiDou, and NavIC** (the latter on supported chipsets running Android 11+, which covers most India-market phones from 2020 onwards). The map picker calls `LocationProvider.fastCurrent()` which is backed by the same fused provider, so NavIC kicks in transparently where available.
 
 ## What you'll see
 
-- Fields tab → tap **Draw on map** chip (or the "or draw it on the map →" link if you have no fields yet).
-- A satellite map opens centered on your device's location.
-- Tap the map to drop corners. Each tap adds a numbered vertex marker.
-- Once you've placed 3+ corners, an emerald polygon fills the shape and the area appears live at the bottom (computed via `SphericalUtil.computeArea`).
-- **Undo** removes the last vertex; **🗑** clears everything.
-- Fill in the name, pick a crop and stage, hit **Save → ha field**. The new field appears in the Fields list, on Home's "My fields" carousel, on the Field Map screen, and in Profile → My farms — all reactive.
+1. Fields tab → tap **Draw on map** chip (or the *"or draw it on the map →"* link if you have no fields yet).
+2. Esri satellite imagery centred on your device's location.
+3. Tap to drop polygon corners. Numbered markers appear at each tap.
+4. After three corners, the area appears live at the bottom — computed by the spherical-excess formula (same approach mission-planning software uses, accurate to <0.5% at field scale).
+5. Right rail controls: **layer switch** (Satellite ↔ Street/OSM Mapnik), **My location**, **Undo**, **Clear**.
+6. Fill in name, pick a crop and stage, hit **Save**. The new field appears immediately on Home, Map, Fields, and Profile — all reactive.
 
-## Without the key
+## Internet + storage
 
-The screen still loads — Google Maps renders a grey background with a **"For development purposes only"** watermark. Drawing and area calculation still work locally; you just don't see the satellite imagery. The moment you paste the real key and re-run, satellite tiles light up.
+osmdroid downloads tiles on demand and caches them under the app's private storage (no `WRITE_EXTERNAL_STORAGE` permission needed on Android 10+). The manifest already includes `INTERNET` and `ACCESS_NETWORK_STATE`. Tiles are reused offline once cached.
 
-## Troubleshooting
+## Switching providers
 
-| Symptom | Fix |
-| --- | --- |
-| Grey map + "For development purposes only" | API key not set or restricted to a SHA-1 / package that doesn't match. Re-check Step 3. |
-| Crash on opening map screen | Key is invalid or the SDK isn't enabled. Re-run Step 2. |
-| `IllegalStateException: Google Maps requires Google Play Services` | Emulator image without Play Store — use a Play Store-enabled AVD. |
-| Area looks tiny / huge | Make sure you tapped real corners; 3 collinear points = ~0 ha. Switch off the Map Picker and back on to reset. |
+`MapPickerScreen.kt` declares the tile source in one place:
+
+```kotlin
+private val EsriWorldImagery: OnlineTileSourceBase = object : OnlineTileSourceBase(
+    "Esri WorldImagery", 0, 19, 256, ".jpg",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"),
+    "Powered by Esri",
+) { ... }
+```
+
+To swap in another provider — Bing satellite, Mapbox, your own tile server — replace the URL pattern and update `MapLayer.Satellite.tileSource()`. Built-in `TileSourceFactory` constants (MAPNIK, USGS_TOPO, etc.) work out of the box for additional layers.

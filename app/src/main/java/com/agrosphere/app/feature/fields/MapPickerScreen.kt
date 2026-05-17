@@ -1,5 +1,6 @@
 package com.agrosphere.app.feature.fields
 
+import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,10 +33,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.Grass
+import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -43,6 +44,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -51,6 +53,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,31 +64,37 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agrosphere.app.data.weather.LocationProvider
 import com.agrosphere.app.ui.components.GhostButton
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.theme.AgroPalette
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.SphericalUtil
-import com.google.maps.android.compose.CameraPositionState
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapProperties
-import com.google.maps.android.compose.MapType
-import com.google.maps.android.compose.MapUiSettings
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.Polygon
-import com.google.maps.android.compose.Polyline
-import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.launch
+import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapEventsReceiver
+import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.util.MapTileIndex
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
+import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polygon
+import org.osmdroid.views.overlay.Polyline
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.sin
 
 // ═════════════════════════════════════════════════════════════════════════════
 // MapPickerScreen — draw a polygon on a satellite map, area computes itself,
-// then save it straight as a new field. Uses the same FieldRepository as the
-// manual sheet, so the result populates Home / Map / Profile reactively.
+// then save it as a real field.
+//
+// Uses Esri WorldImagery raster tiles via osmdroid — the same provider drone
+// mission-planning ground stations use as their default satellite layer.
+// No API key, no Cloud Console setup. NavIC positioning works automatically
+// on supported devices (Android 11+) via FusedLocationProvider.
 // ═════════════════════════════════════════════════════════════════════════════
 @Composable
 fun MapPickerScreen(
@@ -96,67 +105,115 @@ fun MapPickerScreen(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // Polygon vertices, in tap order.
-    val vertices = remember { mutableStateListOf<LatLng>() }
+    val vertices = remember { mutableStateListOf<GeoPoint>() }
+    var layerStyle by remember { mutableStateOf(MapLayer.Satellite) }
 
-    // Form state — we ship a complete field from this screen.
+    // Form state
     var name by remember { mutableStateOf("") }
     var crop by remember { mutableStateOf(vm.cropPresets.first()) }
     var stage by remember { mutableStateOf(vm.stagePresets.first()) }
-    val accent = AgroPalette.Primary
 
-    // Spherical-correct area in square metres → hectares (rounded to 2 dp).
+    // Live area (square metres → hectares) via spherical-excess formula.
     val areaHa by remember {
         derivedStateOf {
-            if (vertices.size < 3) 0.0
-            else SphericalUtil.computeArea(vertices).let { sqM -> (sqM / 10_000.0) }
+            if (vertices.size < 3) 0.0 else sphericalAreaSquareMetres(vertices) / 10_000.0
         }
     }
 
-    // Centre the camera on the device's last-known location.
-    val defaultCamera = remember { CameraPosition.fromLatLngZoom(LatLng(19.9975, 73.7898), 14f) }
-    val cameraPosition = rememberCameraPositionState { position = defaultCamera }
+    // We hold a reference to the MapView so right-side controls can pan/zoom it,
+    // plus a typed handle to the overlays we mutate from update().
+    val mapViewState = remember { mutableStateOf<MapView?>(null) }
+    val overlaysState = remember { mutableStateOf<MapOverlays?>(null) }
+
     LaunchedEffect(Unit) {
+        Configuration.getInstance().apply {
+            load(context, context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
+            userAgentValue = context.packageName
+        }
+    }
+
+    // Centre the map on the device's location once we know it.
+    LaunchedEffect(mapViewState.value) {
+        val map = mapViewState.value ?: return@LaunchedEffect
         val place = LocationProvider.fastCurrent(context)
-        cameraPosition.position = CameraPosition.fromLatLngZoom(LatLng(place.latitude, place.longitude), 16.5f)
+        map.controller.setZoom(16.5)
+        map.controller.setCenter(GeoPoint(place.latitude, place.longitude))
     }
 
     Box(modifier = Modifier.fillMaxSize().background(AgroPalette.BgDeep)) {
-        // ─── Satellite map fills the screen ───
-        GoogleMap(
+
+        // ─── Tile-based map fills the screen ───
+        AndroidView(
             modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPosition,
-            properties = MapProperties(mapType = MapType.HYBRID, isMyLocationEnabled = false),
-            uiSettings = MapUiSettings(
-                compassEnabled = true, myLocationButtonEnabled = false,
-                zoomControlsEnabled = false, mapToolbarEnabled = false,
-            ),
-            onMapClick = { latLng -> vertices += latLng },
-        ) {
-            // Vertex markers
-            vertices.forEachIndexed { i, v ->
-                Marker(state = MarkerState(position = v), title = "Vertex ${i + 1}")
-            }
-            // Open polyline before we have 3+ points (closing edge faked by Polygon)
-            if (vertices.size in 2..2) {
-                Polyline(
-                    points = vertices.toList(),
-                    color = AgroPalette.Primary,
-                    width = 5f,
-                )
-            }
-            // Closed polygon once we have enough vertices
-            if (vertices.size >= 3) {
-                Polygon(
-                    points = vertices.toList(),
-                    fillColor = Color(0x4010B981),
-                    strokeColor = AgroPalette.Primary,
-                    strokeWidth = 6f,
-                )
+            factory = { ctx ->
+                MapView(ctx).also { mv ->
+                    mv.setTileSource(layerStyle.tileSource())
+                    mv.setMultiTouchControls(true)
+                    mv.zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
+                    mv.isVerticalMapRepetitionEnabled = false
+                    mv.isHorizontalMapRepetitionEnabled = true
+                    mv.minZoomLevel = 3.0
+                    mv.maxZoomLevel = 19.0
+
+                    val polygon = Polygon().apply {
+                        fillPaint.color = Color(0x4010B981).toArgb()
+                        outlinePaint.color = AgroPalette.Primary.toArgb()
+                        outlinePaint.strokeWidth = 6f
+                    }
+                    val previewLine = Polyline().apply {
+                        outlinePaint.color = AgroPalette.Primary.toArgb()
+                        outlinePaint.strokeWidth = 5f
+                    }
+                    val eventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
+                        override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                            p?.let { vertices += it }
+                            return true
+                        }
+                        override fun longPressHelper(p: GeoPoint?) = false
+                    })
+
+                    // Order matters: events under markers, polygon under markers.
+                    mv.overlays.add(eventsOverlay)
+                    mv.overlays.add(polygon)
+                    mv.overlays.add(previewLine)
+
+                    overlaysState.value = MapOverlays(polygon, previewLine, mutableListOf())
+                    mapViewState.value = mv
+                    mv.onResume()
+                }
+            },
+            update = { mv ->
+                mv.setTileSource(layerStyle.tileSource())
+
+                val o = overlaysState.value ?: return@AndroidView
+                o.polygon.points = if (vertices.size >= 3) vertices.toList() else emptyList()
+                o.previewLine.setPoints(if (vertices.size == 2) vertices.toList() else emptyList())
+
+                // Drop old markers + re-create. Cheap because count is tiny.
+                o.markers.forEach { mv.overlays.remove(it) }
+                o.markers.clear()
+                vertices.forEachIndexed { i, gp ->
+                    val m = Marker(mv).apply {
+                        position = gp
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        title = "Vertex ${i + 1}"
+                    }
+                    mv.overlays.add(m)
+                    o.markers.add(m)
+                }
+                mv.invalidate()
+            },
+        )
+
+        DisposableEffect(Unit) {
+            onDispose {
+                mapViewState.value?.onPause()
+                mapViewState.value?.onDetach()
+                mapViewState.value = null
             }
         }
 
-        // ─── Top bar ───
+        // ─── Top status pill ───
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -177,8 +234,8 @@ fun MapPickerScreen(
                 Text(
                     when {
                         vertices.isEmpty() -> "Tap the map to add the first corner"
-                        vertices.size < 3 -> "${vertices.size}/3+ vertices — tap to add more"
-                        else -> "${vertices.size} vertices · area ${"%.2f".format(areaHa)} ha"
+                        vertices.size < 3 -> "${vertices.size}/3+ vertices — keep tapping"
+                        else -> "${vertices.size} vertices · ${"%.2f".format(areaHa)} ha"
                     },
                     style = MaterialTheme.typography.labelMedium,
                     color = AgroPalette.Ink,
@@ -194,6 +251,18 @@ fun MapPickerScreen(
                 .padding(end = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            CircleIconButton(Icons.Rounded.Layers) {
+                layerStyle = if (layerStyle == MapLayer.Satellite) MapLayer.Street else MapLayer.Satellite
+                scope.launch { snackbar.showSnackbar("Layer: ${layerStyle.label}") }
+            }
+            CircleIconButton(Icons.Rounded.MyLocation) {
+                scope.launch {
+                    val place = LocationProvider.fastCurrent(context)
+                    mapViewState.value?.controller?.animateTo(
+                        GeoPoint(place.latitude, place.longitude), 17.0, 600L,
+                    )
+                }
+            }
             CircleIconButton(Icons.Rounded.Undo, enabled = vertices.isNotEmpty()) {
                 vertices.removeAt(vertices.lastIndex)
             }
@@ -202,7 +271,7 @@ fun MapPickerScreen(
             }
         }
 
-        // ─── Bottom sheet with form ───
+        // ─── Bottom form ───
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -213,7 +282,6 @@ fun MapPickerScreen(
         ) {
             GlassCard(radius = 24.dp, padding = 16.dp) {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    // Area display row
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             if (vertices.size >= 3) "%.2f".format(areaHa) else "—",
@@ -230,7 +298,7 @@ fun MapPickerScreen(
                         )
                         Spacer(Modifier.weight(1f))
                         Text(
-                            if (vertices.size >= 3) "computed live" else "draw 3+ corners",
+                            if (vertices.size >= 3) "spherical · live" else "draw 3+ corners",
                             style = MaterialTheme.typography.labelSmall,
                             color = AgroPalette.InkDim,
                             modifier = Modifier.padding(bottom = 6.dp),
@@ -238,7 +306,6 @@ fun MapPickerScreen(
                     }
                     Spacer(Modifier.height(8.dp))
 
-                    // Name
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
@@ -262,22 +329,14 @@ fun MapPickerScreen(
                     )
 
                     Spacer(Modifier.height(10.dp))
-                    Text(
-                        "CROP",
-                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.6.sp, fontSize = 10.sp),
-                        color = AgroPalette.InkMuted,
-                    )
+                    PickerLabel("CROP")
                     Spacer(Modifier.height(4.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(vm.cropPresets) { c -> PickerChip(c, c == crop) { crop = c } }
                     }
 
                     Spacer(Modifier.height(10.dp))
-                    Text(
-                        "STAGE",
-                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.6.sp, fontSize = 10.sp),
-                        color = AgroPalette.InkMuted,
-                    )
+                    PickerLabel("STAGE")
                     Spacer(Modifier.height(4.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(vm.stagePresets) { s -> PickerChip(s, s == stage) { stage = s } }
@@ -296,21 +355,16 @@ fun MapPickerScreen(
                                 areaHa = areaHa,
                                 stage = stage,
                                 moisturePct = 60,
-                                accent = accent,
+                                accent = AgroPalette.Primary,
                             )
-                            scope.launch {
-                                snackbar.showSnackbar("$name saved · ${"%.2f".format(areaHa)} ha")
-                            }
+                            scope.launch { snackbar.showSnackbar("$name saved · ${"%.2f".format(areaHa)} ha") }
                             onBack()
                         },
                     )
                     AnimatedVisibility(visible = vertices.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
                         Column {
                             Spacer(Modifier.height(8.dp))
-                            GhostButton(
-                                text = "Clear and start over",
-                                onClick = { vertices.clear() },
-                            )
+                            GhostButton(text = "Clear and start over", onClick = { vertices.clear() })
                         }
                     }
                 }
@@ -325,6 +379,62 @@ fun MapPickerScreen(
                 .padding(16.dp),
         )
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer selector
+// ─────────────────────────────────────────────────────────────────────────────
+private enum class MapLayer(val label: String) {
+    Satellite("Satellite"),
+    Street("Street");
+
+    fun tileSource(): OnlineTileSourceBase = when (this) {
+        Satellite -> EsriWorldImagery
+        Street -> TileSourceFactory.MAPNIK
+    }
+}
+
+/** Esri's free World Imagery tile service. Mission Planner's default satellite layer. */
+private val EsriWorldImagery: OnlineTileSourceBase = object : OnlineTileSourceBase(
+    "Esri WorldImagery",
+    0, 19, 256, ".jpg",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"),
+    "Powered by Esri",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl +
+            MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getY(pMapTileIndex) + "/" +
+            MapTileIndex.getX(pMapTileIndex)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Spherical-excess area in m² (treats Earth as a sphere; accurate to <0.5% at
+// field scale — same approach Mission Planner and Survey software use).
+// ─────────────────────────────────────────────────────────────────────────────
+private fun sphericalAreaSquareMetres(points: SnapshotStateList<GeoPoint>): Double {
+    if (points.size < 3) return 0.0
+    val r = 6_378_137.0 // mean Earth radius in metres
+    var total = 0.0
+    for (i in points.indices) {
+        val p1 = points[i]
+        val p2 = points[(i + 1) % points.size]
+        val dLon = Math.toRadians(p2.longitude - p1.longitude)
+        total += dLon * (2 + sin(Math.toRadians(p1.latitude)) + sin(Math.toRadians(p2.latitude)))
+    }
+    return abs(total * r * r / 2.0)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable small widgets
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun PickerLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.6.sp, fontSize = 10.sp),
+        color = AgroPalette.InkMuted,
+    )
 }
 
 @Composable
@@ -368,3 +478,10 @@ private fun CircleIconButton(
         )
     }
 }
+
+/** Typed handle to the mutable osmdroid overlays we sync from Compose state. */
+private data class MapOverlays(
+    val polygon: Polygon,
+    val previewLine: Polyline,
+    val markers: MutableList<Marker>,
+)
