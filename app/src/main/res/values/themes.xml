@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.AgroSphere" parent="android:Theme.Material.NoActionBar">
+    <!--
+        Parent is Theme.AppCompat.DayNight.NoActionBar — needed because
+        MainActivity extends AppCompatActivity (so AppCompatDelegate.setApplicationLocales
+        works on Android <13). Compose draws its own UI so the AppCompat parent
+        only contributes window flags + AppCompat's per-app locale plumbing.
+    -->
+    <style name="Theme.AgroSphere" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>

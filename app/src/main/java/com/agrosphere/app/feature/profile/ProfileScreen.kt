@@ -177,8 +177,13 @@ fun ProfileScreen(
                 )
             }
             item {
-                MenuItem(Icons.Rounded.Language, "Language", "English (auto)", AgroPalette.Amber,
-                    onClick = { onOpenSection(ProfileSections.LANGUAGE) })
+                MenuItem(
+                    icon = Icons.Rounded.Language,
+                    title = androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.profile_menu_language),
+                    subtitle = com.agrosphere.app.data.i18n.LocaleManager.currentDisplayLabel(),
+                    tint = AgroPalette.Amber,
+                    onClick = { onOpenSection(ProfileSections.LANGUAGE) },
+                )
             }
 
             item { GroupLabel("Support") }
