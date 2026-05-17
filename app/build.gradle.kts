@@ -88,6 +88,9 @@ dependencies {
     // Mission-Planner-style satellite map (Esri WorldImagery via osmdroid).
     implementation(libs.osmdroid.android)
 
+    // Per-app locale switching (works on Android <13 too).
+    implementation(libs.androidx.appcompat)
+
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)

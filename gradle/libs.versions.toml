@@ -23,6 +23,7 @@ coroutinesPlayServices = "1.9.0"
 playServicesLocation = "21.3.0"
 kotlinxSerialization = "1.7.3"
 osmdroid = "6.1.20"
+appcompat = "1.7.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -67,6 +68,9 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # No API key required — same provider drone ground stations use as their
 # default satellite layer.
 osmdroid-android = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
+
+# AppCompat — needed for AppCompatDelegate.setApplicationLocales on Android <13
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }

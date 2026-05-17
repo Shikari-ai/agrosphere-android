@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_tagline">உங்கள் வயல்கள். மிக சாமர்த்தியமாக.</string>
+
+    <string name="nav_home">முகப்பு</string>
+    <string name="nav_fields">வயல்கள்</string>
+    <string name="nav_scan">ஸ்கேன்</string>
+    <string name="nav_weather">வானிலை</string>
+    <string name="nav_ask">கேள்</string>
+
+    <string name="greeting_morning">காலை வணக்கம்</string>
+    <string name="greeting_afternoon">மதிய வணக்கம்</string>
+    <string name="greeting_evening">மாலை வணக்கம்</string>
+    <string name="greeting_night">இனிய இரவு</string>
+
+    <string name="status_all_systems_active">அனைத்து அமைப்புகளும் இயங்குகின்றன</string>
+    <string name="status_degraded">சேவை குறைந்துள்ளது</string>
+
+    <string name="action_scan_crop">பயிர் ஸ்கேன்</string>
+    <string name="action_add_field">வயல் சேர்</string>
+    <string name="action_irrigation">நீர்ப்பாசனம்</string>
+    <string name="action_ai_copilot">AI கூட்டுப் பைலட்</string>
+    <string name="action_ai_assistant">AI உதவியாளர்</string>
+
+    <string name="weather_now">இப்போதைய வானிலை</string>
+    <string name="weather_humidity">ஈரப்பதம்</string>
+    <string name="weather_wind">காற்று</string>
+    <string name="weather_rain">மழை</string>
+    <string name="weather_view_forecast">முன்னறிவிப்பு பார்</string>
+    <string name="weather_feels_like">உணரப்படுகிறது %1$d°</string>
+    <string name="weather_sunrise">சூரிய உதயம் %1$s</string>
+
+    <string name="section_field_operations">வயல் வேலைகள்</string>
+    <string name="section_recent_alerts">சமீபத்திய எச்சரிக்கைகள்</string>
+    <string name="section_crop_health">பயிர் நலன்</string>
+    <string name="section_pest_prediction">பூச்சி முன்னறிவிப்பு</string>
+    <string name="section_at_a_glance">ஒரே பார்வையில்</string>
+    <string name="section_my_fields">என் வயல்கள்</string>
+    <string name="section_insights">நுண்ணறிவுகள்</string>
+    <string name="section_see_all">அனைத்தும் காட்டு</string>
+    <string name="section_view_all">அனைத்தும் பார்</string>
+    <string name="section_view_details">விவரங்கள் பார்</string>
+    <string name="section_manage_all">அனைத்தையும் நிர்வகி</string>
+
+    <string name="empty_no_fields_title">இன்னும் வயல்கள் இல்லை</string>
+    <string name="empty_no_fields_body">உங்கள் முதல் வயலை சேர்க்க தட்டவும் — 20 விநாடிகள் போதும்.</string>
+    <string name="empty_no_alerts_title">இப்போது எச்சரிக்கைகள் இல்லை</string>
+    <string name="empty_first_field_title">உங்கள் முதல் வயலை சேர்க்கவும்</string>
+    <string name="empty_first_field_body">நீங்கள் என்ன பயிரிடுகிறீர்கள் என்று சொன்னவுடன் AgroSphere உயிர் பெறுகிறது.\nவயலுக்கு பெயரிடுங்கள், பயிரைத் தேர்வு செய்யுங்கள், பரப்பளவை அமைக்கவும் — 20 விநாடிகள் போதும்.</string>
+
+    <string name="profile_title">சுயவிவரம்</string>
+    <string name="profile_sign_out">வெளியேறு</string>
+    <string name="profile_section_farm">பண்ணை</string>
+    <string name="profile_section_intelligence">இன்டெலிஜென்ஸ்</string>
+    <string name="profile_section_account">கணக்கு</string>
+    <string name="profile_section_support">உதவி</string>
+    <string name="profile_menu_farm_overview">பண்ணை மேற்பார்வை</string>
+    <string name="profile_menu_my_farms">என் வயல்கள்</string>
+    <string name="profile_menu_subscription">சந்தா</string>
+    <string name="profile_menu_ai_prefs">AI விருப்பங்கள்</string>
+    <string name="profile_menu_ai_reliability">AI நம்பகத்தன்மை</string>
+    <string name="profile_menu_learning">கற்றல் வளர்ச்சி</string>
+    <string name="profile_menu_account_settings">கணக்கு அமைப்புகள்</string>
+    <string name="profile_menu_notifications">அறிவிப்புகள்</string>
+    <string name="profile_menu_language">மொழி</string>
+    <string name="profile_menu_help">உதவி &amp; ஆதரவு</string>
+    <string name="profile_menu_about">AgroSphere பற்றி</string>
+    <string name="profile_menu_regional">பிராந்திய இன்டெலிஜென்ஸ்</string>
+    <string name="profile_menu_developer">டெவலப்பர் பேனல்</string>
+
+    <string name="common_save">சேமி</string>
+    <string name="common_cancel">ரத்து செய்</string>
+    <string name="common_edit">திருத்து</string>
+    <string name="common_continue">தொடர்க</string>
+    <string name="common_retry">மீண்டும் முயற்சி</string>
+    <string name="common_search">தேடு</string>
+    <string name="common_add">சேர்</string>
+</resources>

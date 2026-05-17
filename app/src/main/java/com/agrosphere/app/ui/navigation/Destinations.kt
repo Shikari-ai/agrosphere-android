@@ -1,5 +1,6 @@
 package com.agrosphere.app.ui.navigation
 
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CameraAlt
@@ -8,6 +9,7 @@ import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.agrosphere.app.R
 
 sealed class Dest(val route: String) {
     data object Auth : Dest("auth")
@@ -48,14 +50,14 @@ object ProfileSections {
 
 data class TabItem(
     val dest: Dest,
-    val label: String,
+    @StringRes val labelRes: Int,
     val icon: ImageVector,
 )
 
 val BottomTabs = listOf(
-    TabItem(Dest.Home, "Home", Icons.Rounded.Home),
-    TabItem(Dest.Fields, "Fields", Icons.Rounded.Grass),
-    TabItem(Dest.Scanner, "Scan", Icons.Rounded.CameraAlt),
-    TabItem(Dest.Weather, "Weather", Icons.Rounded.Cloud),
-    TabItem(Dest.Assistant, "Ask", Icons.Rounded.AutoAwesome),
+    TabItem(Dest.Home, R.string.nav_home, Icons.Rounded.Home),
+    TabItem(Dest.Fields, R.string.nav_fields, Icons.Rounded.Grass),
+    TabItem(Dest.Scanner, R.string.nav_scan, Icons.Rounded.CameraAlt),
+    TabItem(Dest.Weather, R.string.nav_weather, Icons.Rounded.Cloud),
+    TabItem(Dest.Assistant, R.string.nav_ask, Icons.Rounded.AutoAwesome),
 )

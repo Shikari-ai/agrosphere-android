@@ -1,20 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">AgroSphere</string>
+    <!-- Brand -->
+    <string name="app_name" translatable="false">AgroSphere</string>
     <string name="app_tagline">Your fields. Smarter.</string>
 
-    <!--
-        OAuth 2.0 Web Client ID — required for Google Sign-In via Credential Manager.
-
-        Where to get it:
-          Firebase Console → Project settings → General →
-          "Your apps" section → Web SDK config → "Web client ID"
-          (alternatively: Google Cloud Console → APIs &amp; Services →
-           Credentials → OAuth 2.0 Client IDs → "Web client (auto created by Google Service)")
-
-        Paste it here, replacing the placeholder. Until you do, the Google button
-        will surface a clear error instead of crashing.
-    -->
+    <!-- OAuth Web client (not translated) -->
     <string name="default_web_client_id" translatable="false">1059596626185-tm2t1nin4ggk250srl7do22mj1ughbnf.apps.googleusercontent.com</string>
 
+    <!-- Bottom navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_fields">Fields</string>
+    <string name="nav_scan">Scan</string>
+    <string name="nav_weather">Weather</string>
+    <string name="nav_ask">Ask</string>
+
+    <!-- Greetings -->
+    <string name="greeting_morning">Good morning</string>
+    <string name="greeting_afternoon">Good afternoon</string>
+    <string name="greeting_evening">Good evening</string>
+    <string name="greeting_night">Good night</string>
+
+    <!-- Status -->
+    <string name="status_all_systems_active">All systems active</string>
+    <string name="status_degraded">Degraded service</string>
+
+    <!-- Home quick actions -->
+    <string name="action_scan_crop">Scan crop</string>
+    <string name="action_add_field">Add field</string>
+    <string name="action_irrigation">Irrigation</string>
+    <string name="action_ai_copilot">AI copilot</string>
+    <string name="action_ai_assistant">AI assistant</string>
+
+    <!-- Weather card labels -->
+    <string name="weather_now">Right now</string>
+    <string name="weather_humidity">Humidity</string>
+    <string name="weather_wind">Wind</string>
+    <string name="weather_rain">Rain</string>
+    <string name="weather_view_forecast">View forecast</string>
+    <string name="weather_feels_like">feels like %1$d°</string>
+    <string name="weather_sunrise">Sunrise %1$s</string>
+
+    <!-- Home sections -->
+    <string name="section_field_operations">Field operations</string>
+    <string name="section_recent_alerts">Recent alerts</string>
+    <string name="section_crop_health">Crop health monitor</string>
+    <string name="section_pest_prediction">Pest prediction</string>
+    <string name="section_at_a_glance">At a glance</string>
+    <string name="section_my_fields">My fields</string>
+    <string name="section_insights">Insights</string>
+    <string name="section_see_all">See all</string>
+    <string name="section_view_all">View all</string>
+    <string name="section_view_details">View details</string>
+    <string name="section_manage_all">Manage all</string>
+
+    <!-- Empty states -->
+    <string name="empty_no_fields_title">No fields yet</string>
+    <string name="empty_no_fields_body">Tap to add your first plot — takes 20 seconds.</string>
+    <string name="empty_no_alerts_title">No alerts right now</string>
+    <string name="empty_first_field_title">Add your first field</string>
+    <string name="empty_first_field_body">AgroSphere comes alive once you tell it what you\'re growing.\nName a plot, pick a crop, set the area — takes 20 seconds.</string>
+
+    <!-- Profile -->
+    <string name="profile_title">Profile</string>
+    <string name="profile_sign_out">Sign out</string>
+    <string name="profile_section_farm">Farm</string>
+    <string name="profile_section_intelligence">Intelligence</string>
+    <string name="profile_section_account">Account</string>
+    <string name="profile_section_support">Support</string>
+    <string name="profile_menu_farm_overview">Farm overview</string>
+    <string name="profile_menu_my_farms">My farms</string>
+    <string name="profile_menu_subscription">Subscription</string>
+    <string name="profile_menu_ai_prefs">AI preferences</string>
+    <string name="profile_menu_ai_reliability">AI reliability</string>
+    <string name="profile_menu_learning">Learning evolution</string>
+    <string name="profile_menu_account_settings">Account settings</string>
+    <string name="profile_menu_notifications">Notifications</string>
+    <string name="profile_menu_language">Language</string>
+    <string name="profile_menu_help">Help &amp; support</string>
+    <string name="profile_menu_about">About AgroSphere</string>
+    <string name="profile_menu_regional">Regional intelligence</string>
+    <string name="profile_menu_developer">Developer panel</string>
+
+    <!-- Common verbs -->
+    <string name="common_save">Save</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_edit">Edit</string>
+    <string name="common_continue">Continue</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_search">Search</string>
+    <string name="common_add">Add</string>
 </resources>

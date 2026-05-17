@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_tagline">તમારા ખેતરો. વધુ સ્માર્ટ.</string>
+
+    <string name="nav_home">હોમ</string>
+    <string name="nav_fields">ખેતરો</string>
+    <string name="nav_scan">સ્કેન</string>
+    <string name="nav_weather">હવામાન</string>
+    <string name="nav_ask">પૂછો</string>
+
+    <string name="greeting_morning">સુપ્રભાત</string>
+    <string name="greeting_afternoon">શુભ બપોર</string>
+    <string name="greeting_evening">શુભ સંધ્યા</string>
+    <string name="greeting_night">શુભ રાત્રિ</string>
+
+    <string name="status_all_systems_active">તમામ સિસ્ટમ સક્રિય</string>
+    <string name="status_degraded">સેવા ઘટેલી</string>
+
+    <string name="action_scan_crop">પાક સ્કેન</string>
+    <string name="action_add_field">ખેતર ઉમેરો</string>
+    <string name="action_irrigation">સિંચાઈ</string>
+    <string name="action_ai_copilot">AI કોપાયલટ</string>
+    <string name="action_ai_assistant">AI સહાયક</string>
+
+    <string name="weather_now">હાલનું હવામાન</string>
+    <string name="weather_humidity">ભેજ</string>
+    <string name="weather_wind">પવન</string>
+    <string name="weather_rain">વરસાદ</string>
+    <string name="weather_view_forecast">આગાહી જુઓ</string>
+    <string name="weather_feels_like">અનુભવાય %1$d°</string>
+    <string name="weather_sunrise">સૂર્યોદય %1$s</string>
+
+    <string name="section_field_operations">ખેત કાર્યો</string>
+    <string name="section_recent_alerts">તાજેતરની ચેતવણીઓ</string>
+    <string name="section_crop_health">પાક આરોગ્ય</string>
+    <string name="section_pest_prediction">જીવાત આગાહી</string>
+    <string name="section_at_a_glance">એક નજરમાં</string>
+    <string name="section_my_fields">મારા ખેતરો</string>
+    <string name="section_insights">અંતર્દૃષ્ટિ</string>
+    <string name="section_see_all">બધું જુઓ</string>
+    <string name="section_view_all">બધું જુઓ</string>
+    <string name="section_view_details">વિગતો જુઓ</string>
+    <string name="section_manage_all">બધું મેનેજ કરો</string>
+
+    <string name="empty_no_fields_title">હજુ સુધી કોઈ ખેતર નથી</string>
+    <string name="empty_no_fields_body">તમારું પ્રથમ ખેતર ઉમેરવા ટેપ કરો — માત્ર 20 સેકન્ડ.</string>
+    <string name="empty_no_alerts_title">હાલમાં કોઈ ચેતવણી નથી</string>
+    <string name="empty_first_field_title">તમારું પ્રથમ ખેતર ઉમેરો</string>
+    <string name="empty_first_field_body">તમે શું ઉગાવો છો તે જણાવો ત્યારે જ AgroSphere જીવંત થાય છે.\nખેતરનું નામ આપો, પાક પસંદ કરો, વિસ્તાર નક્કી કરો — માત્ર 20 સેકન્ડ.</string>
+
+    <string name="profile_title">પ્રોફાઇલ</string>
+    <string name="profile_sign_out">સાઇન આઉટ</string>
+    <string name="profile_section_farm">ખેત</string>
+    <string name="profile_section_intelligence">ઇન્ટેલિજન્સ</string>
+    <string name="profile_section_account">ખાતું</string>
+    <string name="profile_section_support">સહાય</string>
+    <string name="profile_menu_farm_overview">ખેત સારાંશ</string>
+    <string name="profile_menu_my_farms">મારા ખેતરો</string>
+    <string name="profile_menu_subscription">સબ્સ્ક્રિપ્શન</string>
+    <string name="profile_menu_ai_prefs">AI પસંદગીઓ</string>
+    <string name="profile_menu_ai_reliability">AI વિશ્વસનીયતા</string>
+    <string name="profile_menu_learning">શીખવાનું ઉત્ક્રાંતિ</string>
+    <string name="profile_menu_account_settings">ખાતું સેટિંગ્સ</string>
+    <string name="profile_menu_notifications">સૂચનાઓ</string>
+    <string name="profile_menu_language">ભાષા</string>
+    <string name="profile_menu_help">મદદ &amp; સહાય</string>
+    <string name="profile_menu_about">AgroSphere વિશે</string>
+    <string name="profile_menu_regional">પ્રાદેશિક ઇન્ટેલિજન્સ</string>
+    <string name="profile_menu_developer">ડેવલપર પેનલ</string>
+
+    <string name="common_save">સાચવો</string>
+    <string name="common_cancel">રદ કરો</string>
+    <string name="common_edit">સંપાદન</string>
+    <string name="common_continue">આગળ ચાલુ રાખો</string>
+    <string name="common_retry">ફરીથી પ્રયાસ</string>
+    <string name="common_search">શોધો</string>
+    <string name="common_add">ઉમેરો</string>
+</resources>

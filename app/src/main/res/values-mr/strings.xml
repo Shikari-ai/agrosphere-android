@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_tagline">तुमची शेतं. अजून स्मार्ट.</string>
+
+    <string name="nav_home">होम</string>
+    <string name="nav_fields">शेतं</string>
+    <string name="nav_scan">स्कॅन</string>
+    <string name="nav_weather">हवामान</string>
+    <string name="nav_ask">विचारा</string>
+
+    <string name="greeting_morning">शुभ सकाळ</string>
+    <string name="greeting_afternoon">शुभ दुपार</string>
+    <string name="greeting_evening">शुभ संध्याकाळ</string>
+    <string name="greeting_night">शुभ रात्र</string>
+
+    <string name="status_all_systems_active">सर्व यंत्रणा सक्रिय</string>
+    <string name="status_degraded">सेवा खंडित</string>
+
+    <string name="action_scan_crop">पीक स्कॅन</string>
+    <string name="action_add_field">शेत जोडा</string>
+    <string name="action_irrigation">सिंचन</string>
+    <string name="action_ai_copilot">AI कोपायलट</string>
+    <string name="action_ai_assistant">AI सहाय्यक</string>
+
+    <string name="weather_now">आत्ताचे हवामान</string>
+    <string name="weather_humidity">आर्द्रता</string>
+    <string name="weather_wind">वारा</string>
+    <string name="weather_rain">पाऊस</string>
+    <string name="weather_view_forecast">अंदाज पहा</string>
+    <string name="weather_feels_like">जाणवते %1$d°</string>
+    <string name="weather_sunrise">सूर्योदय %1$s</string>
+
+    <string name="section_field_operations">शेत कामे</string>
+    <string name="section_recent_alerts">अलीकडील सूचना</string>
+    <string name="section_crop_health">पीक आरोग्य</string>
+    <string name="section_pest_prediction">कीड अंदाज</string>
+    <string name="section_at_a_glance">एका दृष्टीक्षेपात</string>
+    <string name="section_my_fields">माझी शेतं</string>
+    <string name="section_insights">अंतर्दृष्टी</string>
+    <string name="section_see_all">सर्व पहा</string>
+    <string name="section_view_all">सर्व पहा</string>
+    <string name="section_view_details">तपशील पहा</string>
+    <string name="section_manage_all">सर्व व्यवस्थापित करा</string>
+
+    <string name="empty_no_fields_title">अद्याप शेत नाही</string>
+    <string name="empty_no_fields_body">तुमचे पहिले शेत जोडण्यासाठी टॅप करा — फक्त 20 सेकंद.</string>
+    <string name="empty_no_alerts_title">सध्या कोणतीही सूचना नाही</string>
+    <string name="empty_first_field_title">तुमचे पहिले शेत जोडा</string>
+    <string name="empty_first_field_body">तुम्ही काय पिकवत आहात हे सांगितल्यावरच AgroSphere जिवंत होतो.\nशेताला नाव द्या, पीक निवडा, क्षेत्रफळ टाका — फक्त 20 सेकंद.</string>
+
+    <string name="profile_title">प्रोफाइल</string>
+    <string name="profile_sign_out">साइन आउट</string>
+    <string name="profile_section_farm">शेत</string>
+    <string name="profile_section_intelligence">इंटेलिजन्स</string>
+    <string name="profile_section_account">खाते</string>
+    <string name="profile_section_support">मदत</string>
+    <string name="profile_menu_farm_overview">शेताचा आढावा</string>
+    <string name="profile_menu_my_farms">माझी शेतं</string>
+    <string name="profile_menu_subscription">सदस्यता</string>
+    <string name="profile_menu_ai_prefs">AI पसंती</string>
+    <string name="profile_menu_ai_reliability">AI विश्वासार्हता</string>
+    <string name="profile_menu_learning">शिकण्याची प्रगती</string>
+    <string name="profile_menu_account_settings">खाते सेटिंग्ज</string>
+    <string name="profile_menu_notifications">सूचना</string>
+    <string name="profile_menu_language">भाषा</string>
+    <string name="profile_menu_help">मदत व समर्थन</string>
+    <string name="profile_menu_about">AgroSphere बद्दल</string>
+    <string name="profile_menu_regional">प्रादेशिक इंटेलिजन्स</string>
+    <string name="profile_menu_developer">डेव्हलपर पॅनेल</string>
+
+    <string name="common_save">जतन करा</string>
+    <string name="common_cancel">रद्द करा</string>
+    <string name="common_edit">संपादित करा</string>
+    <string name="common_continue">पुढे चला</string>
+    <string name="common_retry">पुन्हा प्रयत्न करा</string>
+    <string name="common_search">शोधा</string>
+    <string name="common_add">जोडा</string>
+</resources>

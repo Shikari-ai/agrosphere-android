@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_tagline">আপনার ক্ষেত। আরও স্মার্ট।</string>
+
+    <string name="nav_home">হোম</string>
+    <string name="nav_fields">ক্ষেত</string>
+    <string name="nav_scan">স্ক্যান</string>
+    <string name="nav_weather">আবহাওয়া</string>
+    <string name="nav_ask">জিজ্ঞাসা</string>
+
+    <string name="greeting_morning">সুপ্রভাত</string>
+    <string name="greeting_afternoon">শুভ অপরাহ্ন</string>
+    <string name="greeting_evening">শুভ সন্ধ্যা</string>
+    <string name="greeting_night">শুভ রাত্রি</string>
+
+    <string name="status_all_systems_active">সব সিস্টেম সক্রিয়</string>
+    <string name="status_degraded">পরিষেবা বিঘ্নিত</string>
+
+    <string name="action_scan_crop">ফসল স্ক্যান</string>
+    <string name="action_add_field">ক্ষেত যোগ করুন</string>
+    <string name="action_irrigation">সেচ</string>
+    <string name="action_ai_copilot">AI কোপাইলট</string>
+    <string name="action_ai_assistant">AI সহকারী</string>
+
+    <string name="weather_now">এখনকার আবহাওয়া</string>
+    <string name="weather_humidity">আর্দ্রতা</string>
+    <string name="weather_wind">বাতাস</string>
+    <string name="weather_rain">বৃষ্টি</string>
+    <string name="weather_view_forecast">পূর্বাভাস দেখুন</string>
+    <string name="weather_feels_like">অনুভূত %1$d°</string>
+    <string name="weather_sunrise">সূর্যোদয় %1$s</string>
+
+    <string name="section_field_operations">ক্ষেত কাজ</string>
+    <string name="section_recent_alerts">সাম্প্রতিক সতর্কতা</string>
+    <string name="section_crop_health">ফসলের স্বাস্থ্য</string>
+    <string name="section_pest_prediction">পোকা পূর্বাভাস</string>
+    <string name="section_at_a_glance">এক নজরে</string>
+    <string name="section_my_fields">আমার ক্ষেত</string>
+    <string name="section_insights">অন্তর্দৃষ্টি</string>
+    <string name="section_see_all">সব দেখুন</string>
+    <string name="section_view_all">সব দেখুন</string>
+    <string name="section_view_details">বিস্তারিত দেখুন</string>
+    <string name="section_manage_all">সব পরিচালনা করুন</string>
+
+    <string name="empty_no_fields_title">এখনও কোনো ক্ষেত নেই</string>
+    <string name="empty_no_fields_body">আপনার প্রথম ক্ষেত যোগ করতে ট্যাপ করুন — মাত্র 20 সেকেন্ড।</string>
+    <string name="empty_no_alerts_title">এখন কোনো সতর্কতা নেই</string>
+    <string name="empty_first_field_title">আপনার প্রথম ক্ষেত যোগ করুন</string>
+    <string name="empty_first_field_body">আপনি কী চাষ করছেন বললেই AgroSphere জীবন্ত হয়ে ওঠে।\nক্ষেতের নাম দিন, ফসল বাছুন, ক্ষেত্রফল দিন — মাত্র 20 সেকেন্ড।</string>
+
+    <string name="profile_title">প্রোফাইল</string>
+    <string name="profile_sign_out">সাইন আউট</string>
+    <string name="profile_section_farm">ক্ষেত</string>
+    <string name="profile_section_intelligence">ইন্টেলিজেন্স</string>
+    <string name="profile_section_account">অ্যাকাউন্ট</string>
+    <string name="profile_section_support">সহায়তা</string>
+    <string name="profile_menu_farm_overview">ক্ষেত সারসংক্ষেপ</string>
+    <string name="profile_menu_my_farms">আমার ক্ষেত</string>
+    <string name="profile_menu_subscription">সদস্যতা</string>
+    <string name="profile_menu_ai_prefs">AI পছন্দ</string>
+    <string name="profile_menu_ai_reliability">AI নির্ভরযোগ্যতা</string>
+    <string name="profile_menu_learning">শিক্ষার বিকাশ</string>
+    <string name="profile_menu_account_settings">অ্যাকাউন্ট সেটিংস</string>
+    <string name="profile_menu_notifications">বিজ্ঞপ্তি</string>
+    <string name="profile_menu_language">ভাষা</string>
+    <string name="profile_menu_help">সাহায্য ও সহায়তা</string>
+    <string name="profile_menu_about">AgroSphere সম্পর্কে</string>
+    <string name="profile_menu_regional">আঞ্চলিক ইন্টেলিজেন্স</string>
+    <string name="profile_menu_developer">ডেভেলপার প্যানেল</string>
+
+    <string name="common_save">সংরক্ষণ</string>
+    <string name="common_cancel">বাতিল</string>
+    <string name="common_edit">সম্পাদনা</string>
+    <string name="common_continue">এগিয়ে যান</string>
+    <string name="common_retry">পুনরায় চেষ্টা</string>
+    <string name="common_search">অনুসন্ধান</string>
+    <string name="common_add">যোগ</string>
+</resources>

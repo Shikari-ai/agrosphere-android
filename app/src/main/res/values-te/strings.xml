@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_tagline">మీ పొలాలు. మరింత తెలివిగా.</string>
+
+    <string name="nav_home">హోమ్</string>
+    <string name="nav_fields">పొలాలు</string>
+    <string name="nav_scan">స్కాన్</string>
+    <string name="nav_weather">వాతావరణం</string>
+    <string name="nav_ask">అడగండి</string>
+
+    <string name="greeting_morning">శుభోదయం</string>
+    <string name="greeting_afternoon">శుభ మధ్యాహ్నం</string>
+    <string name="greeting_evening">శుభ సాయంత్రం</string>
+    <string name="greeting_night">శుభ రాత్రి</string>
+
+    <string name="status_all_systems_active">అన్ని వ్యవస్థలు చురుగ్గా ఉన్నాయి</string>
+    <string name="status_degraded">సేవ తగ్గింది</string>
+
+    <string name="action_scan_crop">పంట స్కాన్</string>
+    <string name="action_add_field">పొలం జోడించు</string>
+    <string name="action_irrigation">నీటి పారుదల</string>
+    <string name="action_ai_copilot">AI కోపైలట్</string>
+    <string name="action_ai_assistant">AI సహాయకుడు</string>
+
+    <string name="weather_now">ప్రస్తుత వాతావరణం</string>
+    <string name="weather_humidity">ఆర్ద్రత</string>
+    <string name="weather_wind">గాలి</string>
+    <string name="weather_rain">వర్షం</string>
+    <string name="weather_view_forecast">అంచనా చూడండి</string>
+    <string name="weather_feels_like">అనుభూతి %1$d°</string>
+    <string name="weather_sunrise">సూర్యోదయం %1$s</string>
+
+    <string name="section_field_operations">పొలం పనులు</string>
+    <string name="section_recent_alerts">తాజా హెచ్చరికలు</string>
+    <string name="section_crop_health">పంట ఆరోగ్యం</string>
+    <string name="section_pest_prediction">పురుగు అంచనా</string>
+    <string name="section_at_a_glance">ఒక చూపులో</string>
+    <string name="section_my_fields">నా పొలాలు</string>
+    <string name="section_insights">అంతర్దృష్టులు</string>
+    <string name="section_see_all">అన్నీ చూడు</string>
+    <string name="section_view_all">అన్నీ చూడు</string>
+    <string name="section_view_details">వివరాలు చూడు</string>
+    <string name="section_manage_all">అన్నీ నిర్వహించు</string>
+
+    <string name="empty_no_fields_title">ఇంకా పొలాలు లేవు</string>
+    <string name="empty_no_fields_body">మీ మొదటి పొలాన్ని జోడించడానికి తాకండి — 20 సెకన్లు చాలు.</string>
+    <string name="empty_no_alerts_title">ప్రస్తుతం హెచ్చరికలు లేవు</string>
+    <string name="empty_first_field_title">మీ మొదటి పొలాన్ని జోడించండి</string>
+    <string name="empty_first_field_body">మీరు ఏం పండిస్తున్నారో చెప్పిన వెంటనే AgroSphere జీవిస్తుంది.\nపొలానికి పేరు పెట్టండి, పంట ఎంచుకోండి, విస్తీర్ణం ఇవ్వండి — 20 సెకన్లు చాలు.</string>
+
+    <string name="profile_title">ప్రొఫైల్</string>
+    <string name="profile_sign_out">సైన్ అవుట్</string>
+    <string name="profile_section_farm">వ్యవసాయం</string>
+    <string name="profile_section_intelligence">ఇంటెలిజెన్స్</string>
+    <string name="profile_section_account">ఖాతా</string>
+    <string name="profile_section_support">మద్దతు</string>
+    <string name="profile_menu_farm_overview">వ్యవసాయ సారాంశం</string>
+    <string name="profile_menu_my_farms">నా పొలాలు</string>
+    <string name="profile_menu_subscription">సబ్‌స్క్రిప్షన్</string>
+    <string name="profile_menu_ai_prefs">AI ప్రాధాన్యతలు</string>
+    <string name="profile_menu_ai_reliability">AI నమ్మకత</string>
+    <string name="profile_menu_learning">అభ్యాస పురోగతి</string>
+    <string name="profile_menu_account_settings">ఖాతా సెట్టింగ్‌లు</string>
+    <string name="profile_menu_notifications">నోటిఫికేషన్‌లు</string>
+    <string name="profile_menu_language">భాష</string>
+    <string name="profile_menu_help">సహాయం &amp; మద్దతు</string>
+    <string name="profile_menu_about">AgroSphere గురించి</string>
+    <string name="profile_menu_regional">ప్రాంతీయ ఇంటెలిజెన్స్</string>
+    <string name="profile_menu_developer">డెవలపర్ ప్యానెల్</string>
+
+    <string name="common_save">సేవ్</string>
+    <string name="common_cancel">రద్దు</string>
+    <string name="common_edit">సవరించు</string>
+    <string name="common_continue">కొనసాగించు</string>
+    <string name="common_retry">మళ్ళీ ప్రయత్నించు</string>
+    <string name="common_search">వెతుకు</string>
+    <string name="common_add">జోడించు</string>
+</resources>

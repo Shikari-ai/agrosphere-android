@@ -19,10 +19,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import androidx.annotation.StringRes
+import com.agrosphere.app.R
 import java.time.LocalTime
 
 data class TimeOfDay(
-    val greeting: String,
+    @StringRes val greetingRes: Int,
     val emoji: String,
     val isDay: Boolean,
 )
@@ -30,7 +32,7 @@ data class TimeOfDay(
 data class HomeUiState(
     val displayName: String = "there",
     val photoUrl: String? = null,
-    val timeOfDay: TimeOfDay = TimeOfDay("Hello", "👋", true),
+    val timeOfDay: TimeOfDay = TimeOfDay(R.string.greeting_morning, "👋", true),
     val systemHealthy: Boolean = true,
     val notificationCount: Int = 0,
     val weather: WeatherSnapshot? = null,
@@ -163,10 +165,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private fun computeTimeOfDay(now: LocalTime = LocalTime.now()): TimeOfDay {
         val h = now.hour
         return when (h) {
-            in 5..10 -> TimeOfDay("Good morning", "☀️", isDay = true)
-            in 11..15 -> TimeOfDay("Good afternoon", "🌤️", isDay = true)
-            in 16..19 -> TimeOfDay("Good evening", "🌇", isDay = true)
-            else -> TimeOfDay("Good night", "🌙", isDay = false)
+            in 5..10 -> TimeOfDay(R.string.greeting_morning, "☀️", isDay = true)
+            in 11..15 -> TimeOfDay(R.string.greeting_afternoon, "🌤️", isDay = true)
+            in 16..19 -> TimeOfDay(R.string.greeting_evening, "🌇", isDay = true)
+            else -> TimeOfDay(R.string.greeting_night, "🌙", isDay = false)
         }
     }
 

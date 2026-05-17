@@ -782,30 +782,39 @@ private fun NotificationsPanel(snackbar: SnackbarHostState) {
 // ─── Language ────────────────────────────────────────────────────────────────
 @Composable
 private fun LanguagePanel(snackbar: SnackbarHostState) {
-    val langs = listOf(
-        "en" to "English",
-        "hi" to "हिन्दी (Hindi)",
-        "mr" to "मराठी (Marathi)",
-        "es" to "Español (Spanish)",
-        "fr" to "Français (French)",
-        "ta" to "தமிழ் (Tamil)",
-    )
-    var selected by remember { mutableStateOf("en") }
+    val supported = com.agrosphere.app.data.i18n.LocaleManager.supported
+    val currentTag = com.agrosphere.app.data.i18n.LocaleManager.currentTag().substringBefore('-')
+    var selectedTag by remember { mutableStateOf(currentTag.ifEmpty { "en" }) }
     val scope = rememberCoroutineScope()
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(langs) { (id, name) ->
+        item {
+            Text(
+                "Switching language reloads the app instantly. Translations stay applied across sessions.",
+                style = MaterialTheme.typography.bodySmall,
+                color = AgroPalette.InkMuted,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+            )
+        }
+        items(supported) { lang ->
+            val isSelected = lang.tag == selectedTag
             GlassCard(radius = 14.dp, padding = 14.dp, onClick = {
-                selected = id
-                scope.launch { snackbar.showSnackbar("Language set to $name — translations land in v1.1.") }
+                selectedTag = lang.tag
+                com.agrosphere.app.data.i18n.LocaleManager.setLocale(lang.tag)
+                scope.launch { snackbar.showSnackbar("Language set to ${lang.englishName}.") }
             }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Language, null, tint = AgroPalette.Amber, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(12.dp))
-                    Text(name, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
-                    if (selected == id) Icon(Icons.Rounded.CheckCircle, null, tint = AgroPalette.Primary)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(lang.nativeName, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                        if (lang.nativeName != lang.englishName) {
+                            Text(lang.englishName, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
+                        }
+                    }
+                    if (isSelected) Icon(Icons.Rounded.CheckCircle, null, tint = AgroPalette.Primary)
                 }
             }
         }

@@ -285,7 +285,7 @@ private fun StickyHeader(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "${timeOfDay.greeting},",
+                "${androidx.compose.ui.res.stringResource(timeOfDay.greetingRes)},",
                 style = MaterialTheme.typography.bodyMedium,
                 color = AgroPalette.InkMuted,
             )
@@ -312,7 +312,10 @@ private fun StickyHeader(
 @Composable
 private fun SystemBadge(healthy: Boolean) {
     val tint = if (healthy) AgroPalette.Primary else AgroPalette.Amber
-    val label = if (healthy) "All systems active" else "Degraded service"
+    val label = androidx.compose.ui.res.stringResource(
+        if (healthy) com.agrosphere.app.R.string.status_all_systems_active
+        else com.agrosphere.app.R.string.status_degraded
+    )
     val tr = rememberInfiniteTransition(label = "pulse")
     val pulse by tr.animateFloat(0.45f, 1f, infiniteRepeatable(tween(1400)), label = "p")
     Row(
@@ -774,11 +777,11 @@ private fun QuickActionsRow(
     onAssistant: () -> Unit,
 ) {
     val actions = listOf(
-        QuickActionData("Scan crop", Icons.Rounded.CameraAlt, AgroPalette.Primary, onScan),
-        QuickActionData("Add field", Icons.Rounded.Grass, AgroPalette.Sky, onAddField),
-        QuickActionData("Irrigation", Icons.Rounded.WaterDrop, AgroPalette.Sky, onIrrigation),
-        QuickActionData("AI copilot", Icons.Rounded.Bolt, Color(0xFF67D4F0), onCopilot),
-        QuickActionData("AI assistant", Icons.Rounded.AutoAwesome, AgroPalette.Iris, onAssistant),
+        QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_scan_crop), Icons.Rounded.CameraAlt, AgroPalette.Primary, onScan),
+        QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_add_field), Icons.Rounded.Grass, AgroPalette.Sky, onAddField),
+        QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_irrigation), Icons.Rounded.WaterDrop, AgroPalette.Sky, onIrrigation),
+        QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_ai_copilot), Icons.Rounded.Bolt, Color(0xFF67D4F0), onCopilot),
+        QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_ai_assistant), Icons.Rounded.AutoAwesome, AgroPalette.Iris, onAssistant),
     )
     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         items(actions) { a -> QuickActionPill(a) }

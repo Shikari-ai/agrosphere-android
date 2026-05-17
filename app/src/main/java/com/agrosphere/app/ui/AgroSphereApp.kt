@@ -200,8 +200,8 @@ private fun AgroBottomBar(
             NavigationBarItem(
                 selected = selected,
                 onClick = { onTabSelected(tab.dest) },
-                icon = { Icon(tab.icon, contentDescription = tab.label) },
-                label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
+                icon = { Icon(tab.icon, contentDescription = androidx.compose.ui.res.stringResource(tab.labelRes)) },
+                label = { Text(androidx.compose.ui.res.stringResource(tab.labelRes), style = MaterialTheme.typography.labelSmall) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = AgroPalette.Primary,
                     selectedTextColor = AgroPalette.Primary,

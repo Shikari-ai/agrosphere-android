@@ -21,8 +21,21 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
+        android:localeConfig="@xml/locales_config"
         android:theme="@style/Theme.AgroSphere.Splash"
         tools:targetApi="34">
+
+        <!-- AppCompat's locale-persistence service: makes
+             AppCompatDelegate.setApplicationLocales() survive process death
+             on devices below Android 13. -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data
+                android:name="autoStoreLocales"
+                android:value="true" />
+        </service>
 
         <activity
             android:name=".MainActivity"

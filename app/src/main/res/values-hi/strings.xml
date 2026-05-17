@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_tagline">आपके खेत। और स्मार्ट।</string>
+
+    <string name="nav_home">होम</string>
+    <string name="nav_fields">खेत</string>
+    <string name="nav_scan">स्कैन</string>
+    <string name="nav_weather">मौसम</string>
+    <string name="nav_ask">पूछें</string>
+
+    <string name="greeting_morning">सुप्रभात</string>
+    <string name="greeting_afternoon">शुभ दोपहर</string>
+    <string name="greeting_evening">शुभ संध्या</string>
+    <string name="greeting_night">शुभ रात्रि</string>
+
+    <string name="status_all_systems_active">सभी सिस्टम सक्रिय</string>
+    <string name="status_degraded">सेवा बाधित</string>
+
+    <string name="action_scan_crop">फसल स्कैन करें</string>
+    <string name="action_add_field">खेत जोड़ें</string>
+    <string name="action_irrigation">सिंचाई</string>
+    <string name="action_ai_copilot">AI कोपायलट</string>
+    <string name="action_ai_assistant">AI सहायक</string>
+
+    <string name="weather_now">अभी का मौसम</string>
+    <string name="weather_humidity">नमी</string>
+    <string name="weather_wind">हवा</string>
+    <string name="weather_rain">बारिश</string>
+    <string name="weather_view_forecast">पूर्वानुमान देखें</string>
+    <string name="weather_feels_like">महसूस होता है %1$d°</string>
+    <string name="weather_sunrise">सूर्योदय %1$s</string>
+
+    <string name="section_field_operations">खेत संचालन</string>
+    <string name="section_recent_alerts">हाल की चेतावनी</string>
+    <string name="section_crop_health">फसल स्वास्थ्य</string>
+    <string name="section_pest_prediction">कीट पूर्वानुमान</string>
+    <string name="section_at_a_glance">एक नज़र में</string>
+    <string name="section_my_fields">मेरे खेत</string>
+    <string name="section_insights">अंतर्दृष्टि</string>
+    <string name="section_see_all">सभी देखें</string>
+    <string name="section_view_all">सभी देखें</string>
+    <string name="section_view_details">विवरण देखें</string>
+    <string name="section_manage_all">सभी प्रबंधित करें</string>
+
+    <string name="empty_no_fields_title">अभी कोई खेत नहीं</string>
+    <string name="empty_no_fields_body">अपना पहला खेत जोड़ने के लिए टैप करें — 20 सेकंड लगेंगे।</string>
+    <string name="empty_no_alerts_title">अभी कोई चेतावनी नहीं</string>
+    <string name="empty_first_field_title">अपना पहला खेत जोड़ें</string>
+    <string name="empty_first_field_body">जब आप बताते हैं कि आप क्या उगा रहे हैं, AgroSphere तभी जीवंत होता है।\nखेत का नाम दें, फसल चुनें, क्षेत्र दर्ज करें — सिर्फ 20 सेकंड।</string>
+
+    <string name="profile_title">प्रोफ़ाइल</string>
+    <string name="profile_sign_out">साइन आउट</string>
+    <string name="profile_section_farm">खेत</string>
+    <string name="profile_section_intelligence">इंटेलिजेंस</string>
+    <string name="profile_section_account">खाता</string>
+    <string name="profile_section_support">सहायता</string>
+    <string name="profile_menu_farm_overview">खेत का अवलोकन</string>
+    <string name="profile_menu_my_farms">मेरे खेत</string>
+    <string name="profile_menu_subscription">सदस्यता</string>
+    <string name="profile_menu_ai_prefs">AI प्राथमिकताएँ</string>
+    <string name="profile_menu_ai_reliability">AI विश्वसनीयता</string>
+    <string name="profile_menu_learning">सीखने का सफर</string>
+    <string name="profile_menu_account_settings">खाता सेटिंग्स</string>
+    <string name="profile_menu_notifications">सूचनाएँ</string>
+    <string name="profile_menu_language">भाषा</string>
+    <string name="profile_menu_help">सहायता और समर्थन</string>
+    <string name="profile_menu_about">AgroSphere के बारे में</string>
+    <string name="profile_menu_regional">क्षेत्रीय इंटेलिजेंस</string>
+    <string name="profile_menu_developer">डेवलपर पैनल</string>
+
+    <string name="common_save">सहेजें</string>
+    <string name="common_cancel">रद्द करें</string>
+    <string name="common_edit">संपादित करें</string>
+    <string name="common_continue">जारी रखें</string>
+    <string name="common_retry">पुनः प्रयास</string>
+    <string name="common_search">खोजें</string>
+    <string name="common_add">जोड़ें</string>
+</resources>
