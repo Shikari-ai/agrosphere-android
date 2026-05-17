@@ -57,6 +57,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import com.agrosphere.app.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -146,7 +148,7 @@ fun HomeScreen(
             // when there's no data yet.
             item { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) }
 
-            item { SectionHeader(title = "Recent alerts", trailing = if (state.alerts.isEmpty()) null else "See all") }
+            item { SectionHeader(title = stringResource(R.string.section_recent_alerts), trailing = if (state.alerts.isEmpty()) null else stringResource(R.string.section_see_all)) }
             if (state.alerts.isEmpty()) {
                 item { AlertsEmptyCard(hasFields = state.fieldsCount > 0) }
             } else {
@@ -170,13 +172,13 @@ fun HomeScreen(
                 )
             }
 
-            item { SectionHeader(title = "At a glance") }
+            item { SectionHeader(title = stringResource(R.string.section_at_a_glance)) }
             item { AtAGlanceGrid(state = state) }
 
-            item { SectionHeader(title = "My fields", trailing = "Manage all") }
+            item { SectionHeader(title = stringResource(R.string.section_my_fields), trailing = stringResource(R.string.section_manage_all)) }
             item { MyFieldsCarousel(onOpenField = onOpenField, onAddField = onOpenFields) }
 
-            item { SectionHeader(title = "Insights") }
+            item { SectionHeader(title = stringResource(R.string.section_insights)) }
             item { InsightsCarousel(weather = state.weather) }
 
             item { Spacer(Modifier.height(8.dp)) }
@@ -453,7 +455,7 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            snapshot?.condition ?: if (loading) "Loading…" else "—",
+                            snapshot?.let { localizedConditionLabel(it.kind) } ?: if (loading) "…" else "—",
                             style = MaterialTheme.typography.bodyMedium,
                             color = AgroPalette.InkMuted,
                             modifier = Modifier.padding(bottom = 12.dp),
@@ -486,9 +488,9 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                WeatherMetric("Humidity", snapshot?.humidityPct?.let { "$it%" } ?: "—", Icons.Rounded.WaterDrop, AgroPalette.Sky)
-                WeatherMetric("Wind", snapshot?.windKph?.let { "$it km/h" } ?: "—", Icons.Rounded.Air, AgroPalette.Primary)
-                WeatherMetric("Rain", snapshot?.rainMm?.let { "$it mm" } ?: "—", Icons.Rounded.Cloud, AgroPalette.InkMuted)
+                WeatherMetric(stringResource(R.string.weather_humidity), snapshot?.humidityPct?.let { "$it%" } ?: "—", Icons.Rounded.WaterDrop, AgroPalette.Sky)
+                WeatherMetric(stringResource(R.string.weather_wind), snapshot?.windKph?.let { "$it km/h" } ?: "—", Icons.Rounded.Air, AgroPalette.Primary)
+                WeatherMetric(stringResource(R.string.weather_rain), snapshot?.rainMm?.let { "$it mm" } ?: "—", Icons.Rounded.Cloud, AgroPalette.InkMuted)
             }
             Spacer(Modifier.height(10.dp))
             Row(
@@ -499,10 +501,10 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.WbSunny, null, tint = AgroPalette.Amber, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Sunrise ${snapshot?.sunrise ?: "—"}", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                    Text(stringResource(R.string.weather_sunrise, snapshot?.sunrise ?: "—"), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("View forecast", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.weather_view_forecast), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary, fontWeight = FontWeight.SemiBold)
                     Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.Primary, modifier = Modifier.size(16.dp))
                 }
             }
@@ -826,24 +828,24 @@ private fun FieldOperationsCard(onOpenFields: () -> Unit, hasFields: Boolean) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Eco, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Field operations", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
-                Text("Fields", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
+                Text(stringResource(R.string.section_field_operations), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.nav_fields), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
             }
             Spacer(Modifier.height(4.dp))
             if (!hasFields) {
                 Text(
-                    "Add a field to see today's prioritised operations.",
+                    stringResource(R.string.field_ops_no_fields_body),
                     style = MaterialTheme.typography.bodySmall,
                     color = AgroPalette.InkMuted,
                 )
             } else if (ops.isEmpty()) {
                 Text(
-                    "All clear — no priority actions queued right now.",
+                    stringResource(R.string.field_ops_all_clear),
                     style = MaterialTheme.typography.bodySmall,
                     color = AgroPalette.InkMuted,
                 )
             } else {
-                Text("${ops.size} action${if (ops.size == 1) "" else "s"} suggested from your fields.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                Text(stringResource(R.string.field_ops_actions_suggested, ops.size, if (ops.size == 1) "" else "s"), style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
                 Spacer(Modifier.height(12.dp))
                 ops.forEach { op ->
                     Row(modifier = Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -921,10 +923,9 @@ private fun AlertsEmptyCard(hasFields: Boolean) {
             ) { Icon(Icons.Rounded.Bolt, null, tint = AgroPalette.InkMuted) }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("No alerts right now", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                Text(stringResource(R.string.empty_no_alerts_title), style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
                 Text(
-                    if (hasFields) "Storm watches, heat stress, and dry-soil pings will appear here as they're detected."
-                    else "Add a field — weather + field-level alerts will appear here.",
+                    stringResource(if (hasFields) R.string.alerts_empty_with_fields else R.string.alerts_empty_no_fields),
                     style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted,
                 )
             }
@@ -949,8 +950,8 @@ private fun CropHealthCard(score: Int, verdict: String, hasFields: Boolean, onTa
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Eco, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Crop health monitor", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
-                if (hasFields) Text("View all", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
+                Text(stringResource(R.string.section_crop_health), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
+                if (hasFields) Text(stringResource(R.string.section_view_all), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
             }
             Spacer(Modifier.height(14.dp))
             if (!hasFields) {
@@ -958,10 +959,10 @@ private fun CropHealthCard(score: Int, verdict: String, hasFields: Boolean, onTa
                     HealthRing(progress = 0f, score = 0, modifier = Modifier.size(80.dp))
                     Spacer(Modifier.width(16.dp))
                     Column {
-                        Text("No data yet", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                        Text(stringResource(R.string.crop_no_data_title), style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "Add a field and run a scan to start tracking health.",
+                            stringResource(R.string.crop_no_data_body),
                             style = MaterialTheme.typography.bodySmall,
                             color = AgroPalette.InkMuted,
                         )
@@ -972,12 +973,12 @@ private fun CropHealthCard(score: Int, verdict: String, hasFields: Boolean, onTa
                     HealthRing(progress = progress, score = score, modifier = Modifier.size(98.dp))
                     Spacer(Modifier.width(16.dp))
                     Column {
-                        Text("Overall crop health", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                        Text(stringResource(R.string.crop_overall_health), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
                         Spacer(Modifier.height(2.dp))
                         Text(verdict, style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Primary, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "Average across ${fields.size} field${if (fields.size == 1) "" else "s"}. Run a scan to refresh.",
+                            stringResource(R.string.crop_avg_summary, fields.size, if (fields.size == 1) "" else "s"),
                             style = MaterialTheme.typography.bodySmall,
                             color = AgroPalette.InkMuted,
                         )
@@ -1073,8 +1074,8 @@ private fun PestPredictionCard(riskLevel: String, blipRadiusFraction: Float, has
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.BugReport, null, tint = AgroPalette.Amber, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Pest prediction", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
-                if (hasFields) Text("View details", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
+                Text(stringResource(R.string.section_pest_prediction), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
+                if (hasFields) Text(stringResource(R.string.section_view_details), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
             }
             Spacer(Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1084,7 +1085,7 @@ private fun PestPredictionCard(riskLevel: String, blipRadiusFraction: Float, has
                 )
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Risk level", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                    Text(stringResource(R.string.pest_risk_level), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
                     Spacer(Modifier.height(2.dp))
                     Text(
                         if (hasFields) riskLevel else "—",
@@ -1169,10 +1170,10 @@ private fun PestRadar(blipRadiusFraction: Float, modifier: Modifier = Modifier) 
 @Composable
 private fun AtAGlanceGrid(state: HomeUiState) {
     val items = listOf(
-        GlanceItem("Fields", "${state.fieldsCount}", "Active", Icons.Rounded.Grass, AgroPalette.Primary),
-        GlanceItem("Crops", "${state.cropsCount}", "Growing", Icons.Rounded.Eco, AgroPalette.Primary),
-        GlanceItem("Irrigation", "92%", "Efficiency", Icons.Rounded.WaterDrop, AgroPalette.Sky),
-        GlanceItem("Soil", "${state.avgMoisture}%", "Moisture", Icons.Rounded.WaterDrop, AgroPalette.Sky),
+        GlanceItem(stringResource(R.string.glance_fields), "${state.fieldsCount}", stringResource(R.string.glance_active), Icons.Rounded.Grass, AgroPalette.Primary),
+        GlanceItem(stringResource(R.string.glance_crops), "${state.cropsCount}", stringResource(R.string.glance_growing), Icons.Rounded.Eco, AgroPalette.Primary),
+        GlanceItem(stringResource(R.string.glance_irrigation), "92%", stringResource(R.string.glance_efficiency), Icons.Rounded.WaterDrop, AgroPalette.Sky),
+        GlanceItem(stringResource(R.string.glance_soil), "${state.avgMoisture}%", stringResource(R.string.glance_moisture), Icons.Rounded.WaterDrop, AgroPalette.Sky),
     )
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         items.chunked(2).forEach { row ->
@@ -1222,8 +1223,8 @@ private fun MyFieldsCarousel(onOpenField: (String) -> Unit, onAddField: () -> Un
                 ) { Icon(Icons.Rounded.Grass, null, tint = AgroPalette.Primary) }
                 Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("No fields yet", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
-                    Text("Tap to add your first plot — takes 20 seconds.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                    Text(stringResource(R.string.empty_no_fields_title), style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                    Text(stringResource(R.string.empty_no_fields_body), style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
                 }
                 Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.Primary)
             }
@@ -1285,7 +1286,7 @@ private fun InsightsCarousel(weather: WeatherSnapshot? = null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.AutoAwesome, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("No insights yet — add a field and AgroSphere will start surfacing context.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                Text(stringResource(R.string.insights_empty_body), style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
             }
         }
         return
@@ -1494,3 +1495,18 @@ private fun NotificationsSheet(
         }
     }
 }
+
+/**
+ * Localized weather-condition label. Maps ConditionKind → R.string.weather_condition_*.
+ * Used by the Home weather card so the condition text follows the active locale
+ * (instead of returning the English-only WMO description from WeatherRepository).
+ */
+@Composable
+private fun localizedConditionLabel(kind: ConditionKind): String = stringResource(when (kind) {
+    ConditionKind.Clear -> R.string.weather_condition_clear
+    ConditionKind.PartlyCloudy -> R.string.weather_condition_partly_cloudy
+    ConditionKind.Cloudy -> R.string.weather_condition_cloudy
+    ConditionKind.Rain -> R.string.weather_condition_rain
+    ConditionKind.Storm -> R.string.weather_condition_storm
+    ConditionKind.Night -> R.string.weather_condition_night
+})

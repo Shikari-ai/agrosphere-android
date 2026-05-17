@@ -52,16 +52,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.agrosphere.app.R
 import com.agrosphere.app.data.model.Field
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.ScreenTitle
 import com.agrosphere.app.ui.theme.AgroPalette
 import kotlinx.coroutines.launch
 
-private enum class FilterChip(val label: String) { All("All"), Cereals("Cereals"), Pulses("Pulses"), Rice("Rice"), Healthy("Healthy 80+"), Watch("Needs attention") }
-private enum class SortOrder(val label: String) { Health("Health"), Area("Area"), Sown("Recent"), Name("Name") }
+private enum class FilterChip(@StringRes val labelRes: Int) {
+    All(R.string.fields_filter_all),
+    Cereals(R.string.fields_filter_cereals),
+    Pulses(R.string.fields_filter_pulses),
+    Rice(R.string.fields_filter_rice),
+    Healthy(R.string.fields_filter_healthy),
+    Watch(R.string.fields_filter_attention),
+}
+private enum class SortOrder(@StringRes val labelRes: Int) {
+    Health(R.string.fields_sort_health),
+    Area(R.string.fields_sort_area),
+    Sown(R.string.fields_sort_recent),
+    Name(R.string.fields_sort_name),
+}
 
 @Composable
 fun FieldsScreen(
@@ -132,7 +147,7 @@ fun FieldsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Map, null, tint = AgroPalette.Sky, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Map", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.fields_map_chip), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -143,7 +158,7 @@ fun FieldsScreen(
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(FilterChip.values()) { c ->
-                        FilterPill(label = c.label, selected = c == filter) { filter = c }
+                        FilterPill(label = stringResource(c.labelRes), selected = c == filter) { filter = c }
                     }
                 }
             }
@@ -182,7 +197,7 @@ fun FieldsScreen(
             ) {
                 Icon(Icons.Rounded.Map, null, tint = AgroPalette.Primary, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Draw on map", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.fields_draw_on_map_chip), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
             }
             FloatingActionButton(
                 onClick = { showAddSheet = true },
@@ -221,12 +236,12 @@ fun FieldsScreen(
 @Composable
 private fun TopBlock(allCount: Int, allArea: Double, avgHealth: Int) {
     Column {
-        ScreenTitle(eyebrow = "Plots", title = "Your fields")
+        ScreenTitle(eyebrow = stringResource(R.string.fields_eyebrow), title = stringResource(R.string.fields_title))
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            MiniMetric("Fields", "$allCount", AgroPalette.Primary, Modifier.weight(1f))
-            MiniMetric("Area", "%.1f ha".format(allArea), AgroPalette.Sky, Modifier.weight(1f))
-            MiniMetric("Avg health", "$avgHealth", AgroPalette.Iris, Modifier.weight(1f))
+            MiniMetric(stringResource(R.string.fields_metric_fields), "$allCount", AgroPalette.Primary, Modifier.weight(1f))
+            MiniMetric(stringResource(R.string.fields_metric_area), "%.1f ha".format(allArea), AgroPalette.Sky, Modifier.weight(1f))
+            MiniMetric(stringResource(R.string.fields_metric_avg_health), "$avgHealth", AgroPalette.Iris, Modifier.weight(1f))
         }
     }
 }
@@ -248,7 +263,7 @@ private fun SearchBar(value: String, onChange: (String) -> Unit) {
         value = value,
         onValueChange = onChange,
         leadingIcon = { Icon(Icons.Rounded.Search, null, tint = AgroPalette.InkMuted) },
-        placeholder = { Text("Search fields or crops…", color = AgroPalette.InkDim) },
+        placeholder = { Text(stringResource(R.string.fields_search_placeholder), color = AgroPalette.InkDim) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(50),
@@ -288,7 +303,7 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun SortRow(sort: SortOrder, onSortChange: (SortOrder) -> Unit, resultCount: Int, totalCount: Int) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
-            "$resultCount of $totalCount fields",
+            stringResource(R.string.fields_results_count, resultCount, totalCount),
             style = MaterialTheme.typography.labelMedium,
             color = AgroPalette.InkMuted,
             modifier = Modifier.weight(1f),
@@ -307,7 +322,7 @@ private fun SortRow(sort: SortOrder, onSortChange: (SortOrder) -> Unit, resultCo
         ) {
             Icon(Icons.Rounded.Sort, null, tint = AgroPalette.Primary, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Sort: ${sort.label}", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.fields_sort_label, stringResource(sort.labelRes)), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -365,10 +380,10 @@ private fun FilteredEmptyState() {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Rounded.Search, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(40.dp))
             Spacer(Modifier.height(10.dp))
-            Text("No fields match", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+            Text(stringResource(R.string.fields_empty_filter_title), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
             Spacer(Modifier.height(4.dp))
             Text(
-                "Try clearing the search or switching filters.",
+                stringResource(R.string.fields_empty_filter_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = AgroPalette.InkMuted,
             )
@@ -392,23 +407,23 @@ private fun FirstFieldHero(onAdd: () -> Unit, onDrawOnMap: () -> Unit = {}) {
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.Rounded.Grass, null, tint = AgroPalette.Primary, modifier = Modifier.size(36.dp)) }
             Spacer(Modifier.height(14.dp))
-            Text("Add your first field", style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.empty_first_field_title), style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
             Text(
-                "AgroSphere comes alive once you tell it what you're growing.\nName a plot, pick a crop, set the area — takes 20 seconds.",
+                stringResource(R.string.empty_first_field_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = AgroPalette.InkMuted,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
             Spacer(Modifier.height(16.dp))
             com.agrosphere.app.ui.components.PrimaryButton(
-                text = "Add a field",
+                text = stringResource(R.string.action_add_field),
                 icon = Icons.Rounded.Add,
                 onClick = onAdd,
             )
             Spacer(Modifier.height(8.dp))
             com.agrosphere.app.ui.components.GhostButton(
-                text = "or draw it on the map →",
+                text = stringResource(R.string.fields_first_or_draw),
                 onClick = onDrawOnMap,
             )
         }

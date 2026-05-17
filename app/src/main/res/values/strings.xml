@@ -89,4 +89,88 @@
     <string name="common_retry">Retry</string>
     <string name="common_search">Search</string>
     <string name="common_add">Add</string>
+
+    <!-- Weather condition labels -->
+    <string name="weather_condition_clear">Clear sky</string>
+    <string name="weather_condition_partly_cloudy">Partly cloudy</string>
+    <string name="weather_condition_cloudy">Cloudy</string>
+    <string name="weather_condition_rain">Rain</string>
+    <string name="weather_condition_storm">Thunderstorm</string>
+    <string name="weather_condition_night">Clear night</string>
+
+    <!-- Home: card empty / supporting copy -->
+    <string name="field_ops_no_fields_body">Add a field to see today\'s prioritised operations.</string>
+    <string name="field_ops_all_clear">All clear — no priority actions queued right now.</string>
+    <string name="field_ops_actions_suggested">%1$d action%2$s suggested from your fields.</string>
+    <string name="alerts_empty_with_fields">Storm watches, heat stress, and dry-soil pings will appear here as they\'re detected.</string>
+    <string name="alerts_empty_no_fields">Add a field — weather + field-level alerts will appear here.</string>
+    <string name="crop_no_data_title">No data yet</string>
+    <string name="crop_no_data_body">Add a field and run a scan to start tracking health.</string>
+    <string name="crop_overall_health">Overall crop health</string>
+    <string name="crop_avg_summary">Average across %1$d field%2$s. Run a scan to refresh.</string>
+    <string name="pest_risk_level">Risk level</string>
+    <string name="pest_no_data_body">Add a field to enable predictions based on weather + crop.</string>
+    <string name="pest_risk_low">Low</string>
+    <string name="pest_risk_moderate">Moderate</string>
+    <string name="pest_risk_high">High</string>
+    <string name="pest_risk_severe">Severe</string>
+    <string name="insights_empty_body">No insights yet — add a field and AgroSphere will start surfacing context.</string>
+
+    <!-- At a glance labels -->
+    <string name="glance_fields">Fields</string>
+    <string name="glance_crops">Crops</string>
+    <string name="glance_irrigation">Irrigation</string>
+    <string name="glance_soil">Soil</string>
+    <string name="glance_active">Active</string>
+    <string name="glance_growing">Growing</string>
+    <string name="glance_efficiency">Efficiency</string>
+    <string name="glance_moisture">Moisture</string>
+
+    <!-- Fields screen -->
+    <string name="fields_eyebrow">Plots</string>
+    <string name="fields_title">Your fields</string>
+    <string name="fields_metric_fields">Fields</string>
+    <string name="fields_metric_area">Area</string>
+    <string name="fields_metric_avg_health">Avg health</string>
+    <string name="fields_search_placeholder">Search fields or crops…</string>
+    <string name="fields_map_chip">Map</string>
+    <string name="fields_draw_on_map_chip">Draw on map</string>
+    <string name="fields_results_count">%1$d of %2$d fields</string>
+    <string name="fields_sort_label">Sort: %1$s</string>
+    <string name="fields_filter_all">All</string>
+    <string name="fields_filter_cereals">Cereals</string>
+    <string name="fields_filter_pulses">Pulses</string>
+    <string name="fields_filter_rice">Rice</string>
+    <string name="fields_filter_healthy">Healthy 80+</string>
+    <string name="fields_filter_attention">Needs attention</string>
+    <string name="fields_sort_health">Health</string>
+    <string name="fields_sort_area">Area</string>
+    <string name="fields_sort_recent">Recent</string>
+    <string name="fields_sort_name">Name</string>
+    <string name="fields_first_or_draw">or draw it on the map →</string>
+    <string name="fields_empty_filter_title">No fields match</string>
+    <string name="fields_empty_filter_body">Try clearing the search or switching filters.</string>
+
+    <!-- Scanner -->
+    <string name="scanner_eyebrow">Diagnostics</string>
+    <string name="scanner_title">Scanner</string>
+    <string name="scanner_history">History</string>
+    <string name="scanner_mode_crop">Crop</string>
+    <string name="scanner_mode_pest">Pest</string>
+    <string name="scanner_mode_soil">Soil</string>
+    <string name="scanner_hint_crop">Aim at a leaf or canopy</string>
+    <string name="scanner_hint_pest">Capture the affected area up close</string>
+    <string name="scanner_hint_soil">Capture bare topsoil in good light</string>
+    <string name="scanner_hold_steady">Hold steady — auto-focusing</string>
+    <string name="scanner_scan_complete">Scan complete</string>
+    <string name="scanner_findings_count">%1$d findings identified</string>
+    <string name="scanner_capture">Capture &amp; analyze</string>
+    <string name="scanner_rescan">Re-scan</string>
+    <string name="scanner_recent_scans">Recent scans</string>
+    <string name="scanner_recent_empty">No scans yet. Captured scans will show up here once the ML model is connected.</string>
+    <string name="camera_flash_on">Flash on</string>
+    <string name="camera_flash_off">Flash off</string>
+    <string name="camera_rear">Rear</string>
+    <string name="camera_front">Front</string>
+    <string name="camera_gallery">Gallery</string>
 </resources>

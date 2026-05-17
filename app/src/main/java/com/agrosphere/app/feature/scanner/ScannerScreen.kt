@@ -56,8 +56,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.annotation.StringRes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.agrosphere.app.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -105,7 +108,7 @@ fun ScannerScreen(padding: PaddingValues) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ScreenTitle(eyebrow = "Diagnostics", title = "Scanner")
+            ScreenTitle(eyebrow = stringResource(R.string.scanner_eyebrow), title = stringResource(R.string.scanner_title))
             HistoryChip()
         }
         Spacer(Modifier.height(14.dp))
@@ -131,21 +134,21 @@ fun ScannerScreen(padding: PaddingValues) {
         ) {
             CameraControlChip(
                 icon = Icons.Rounded.FlashOn,
-                label = if (flashOn) "Flash on" else "Flash off",
+                label = if (flashOn) stringResource(R.string.camera_flash_on) else stringResource(R.string.camera_flash_off),
                 active = flashOn,
                 onClick = { flashOn = !flashOn },
                 modifier = Modifier.weight(1f),
             )
             CameraControlChip(
                 icon = Icons.Rounded.FlipCameraAndroid,
-                label = if (frontCamera) "Front" else "Rear",
+                label = if (frontCamera) stringResource(R.string.camera_front) else stringResource(R.string.camera_rear),
                 active = frontCamera,
                 onClick = { frontCamera = !frontCamera },
                 modifier = Modifier.weight(1f),
             )
             CameraControlChip(
                 icon = Icons.Rounded.PhotoLibrary,
-                label = "Gallery",
+                label = stringResource(R.string.camera_gallery),
                 active = false,
                 onClick = {
                     captureFlash.value = 1f
@@ -160,7 +163,7 @@ fun ScannerScreen(padding: PaddingValues) {
 
         // Big capture / re-scan button
         PrimaryButton(
-            text = if (scanned) "Re-scan" else "Capture & analyze",
+            text = if (scanned) stringResource(R.string.scanner_rescan) else stringResource(R.string.scanner_capture),
             icon = if (scanned) Icons.Rounded.Refresh else Icons.Rounded.CameraAlt,
             onClick = {
                 if (scanned) {
@@ -193,10 +196,15 @@ fun ScannerScreen(padding: PaddingValues) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scan modes
 // ─────────────────────────────────────────────────────────────────────────────
-private enum class ScanMode(val label: String, val icon: ImageVector, val tint: Color, val hint: String) {
-    Crop("Crop", Icons.Rounded.Grass, AgroPalette.Primary, "Aim at a leaf or canopy"),
-    Pest("Pest", Icons.Rounded.BugReport, AgroPalette.Amber, "Capture the affected area up close"),
-    Soil("Soil", Icons.Rounded.Terrain, AgroPalette.Orange, "Capture bare topsoil in good light"),
+private enum class ScanMode(
+    @StringRes val labelRes: Int,
+    val icon: ImageVector,
+    val tint: Color,
+    @StringRes val hintRes: Int,
+) {
+    Crop(R.string.scanner_mode_crop, Icons.Rounded.Grass, AgroPalette.Primary, R.string.scanner_hint_crop),
+    Pest(R.string.scanner_mode_pest, Icons.Rounded.BugReport, AgroPalette.Amber, R.string.scanner_hint_pest),
+    Soil(R.string.scanner_mode_soil, Icons.Rounded.Terrain, AgroPalette.Orange, R.string.scanner_hint_soil),
 }
 
 @Composable
@@ -229,7 +237,7 @@ private fun ModeSelector(selected: ScanMode, onSelect: (ScanMode) -> Unit) {
                 Icon(m.icon, null, tint = if (isSelected) AgroPalette.BgDeep else AgroPalette.InkMuted, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    m.label,
+                    stringResource(m.labelRes),
                     style = MaterialTheme.typography.labelMedium,
                     color = if (isSelected) AgroPalette.BgDeep else AgroPalette.InkMuted,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -273,9 +281,9 @@ private fun Viewfinder(mode: ScanMode, scanned: Boolean, flashAlpha: Float) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Rounded.CheckCircle, null, tint = AgroPalette.Primary, modifier = Modifier.size(56.dp))
                 Spacer(Modifier.height(10.dp))
-                Text("Scan complete", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+                Text(stringResource(R.string.scanner_scan_complete), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
                 Spacer(Modifier.height(4.dp))
-                Text("3 findings identified", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                Text(stringResource(R.string.scanner_findings_count, 3), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
             }
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -287,9 +295,9 @@ private fun Viewfinder(mode: ScanMode, scanned: Boolean, flashAlpha: Float) {
                     contentAlignment = Alignment.Center,
                 ) { Icon(mode.icon, null, tint = mode.tint, modifier = Modifier.size(36.dp)) }
                 Spacer(Modifier.height(14.dp))
-                Text(mode.hint, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                Text(stringResource(mode.hintRes), style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
                 Spacer(Modifier.height(4.dp))
-                Text("Hold steady — auto-focusing", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                Text(stringResource(R.string.scanner_hold_steady), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
             }
         }
 
@@ -400,7 +408,7 @@ private fun ResultsBlock(mode: ScanMode) {
         GlassCard(radius = 18.dp, padding = 16.dp) {
             Column {
                 Text(
-                    "Real ${mode.label.lowercase()} diagnostics light up once a TFLite model is bundled.",
+                    "Real ${stringResource(mode.labelRes).lowercase()} diagnostics light up once a TFLite model is bundled.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = AgroPalette.Ink,
                 )
@@ -491,7 +499,7 @@ private fun HistoryChip() {
     ) {
         Icon(Icons.Rounded.History, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(6.dp))
-        Text("History", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.scanner_history), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -500,7 +508,7 @@ private fun ScanHistorySection() {
     // No scan store wired yet — show an honest empty state instead of fakes.
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Recent scans", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+            Text(stringResource(R.string.scanner_recent_scans), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
         }
         Spacer(Modifier.height(10.dp))
         GlassCard(radius = 16.dp, padding = 14.dp) {
@@ -508,7 +516,7 @@ private fun ScanHistorySection() {
                 Icon(Icons.Rounded.History, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    "No scans yet. Captured scans will show up here once the ML model is connected.",
+                    stringResource(R.string.scanner_recent_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = AgroPalette.InkMuted,
                 )
