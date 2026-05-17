@@ -167,7 +167,7 @@ fun HomeScreen(
             item { MyFieldsCarousel(onOpenField = onOpenField, onAddField = onOpenFields) }
 
             item { SectionHeader(title = "Insights") }
-            item { InsightsCarousel() }
+            item { InsightsCarousel(weather = state.weather) }
 
             item { Spacer(Modifier.height(8.dp)) }
         }
@@ -541,11 +541,9 @@ private fun QuickActionPill(action: QuickActionData) {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun FieldOperationsCard(onOpenFields: () -> Unit) {
-    val ops = listOf(
-        FieldOp("Irrigate Riverside", "Today · 25 mm before 9 AM", AgroPalette.Sky),
-        FieldOp("Foliar feed Lake Plot", "Tomorrow · NPK 19-19-19", AgroPalette.Primary),
-        FieldOp("Storm prep — close greenhouse vents", "Sunday morning", AgroPalette.Amber),
-    )
+    val fields by FieldRepository.fields.collectAsState()
+    val ops = remember(fields) { deriveFieldOps(fields) }
+
     GlassCard(radius = 22.dp, padding = 18.dp, onClick = onOpenFields) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -555,17 +553,25 @@ private fun FieldOperationsCard(onOpenFields: () -> Unit) {
                 Text("Fields", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
             }
             Spacer(Modifier.height(4.dp))
-            Text("${ops.size} actions queued — AgroSphere prioritised these for you.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
-            Spacer(Modifier.height(12.dp))
-            ops.forEach { op ->
-                Row(modifier = Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(op.tint))
-                    Spacer(Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(op.title, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
-                        Text(op.when_, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+            if (ops.isEmpty()) {
+                Text(
+                    "All clear — no priority actions queued right now.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgroPalette.InkMuted,
+                )
+            } else {
+                Text("${ops.size} action${if (ops.size == 1) "" else "s"} suggested from your fields.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                Spacer(Modifier.height(12.dp))
+                ops.forEach { op ->
+                    Row(modifier = Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(op.tint))
+                        Spacer(Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(op.title, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                            Text(op.when_, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                        }
+                        Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.InkMuted)
                     }
-                    Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.InkMuted)
                 }
             }
         }
@@ -573,6 +579,28 @@ private fun FieldOperationsCard(onOpenFields: () -> Unit) {
 }
 
 private data class FieldOp(val title: String, val when_: String, val tint: Color)
+
+/** Derives concrete operations from the actual fields the user has added. */
+private fun deriveFieldOps(fields: List<com.agrosphere.app.data.model.Field>): List<FieldOp> {
+    val out = mutableListOf<FieldOp>()
+    // Lowest-moisture field needs water
+    fields.minByOrNull { it.moisturePct }?.let { f ->
+        if (f.moisturePct < 50) {
+            out += FieldOp("Irrigate ${f.name}", "Soil at ${f.moisturePct}% — schedule a 20 mm pass", AgroPalette.Sky)
+        }
+    }
+    // Flowering / booting stage → foliar feed window
+    fields.firstOrNull { it.stage in setOf("Flowering", "Booting") }?.let { f ->
+        out += FieldOp("Foliar feed ${f.name}", "${f.stage} stage — balanced NPK + potassium boost", AgroPalette.Primary)
+    }
+    // Lowest-health field → scout it
+    fields.minByOrNull { it.healthScore }?.let { f ->
+        if (f.healthScore < 65) {
+            out += FieldOp("Scout ${f.name}", "Health ${f.healthScore} — open Scanner to check leaves", AgroPalette.Amber)
+        }
+    }
+    return out
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alert card
@@ -915,12 +943,19 @@ private fun MyFieldsCarousel(onOpenField: (String) -> Unit, onAddField: () -> Un
 // Insights carousel — calm, narrative cards
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun InsightsCarousel() {
-    val insights = listOf(
-        Triple("Ambient context", "Soil temperature stable at 24°C. Microbial activity is in optimal window — good for foliar uptake.", AgroPalette.Iris),
-        Triple("Regional network", "Farms 12 km north reported leaf rust this week. Watch the southern edge of Lake Plot.", Color(0xFF22D3EE)),
-        Triple("Soil moisture trend", "Riverside is drying faster than the others. Drip irrigation may need recalibration.", AgroPalette.Sky),
-    )
+private fun InsightsCarousel(weather: WeatherSnapshot? = null) {
+    val fields by FieldRepository.fields.collectAsState()
+    val insights = remember(fields, weather) { deriveInsights(fields, weather) }
+    if (insights.isEmpty()) {
+        GlassCard(radius = 20.dp, padding = 16.dp) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.AutoAwesome, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Text("No insights yet — add a field and AgroSphere will start surfacing context.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+            }
+        }
+        return
+    }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(insights) { (title, body, tint) ->
             GlassCard(modifier = Modifier.width(280.dp), radius = 20.dp, padding = 16.dp) {
@@ -995,4 +1030,59 @@ private fun NudgeStep(num: String, label: String, tint: Color) {
         Spacer(Modifier.width(4.dp))
         Text(label, style = MaterialTheme.typography.labelSmall, color = AgroPalette.Ink)
     }
+}
+
+/** Insights derived from the user's real fields + the current weather snapshot. */
+private fun deriveInsights(
+    fields: List<com.agrosphere.app.data.model.Field>,
+    weather: WeatherSnapshot?,
+): List<Triple<String, String, Color>> {
+    val out = mutableListOf<Triple<String, String, Color>>()
+    if (weather != null) {
+        when {
+            weather.kind == ConditionKind.Storm ->
+                out += Triple(
+                    "Storm overhead",
+                    "Avoid field operations until conditions settle. The Weather tab has the next clear window.",
+                    AgroPalette.Iris,
+                )
+            weather.humidityPct >= 80 ->
+                out += Triple(
+                    "Ambient humidity high",
+                    "${weather.humidityPct}% humidity — disease pressure climbs. Inspect lower canopy on susceptible crops.",
+                    AgroPalette.Sky,
+                )
+            weather.tempC >= 33 ->
+                out += Triple(
+                    "Hot day ahead",
+                    "${weather.tempC}°C reading. Shift labour windows to early morning; check soil moisture this evening.",
+                    AgroPalette.Orange,
+                )
+            weather.windKph <= 8 && weather.kind != ConditionKind.Rain ->
+                out += Triple(
+                    "Calm spray window",
+                    "Wind at ${weather.windKph} km/h — ideal for foliar passes if you have one queued.",
+                    AgroPalette.Primary,
+                )
+        }
+    }
+    if (fields.isNotEmpty()) {
+        val avgHealth = fields.map { it.healthScore }.average().toInt()
+        val driest = fields.minByOrNull { it.moisturePct }
+        if (driest != null && driest.moisturePct < fields.map { it.moisturePct }.average() - 10) {
+            out += Triple(
+                "Soil moisture trend",
+                "${driest.name} is drying faster than your other plots — check the drip layout.",
+                AgroPalette.Sky,
+            )
+        }
+        if (avgHealth >= 85) {
+            out += Triple(
+                "Crops trending strong",
+                "Average health $avgHealth across ${fields.size} field${if (fields.size == 1) "" else "s"}. Keep current cadence.",
+                AgroPalette.Primary,
+            )
+        }
+    }
+    return out
 }

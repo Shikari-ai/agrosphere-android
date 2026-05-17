@@ -322,13 +322,16 @@ private fun CenterOrb(active: Boolean, hasResponse: Boolean) {
 
 @Composable
 private fun LiveBadge(live: Boolean) {
+    // The mic isn't wired to a real STT engine yet — flag this clearly.
     val tr = rememberInfiniteTransition(label = "live")
     val pulse by tr.animateFloat(0.4f, 1f, infiniteRepeatable(tween(900)), label = "p")
+    val tint = if (live) AgroPalette.Rose else AgroPalette.Amber
+    val label = if (live) "SIMULATING" else "DEMO MODE"
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (live) AgroPalette.Rose.copy(alpha = 0.16f) else AgroPalette.SurfaceGlass)
-            .border(1.dp, if (live) AgroPalette.Rose.copy(alpha = 0.4f) else AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
+            .background(tint.copy(alpha = 0.16f))
+            .border(1.dp, tint.copy(alpha = 0.4f), RoundedCornerShape(50))
             .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -336,13 +339,13 @@ private fun LiveBadge(live: Boolean) {
             modifier = Modifier
                 .size(6.dp)
                 .clip(CircleShape)
-                .background((if (live) AgroPalette.Rose else AgroPalette.InkMuted).copy(alpha = pulse))
+                .background(tint.copy(alpha = if (live) pulse else 1f))
         )
         Spacer(Modifier.width(6.dp))
         Text(
-            if (live) "LIVE" else "READY",
+            label,
             style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.4.sp, fontSize = 9.sp),
-            color = if (live) AgroPalette.Rose else AgroPalette.InkMuted,
+            color = tint,
             fontWeight = FontWeight.Bold,
         )
     }

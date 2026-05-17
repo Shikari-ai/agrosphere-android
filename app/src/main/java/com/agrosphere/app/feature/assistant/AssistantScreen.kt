@@ -89,7 +89,7 @@ fun AssistantScreen(padding: PaddingValues) {
         typing = true
         scope.launch {
             delay(900)
-            messages += ChatMessage(nextId++, false, MockRepository.mockReply(prompt))
+            messages += ChatMessage(nextId++, false, MockRepository.demoReply(prompt))
             typing = false
         }
     }
@@ -205,18 +205,17 @@ fun AssistantScreen(padding: PaddingValues) {
 
 @Composable
 private fun OnlineDot() {
-    val tr = rememberInfiniteTransition(label = "online")
-    val pulse by tr.animateFloat(0.4f, 1f, infiniteRepeatable(tween(1400)), label = "p")
+    // Honest about being stubbed — no LLM is wired in yet.
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(AgroPalette.Primary.copy(alpha = 0.16f))
+            .background(AgroPalette.Amber.copy(alpha = 0.16f))
             .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(AgroPalette.Primary.copy(alpha = pulse)))
+        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(AgroPalette.Amber))
         Spacer(Modifier.width(6.dp))
-        Text("Online", style = MaterialTheme.typography.labelSmall, color = AgroPalette.Primary, fontWeight = FontWeight.SemiBold)
+        Text("DEMO MODE", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, letterSpacing = 1.4.sp), color = AgroPalette.Amber, fontWeight = FontWeight.Bold)
     }
 }
 

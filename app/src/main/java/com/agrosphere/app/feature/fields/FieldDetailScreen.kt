@@ -39,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,7 +75,12 @@ private enum class DetailTab(val label: String, val icon: ImageVector) {
 
 @Composable
 fun FieldDetailScreen(fieldId: String, onBack: () -> Unit) {
-    val field = MockRepository.field(fieldId) ?: MockRepository.fields.first()
+    val field = MockRepository.field(fieldId)
+    if (field == null) {
+        // Field was deleted or never existed — bail back to the list.
+        LaunchedEffect(Unit) { onBack() }
+        return
+    }
     var tab by remember { mutableStateOf(DetailTab.Overview) }
 
     Column(
@@ -231,42 +237,27 @@ private fun InfoLine(label: String, value: String) {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun ActivityTab() {
-    val events = listOf(
-        Triple("Irrigation", "Yesterday · 18 mm", AgroPalette.Sky),
-        Triple("Foliar feed", "3 days ago · NPK 19-19-19", AgroPalette.Primary),
-        Triple("Scouting", "5 days ago · 2 hotspots flagged", AgroPalette.Amber),
-        Triple("Scanner", "1 week ago · 14 plants scanned", AgroPalette.Iris),
-        Triple("Soil test", "2 weeks ago · pH 6.4, NPK balanced", Color(0xFF67D4F0)),
-        Triple("Sowing", "${"%d".format(38)} days ago · 120 kg/ha", AgroPalette.Primary),
-    )
+    // Activity log isn't backed by a real store yet — show an honest empty state
+    // instead of seeding made-up operations.
     LazyColumn(
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        items(events.size) { i ->
-            val (title, time, tint) = events[i]
-            GlassCard(radius = 16.dp, padding = 14.dp) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(tint))
-                        if (i != events.lastIndex) {
-                            Box(
-                                modifier = Modifier
-                                    .width(2.dp)
-                                    .height(28.dp)
-                                    .background(AgroPalette.SurfaceGlassBorder)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(title, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
-                        Text(time, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
-                    }
+        item {
+            GlassCard(radius = 22.dp, padding = 24.dp) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Rounded.CalendarMonth, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(36.dp))
+                    Spacer(Modifier.height(10.dp))
+                    Text("No activity yet", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Log irrigation, foliar feeds, or scout visits and they'll show up here as a timeline.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AgroPalette.InkMuted,
+                    )
                 }
             }
         }
-        item { Spacer(Modifier.height(20.dp)) }
     }
 }
 
@@ -276,63 +267,43 @@ private fun ActivityTab() {
 @Composable
 private fun HealthTab(field: Field) {
     // Synthetic 12-week trend ending at field.healthScore
-    val trend = remember(field.id) {
-        val end = field.healthScore
-        (0 until 12).map { i ->
-            val drift = ((field.id.hashCode() shr (i % 4)) and 0xF) - 7
-            (end - (11 - i) * 1.3f + drift).coerceIn(40f, 99f).toInt()
-        }
-    }
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            GlassCard(radius = 22.dp, padding = 18.dp) {
+            GlassCard(radius = 22.dp, padding = 20.dp) {
                 Column {
-                    Text("Health · last 12 weeks", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
-                    Spacer(Modifier.height(12.dp))
-                    HealthSparkline(values = trend, tint = field.accent)
+                    Text("Current health", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                    Spacer(Modifier.height(4.dp))
+                    Text("${field.healthScore} / 100", style = MaterialTheme.typography.displaySmall.copy(fontSize = 32.sp), color = field.accent, fontWeight = FontWeight.Black)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        when {
+                            field.healthScore >= 85 -> "Excellent — keep current regimen."
+                            field.healthScore >= 70 -> "Strong — small monitoring tweaks recommended."
+                            field.healthScore >= 55 -> "Watch list — schedule a scan this week."
+                            else -> "At risk — open Scanner and inspect within 24h."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AgroPalette.InkMuted,
+                    )
+                }
+            }
+        }
+        item {
+            GlassCard(radius = 22.dp, padding = 20.dp) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Rounded.Timeline, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(32.dp))
                     Spacer(Modifier.height(8.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("12 wks ago", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
-                        Text("Today", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
-                    }
-                }
-            }
-        }
-        item {
-            GlassCard(radius = 18.dp) {
-                Row {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Trend", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
-                        Text(
-                            if (trend.last() > trend.first()) "Improving" else "Declining",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = if (trend.last() > trend.first()) AgroPalette.Primary else AgroPalette.Rose,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Delta", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
-                        Text("%+d pts".format(trend.last() - trend.first()), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Range", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
-                        Text("${trend.min()}–${trend.max()}", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-        item {
-            Text("Key events", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, modifier = Modifier.padding(start = 4.dp))
-        }
-        item {
-            GlassCard(radius = 18.dp) {
-                Column {
-                    InfoLine("Week 3", "Fungicide pass — health rebounded")
-                    InfoLine("Week 7", "Soil moisture dropped, irrigation triggered")
-                    InfoLine("Week 10", "Foliar feed — small but lasting bump")
+                    Text("Trend chart coming with scans", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "The weekly sparkline lights up once you've run at least two scans on this field — we plot the real health scores, not a generated curve.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AgroPalette.InkMuted,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
                 }
             }
         }

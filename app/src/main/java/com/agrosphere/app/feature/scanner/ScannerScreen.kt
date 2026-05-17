@@ -374,43 +374,44 @@ private fun CameraControlChip(
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun ResultsBlock(mode: ScanMode) {
-    val findings = when (mode) {
-        ScanMode.Crop -> listOf(
-            Finding("Wheat leaf rust", 0.87f, "Moderate", AgroPalette.Amber, "Apply triazole fungicide within 3 days. Re-scan in 7 days."),
-            Finding("Nitrogen deficiency", 0.42f, "Low", AgroPalette.Sky, "Consider foliar urea spray (2%) if symptoms persist."),
-            Finding("Plant overall: vigorous", 0.92f, "Healthy", AgroPalette.Primary, "No action needed. Continue current regimen."),
-        )
-        ScanMode.Pest -> listOf(
-            Finding("Aphid colony — early stage", 0.78f, "Caution", AgroPalette.Amber, "Introduce ladybird beetles or neem spray within 48 h."),
-            Finding("Predator presence (good)", 0.65f, "Helpful", AgroPalette.Primary, "Beneficial insects active. Avoid broad-spectrum sprays."),
-        )
-        ScanMode.Soil -> listOf(
-            Finding("Sandy loam texture", 0.83f, "Detected", AgroPalette.Primary, "Drains well — increase irrigation frequency in summer."),
-            Finding("Moderate compaction", 0.61f, "Caution", AgroPalette.Amber, "Consider deep tillage or cover crops to restore structure."),
-            Finding("pH estimate", 0.55f, "≈ 6.4", AgroPalette.Sky, "Within ideal range for most cereals."),
-        )
-    }
+    // Honest: no ML model is wired yet. Show a "demo capture" card explaining
+    // exactly what's hooked up vs what needs a real model.
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.AutoAwesome, null, tint = AgroPalette.Primary, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Findings", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+            Text("Capture saved", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
             Spacer(Modifier.width(8.dp))
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(AgroPalette.PrimaryDim)
+                    .background(AgroPalette.Amber.copy(alpha = 0.18f))
                     .padding(horizontal = 8.dp, vertical = 3.dp),
             ) {
-                Text("${findings.size} found", style = MaterialTheme.typography.labelSmall, color = AgroPalette.Primary, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "DEMO",
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.4.sp, fontSize = 9.sp),
+                    color = AgroPalette.Amber,
+                    fontWeight = FontWeight.Bold,
+                )
             }
         }
         Spacer(Modifier.height(12.dp))
-        findings.forEach { f ->
-            FindingCard(f)
-            Spacer(Modifier.height(10.dp))
+        GlassCard(radius = 18.dp, padding = 16.dp) {
+            Column {
+                Text(
+                    "Real ${mode.label.lowercase()} diagnostics light up once a TFLite model is bundled.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AgroPalette.Ink,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "The capture pipeline, viewfinder, and saving flow are real — only the inference step is stubbed. Drop a model into assets and AgroSphere will surface real findings here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgroPalette.InkMuted,
+                )
+            }
         }
-        GhostButton(text = "Save to scan history", onClick = {})
     }
 }
 
@@ -490,60 +491,28 @@ private fun HistoryChip() {
     ) {
         Icon(Icons.Rounded.History, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(6.dp))
-        Text("47 scans", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+        Text("History", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun ScanHistorySection() {
-    val history = listOf(
-        HistoryItem("North Paddock", "Wheat · 2 h ago", AgroPalette.Primary, 92),
-        HistoryItem("Lake Plot", "Soybean · 5 h ago", AgroPalette.Sky, 71),
-        HistoryItem("Hilltop", "Maize · Yesterday", AgroPalette.Amber, 86),
-        HistoryItem("Riverside", "Rice · 2 d ago", AgroPalette.Iris, 58),
-    )
+    // No scan store wired yet — show an honest empty state instead of fakes.
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Recent scans", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
-            Text("View all", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
         }
         Spacer(Modifier.height(10.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(history) { h ->
-                Column(
-                    modifier = Modifier
-                        .width(120.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(AgroPalette.SurfaceGlass)
-                        .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(16.dp))
-                        .padding(12.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(60.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(h.tint.copy(alpha = 0.4f), h.tint.copy(alpha = 0.08f))
-                                )
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "${h.score}",
-                            style = MaterialTheme.typography.displayMedium.copy(fontSize = 24.sp),
-                            color = AgroPalette.Ink,
-                            fontWeight = FontWeight.Black,
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text(h.title, style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, maxLines = 1)
-                    Text(h.sub, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim, maxLines = 1)
-                }
+        GlassCard(radius = 16.dp, padding = 14.dp) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.History, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "No scans yet. Captured scans will show up here once the ML model is connected.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgroPalette.InkMuted,
+                )
             }
         }
     }
 }
-
-private data class HistoryItem(val title: String, val sub: String, val tint: Color, val score: Int)
