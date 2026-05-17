@@ -600,28 +600,65 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCloudWash() {
     )
 }
 
+/**
+ * Puffy cluster of soft circles with radial alpha falloff — looks like a real
+ * cloud, not a sliding rectangle. Each cloud is a fixed silhouette of
+ * overlapping puff offsets relative to its centre; only the centre drifts.
+ */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDriftingClouds(t: Float) {
-    // Each cloud drifts continuously from fully off-screen left to fully
-    // off-screen right; the wrap happens while both edges are off-canvas so
-    // there's no visible snap-back.
     val w = size.width
     val h = size.height
 
-    fun cloud(phase: Float, yFrac: Float, widthFrac: Float, alpha: Float) {
-        val cloudW = w * widthFrac
-        val cloudH = h * 0.20f
-        val totalTravel = w + cloudW * 2f // off-left → off-right
-        val phaseT = ((t + phase) % 1f)
-        val x = -cloudW + phaseT * totalTravel
-        drawOval(
-            color = Color(0xFFE5E7EB).copy(alpha = alpha),
-            topLeft = Offset(x, h * yFrac),
-            size = androidx.compose.ui.geometry.Size(cloudW, cloudH),
-        )
+    // Silhouette of a cloud as relative (dx, dy, radiusFraction) puffs around
+    // the cloud's centre. Hand-tuned for a fluffy cumulus feel.
+    val puffs = listOf(
+        Triple( 0.00f,  0.05f, 1.00f),   // main belly
+        Triple(-0.55f,  0.15f, 0.70f),   // left lower lump
+        Triple( 0.55f,  0.15f, 0.70f),   // right lower lump
+        Triple(-0.30f, -0.25f, 0.80f),   // upper-left bulge
+        Triple( 0.30f, -0.30f, 0.75f),   // upper-right bulge
+        Triple( 0.00f, -0.45f, 0.55f),   // top crown
+        Triple(-0.85f,  0.20f, 0.45f),   // far-left wisp
+        Triple( 0.85f,  0.25f, 0.50f),   // far-right wisp
+    )
+
+    fun puffCloud(centerX: Float, centerY: Float, scale: Float, alpha: Float) {
+        puffs.forEach { (dx, dy, sizeFraction) ->
+            val radius = scale * sizeFraction
+            val cx = centerX + dx * scale
+            val cy = centerY + dy * scale
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to Color(0xFFE5E7EB).copy(alpha = alpha),
+                    0.55f to Color(0xFFE5E7EB).copy(alpha = alpha * 0.5f),
+                    1f to Color.Transparent,
+                    center = Offset(cx, cy),
+                    radius = radius,
+                ),
+                radius = radius,
+                center = Offset(cx, cy),
+            )
+        }
     }
 
-    cloud(phase = 0.00f, yFrac = 0.15f, widthFrac = 0.55f, alpha = 0.10f)
-    cloud(phase = 0.55f, yFrac = 0.05f, widthFrac = 0.65f, alpha = 0.07f) // staggered, slightly higher
+    /**
+     * Drift each cloud continuously left → right. The wrap from end back to
+     * start happens while the cloud silhouette is entirely off-canvas (we
+     * leave extra padding equal to the cloud's outer radius), so no visible
+     * snap-back.
+     */
+    fun cloudAt(phase: Float, yFrac: Float, scale: Float, alpha: Float) {
+        val pad = scale * 1.5f // cloud silhouette half-width including far wisps
+        val totalTravel = w + pad * 2f
+        val phaseT = ((t + phase) % 1f)
+        val cx = -pad + phaseT * totalTravel
+        val cy = h * yFrac
+        puffCloud(cx, cy, scale, alpha)
+    }
+
+    val baseScale = h * 0.22f
+    cloudAt(phase = 0.00f, yFrac = 0.40f, scale = baseScale,        alpha = 0.18f)
+    cloudAt(phase = 0.55f, yFrac = 0.25f, scale = baseScale * 0.75f, alpha = 0.13f)
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainStreaks(t: Float) {
