@@ -99,7 +99,12 @@ import kotlinx.coroutines.launch
 // updates local state or fires a snackbar so the user gets immediate feedback.
 // ═════════════════════════════════════════════════════════════════════════════
 @Composable
-fun ProfileDetailScreen(section: String, onBack: () -> Unit) {
+fun ProfileDetailScreen(
+    section: String,
+    onBack: () -> Unit,
+    onOpenField: (String) -> Unit = {},
+    onSignOut: () -> Unit = {},
+) {
     val title = titleFor(section)
     val snackbar = remember { SnackbarHostState() }
 
@@ -116,9 +121,9 @@ fun ProfileDetailScreen(section: String, onBack: () -> Unit) {
             Box(modifier = Modifier.fillMaxSize()) {
                 when (section) {
                     ProfileSections.FARM_OVERVIEW -> FarmOverviewPanel()
-                    ProfileSections.ACCOUNT -> AccountPanel(snackbar = snackbar, onBack = onBack)
+                    ProfileSections.ACCOUNT -> AccountPanel(snackbar = snackbar, onSignOut = onSignOut)
                     ProfileSections.EDIT_PROFILE -> EditProfilePanel(snackbar = snackbar, onBack = onBack)
-                    ProfileSections.MY_FARMS -> MyFarmsPanel(snackbar = snackbar)
+                    ProfileSections.MY_FARMS -> MyFarmsPanel(snackbar = snackbar, onOpenField = onOpenField)
                     ProfileSections.SUBSCRIPTION -> SubscriptionPanel(snackbar = snackbar)
                     ProfileSections.AI_PREFS -> AiPrefsPanel(snackbar = snackbar)
                     ProfileSections.AI_RELIABILITY -> AiReliabilityPanel()
@@ -266,7 +271,7 @@ private fun ActivityRow(a: Activity) {
 
 // ─── Account settings ────────────────────────────────────────────────────────
 @Composable
-private fun AccountPanel(snackbar: SnackbarHostState, onBack: () -> Unit) {
+private fun AccountPanel(snackbar: SnackbarHostState, onSignOut: () -> Unit) {
     val scope = rememberCoroutineScope()
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
@@ -299,9 +304,7 @@ private fun AccountPanel(snackbar: SnackbarHostState, onBack: () -> Unit) {
                 text = "Sign out of this device",
                 icon = Icons.Rounded.Logout,
                 brush = SolidColor(AgroPalette.Rose),
-                onClick = {
-                    scope.launch { snackbar.showSnackbar("Use the Sign out button on the Profile screen.") }
-                },
+                onClick = onSignOut,
             )
             Spacer(Modifier.height(40.dp))
         }
@@ -340,9 +343,16 @@ private fun InfoRow(
 // ─── Edit profile ────────────────────────────────────────────────────────────
 @Composable
 private fun EditProfilePanel(snackbar: SnackbarHostState, onBack: () -> Unit) {
-    var name by remember { mutableStateOf("Guest farmer") }
+    val authRepo = remember { com.agrosphere.app.data.auth.AuthRepository() }
+    val currentUser = authRepo.currentUser
+    val initialName = currentUser?.displayName?.takeIf { it.isNotBlank() }
+        ?: currentUser?.email?.substringBefore('@')
+        ?: "Guest farmer"
+    val currentEmail = currentUser?.email ?: "guest session"
+    var name by remember { mutableStateOf(initialName) }
     var phone by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("Nashik, Maharashtra") }
+    var location by remember { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LazyColumn(
@@ -370,19 +380,27 @@ private fun EditProfilePanel(snackbar: SnackbarHostState, onBack: () -> Unit) {
             }
         }
         item { Field(label = "Full name", value = name, onChange = { name = it }) }
-        item { Field(label = "Email", value = "guest session", onChange = {}, enabled = false) }
-        item { Field(label = "Phone", value = phone, onChange = { phone = it }, keyboard = KeyboardType.Phone) }
-        item { Field(label = "Location", value = location, onChange = { location = it }) }
+        item { Field(label = "Email", value = currentEmail, onChange = {}, enabled = false) }
+        item { Field(label = "Phone (local only — Firestore sync in v1.1)", value = phone, onChange = { phone = it }, keyboard = KeyboardType.Phone) }
+        item { Field(label = "Location (local only)", value = location, onChange = { location = it }) }
         item {
             Spacer(Modifier.height(8.dp))
             PrimaryButton(
-                text = "Save changes",
+                text = if (saving) "Saving…" else "Save changes",
                 icon = Icons.Rounded.CheckCircle,
-                enabled = name.isNotBlank(),
+                enabled = !saving && name.isNotBlank() && name != initialName,
                 onClick = {
+                    saving = true
                     scope.launch {
-                        snackbar.showSnackbar("Saved — your profile is up to date.")
-                        onBack()
+                        try {
+                            authRepo.updateDisplayName(name)
+                            snackbar.showSnackbar("Saved — your profile is up to date.")
+                            onBack()
+                        } catch (t: Throwable) {
+                            snackbar.showSnackbar("Couldn't save: ${t.message ?: "unknown error"}")
+                        } finally {
+                            saving = false
+                        }
                     }
                 },
             )
@@ -428,7 +446,7 @@ private fun Field(
 
 // ─── My farms ────────────────────────────────────────────────────────────────
 @Composable
-private fun MyFarmsPanel(snackbar: SnackbarHostState) {
+private fun MyFarmsPanel(snackbar: SnackbarHostState, onOpenField: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     val fields by FieldRepository.fields.collectAsState()
     LazyColumn(
@@ -449,9 +467,7 @@ private fun MyFarmsPanel(snackbar: SnackbarHostState) {
             }
         }
         items(fields) { field ->
-            GlassCard(radius = 18.dp, padding = 14.dp, onClick = {
-                scope.launch { snackbar.showSnackbar("Open the Fields tab to manage ${field.name}.") }
-            }) {
+            GlassCard(radius = 18.dp, padding = 14.dp, onClick = { onOpenField(field.id) }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
@@ -808,6 +824,7 @@ private fun HelpPanel(snackbar: SnackbarHostState) {
         "How do I delete my account?" to "Profile → Sign out, then write to support@agrosphere.app — we'll wipe your data within 7 days.",
     )
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -818,12 +835,22 @@ private fun HelpPanel(snackbar: SnackbarHostState) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 PrimaryButton(text = "Email support", icon = Icons.Rounded.Email, modifier = Modifier.weight(1f), onClick = {
-                    scope.launch { snackbar.showSnackbar("Opening mail client for support@agrosphere.app …") }
+                    val ok = launchMailto(
+                        context,
+                        to = "support@agrosphere.app",
+                        subject = "AgroSphere Android — Support",
+                    )
+                    if (!ok) scope.launch { snackbar.showSnackbar("No mail app installed.") }
                 })
             }
             Spacer(Modifier.height(8.dp))
             GhostButton(text = "Send feedback", onClick = {
-                scope.launch { snackbar.showSnackbar("Thanks — we love feedback ❤️") }
+                val ok = launchMailto(
+                    context,
+                    to = "feedback@agrosphere.app",
+                    subject = "AgroSphere Android — Feedback",
+                )
+                if (!ok) scope.launch { snackbar.showSnackbar("No mail app installed.") }
             })
             Spacer(Modifier.height(40.dp))
         }
@@ -857,6 +884,7 @@ private fun FaqRow(q: String, a: String) {
 @Composable
 private fun AboutPanel(snackbar: SnackbarHostState) {
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -892,9 +920,40 @@ private fun AboutPanel(snackbar: SnackbarHostState) {
         }
         item {
             GhostButton(text = "Source on GitHub", onClick = {
-                scope.launch { snackbar.showSnackbar("github.com/Shikari-ai/agrosphere-android") }
+                val ok = launchUrl(context, "https://github.com/Shikari-ai/agrosphere-android")
+                if (!ok) scope.launch { snackbar.showSnackbar("No browser app installed.") }
             })
             Spacer(Modifier.height(40.dp))
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Intent helpers
+// ─────────────────────────────────────────────────────────────────────────────
+private fun launchMailto(
+    context: android.content.Context,
+    to: String,
+    subject: String,
+): Boolean {
+    val uri = android.net.Uri.parse(
+        "mailto:$to?subject=${android.net.Uri.encode(subject)}"
+    )
+    val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO, uri)
+    return try {
+        context.startActivity(intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (_: android.content.ActivityNotFoundException) {
+        false
+    }
+}
+
+private fun launchUrl(context: android.content.Context, url: String): Boolean {
+    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+    return try {
+        context.startActivity(intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (_: android.content.ActivityNotFoundException) {
+        false
     }
 }

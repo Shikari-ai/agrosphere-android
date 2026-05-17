@@ -99,4 +99,13 @@ class AuthRepository(
     fun signOut() {
         auth.signOut()
     }
+
+    /** Updates the currently-signed-in user's profile displayName on Firebase. */
+    suspend fun updateDisplayName(name: String) {
+        val user = auth.currentUser ?: return
+        val updates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+            .setDisplayName(name.trim())
+            .build()
+        user.updateProfile(updates).await()
+    }
 }

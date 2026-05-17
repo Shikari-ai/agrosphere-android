@@ -169,7 +169,17 @@ fun AgroSphereApp() {
             }
             composable(Dest.ProfileDetail.route) { entry ->
                 val section = entry.arguments?.getString("section") ?: ""
-                ProfileDetailScreen(section = section, onBack = { navController.popBackStack() })
+                ProfileDetailScreen(
+                    section = section,
+                    onBack = { navController.popBackStack() },
+                    onOpenField = { id -> navController.navigate(Dest.FieldDetail.build(id)) },
+                    onSignOut = {
+                        authRepo.signOut()
+                        navController.navigate(Dest.Auth.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                )
             }
         }
     }
