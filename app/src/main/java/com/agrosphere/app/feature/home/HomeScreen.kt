@@ -420,9 +420,10 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
             .border(1.dp, AgroPalette.SurfaceGlassBorder, shape)
             .clickable(onClick = onTap),
     ) {
-        // Live atmospheric overlay tied to the current condition.
+        // Live atmospheric overlay tied to the current condition + wind speed.
         WeatherAtmosphere(
             kind = kind,
+            windKph = snapshot?.windKph ?: 0,
             modifier = Modifier.matchParentSize().clip(shape),
         )
 
@@ -557,15 +558,19 @@ private fun colorForTemp(tempC: Int, hasData: Boolean): Color {
 // Atmospheric overlay — picks a Canvas animation by condition.
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun WeatherAtmosphere(kind: ConditionKind, modifier: Modifier = Modifier) {
+private fun WeatherAtmosphere(kind: ConditionKind, windKph: Int, modifier: Modifier = Modifier) {
     val tr = rememberInfiniteTransition(label = "weather-fx")
     val t by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(4_000, easing = LinearEasing)), label = "t")
+
+    // Wind-derived speed scalar — slower scalar = clouds linger longer.
+    // 0 km/h ≈ 0.10x (almost still), 15 km/h ≈ 1x (baseline), 40+ km/h ≈ 2.5x (zippy).
+    val windScalar = (windKph / 15f).coerceIn(0.10f, 2.5f)
 
     Canvas(modifier = modifier) {
         when (kind) {
             ConditionKind.Clear -> drawSunHalo()
-            ConditionKind.PartlyCloudy -> { drawSunHalo(); drawDriftingClouds(t) }
-            ConditionKind.Cloudy -> drawDriftingClouds(t)
+            ConditionKind.PartlyCloudy -> { drawSunHalo(); drawDriftingClouds(t, windScalar) }
+            ConditionKind.Cloudy -> drawDriftingClouds(t, windScalar)
             ConditionKind.Rain -> { drawCloudWash(); drawRainStreaks(t) }
             ConditionKind.Storm -> { drawStormPulse(t); drawRainStreaks(t) }
             ConditionKind.Night -> drawStarfield(t)
@@ -606,7 +611,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCloudWash() {
  * then dissolves back out. No conveyor belt — every cloud has its own period,
  * direction, and lifecycle phase, so the card breathes naturally.
  */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDriftingClouds(t: Float) {
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDriftingClouds(t: Float, windScalar: Float = 1f) {
     val w = size.width
     val h = size.height
 
@@ -653,16 +658,19 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDriftingClouds(
     )
 
     val baseScale = h * 0.22f
+    // Halve the base period factors so clouds linger longer; we re-scale by
+    // the live wind so calm days look almost still and breezy days animate.
     val clouds = listOf(
         // (anchor, drift, period, phase, scale, alpha, dir)
-        CloudSpec(0.30f, 0.40f, 0.20f, 0.06f, 0.55f, 0.00f, baseScale,        0.22f,  1f),
-        CloudSpec(0.70f, 0.25f, 0.16f, 0.05f, 0.38f, 0.42f, baseScale * 0.80f, 0.18f, -1f),
-        CloudSpec(0.50f, 0.55f, 0.22f, 0.04f, 0.28f, 0.78f, baseScale * 0.65f, 0.14f,  1f),
+        CloudSpec(0.30f, 0.40f, 0.20f, 0.06f, 0.22f, 0.00f, baseScale,        0.22f,  1f),
+        CloudSpec(0.70f, 0.25f, 0.16f, 0.05f, 0.16f, 0.42f, baseScale * 0.80f, 0.18f, -1f),
+        CloudSpec(0.50f, 0.55f, 0.22f, 0.04f, 0.12f, 0.78f, baseScale * 0.65f, 0.14f,  1f),
     )
 
     clouds.forEach { c ->
         // Each cloud's own clock — independent period gives organic feel.
-        val localPhase = ((t * c.periodFactor + c.phaseOffset) % 1f)
+        // Multiply by windScalar so 0 km/h = barely-moving, 40+ km/h = brisk.
+        val localPhase = ((t * c.periodFactor * windScalar + c.phaseOffset) % 1f)
         val angle = localPhase * 2f * PI.toFloat()
 
         // Drift along a horizontal sine wave (direction signed), plus a small
