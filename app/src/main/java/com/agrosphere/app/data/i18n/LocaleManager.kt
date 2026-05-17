@@ -30,6 +30,7 @@ object LocaleManager {
         SupportedLocale("te", "తెలుగు", "Telugu"),
         SupportedLocale("bn", "বাংলা", "Bengali"),
         SupportedLocale("gu", "ગુજરાતી", "Gujarati"),
+        SupportedLocale("hne", "छत्तीसगढ़ी", "Chhattisgarhi"),
     )
 
     /** The currently active locale tag (e.g. "en", "hi"). "" means system default. */

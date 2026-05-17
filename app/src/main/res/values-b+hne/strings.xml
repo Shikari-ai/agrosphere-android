@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_tagline">तोर खेत। अउर चालाक।</string>
+
+    <string name="nav_home">घर</string>
+    <string name="nav_fields">खेत</string>
+    <string name="nav_scan">स्कैन</string>
+    <string name="nav_weather">मौसम</string>
+    <string name="nav_ask">पूछो</string>
+
+    <string name="greeting_morning">जय जोहार</string>
+    <string name="greeting_afternoon">राम राम दुपहर</string>
+    <string name="greeting_evening">राम राम संझा</string>
+    <string name="greeting_night">राम राम रात</string>
+
+    <string name="status_all_systems_active">सब सिस्टम चालू हे</string>
+    <string name="status_degraded">सेवा घटे हे</string>
+
+    <string name="action_scan_crop">फसल स्कैन</string>
+    <string name="action_add_field">खेत जोड़ो</string>
+    <string name="action_irrigation">सिंचाई</string>
+    <string name="action_ai_copilot">AI कोपाइलट</string>
+    <string name="action_ai_assistant">AI सहायक</string>
+
+    <string name="weather_now">अभी के मौसम</string>
+    <string name="weather_humidity">नमी</string>
+    <string name="weather_wind">हवा</string>
+    <string name="weather_rain">बरसात</string>
+    <string name="weather_view_forecast">आगाही देखो</string>
+    <string name="weather_feels_like">लागत हे %1$d°</string>
+    <string name="weather_sunrise">सुरुज उगे %1$s</string>
+
+    <string name="section_field_operations">खेत के काम</string>
+    <string name="section_recent_alerts">नवा चेतावनी</string>
+    <string name="section_crop_health">फसल के सेहत</string>
+    <string name="section_pest_prediction">कीड़ा के आगाही</string>
+    <string name="section_at_a_glance">एक नजर में</string>
+    <string name="section_my_fields">मोर खेत</string>
+    <string name="section_insights">जानकारी</string>
+    <string name="section_see_all">सब देखो</string>
+    <string name="section_view_all">सब देखो</string>
+    <string name="section_view_details">जानकारी देखो</string>
+    <string name="section_manage_all">सब मेनेज करो</string>
+
+    <string name="empty_no_fields_title">अभी कोनो खेत नइए</string>
+    <string name="empty_no_fields_body">पहली खेत जोड़े बर टेप करो — 20 सेकंड लागही।</string>
+    <string name="empty_no_alerts_title">अभी कोनो चेतावनी नइए</string>
+    <string name="empty_first_field_title">पहली खेत जोड़ो</string>
+    <string name="empty_first_field_body">जब तैं बताबे तब AgroSphere जागत हे।\nखेत के नाम रखो, फसल चुनो, रकबा बताओ — 20 सेकंड।</string>
+
+    <string name="profile_title">प्रोफाइल</string>
+    <string name="profile_sign_out">साइन आउट</string>
+    <string name="profile_section_farm">खेत</string>
+    <string name="profile_section_intelligence">इंटेलिजेंस</string>
+    <string name="profile_section_account">खाता</string>
+    <string name="profile_section_support">सहायता</string>
+    <string name="profile_menu_farm_overview">खेत सारांश</string>
+    <string name="profile_menu_my_farms">मोर खेत</string>
+    <string name="profile_menu_subscription">सदस्यता</string>
+    <string name="profile_menu_ai_prefs">AI पसंद</string>
+    <string name="profile_menu_ai_reliability">AI भरोसेमंद</string>
+    <string name="profile_menu_learning">सीखे के विकास</string>
+    <string name="profile_menu_account_settings">खाता सेटिंग</string>
+    <string name="profile_menu_notifications">सूचना</string>
+    <string name="profile_menu_language">भाखा</string>
+    <string name="profile_menu_help">मदद &amp; सहायता</string>
+    <string name="profile_menu_about">AgroSphere के बारे में</string>
+    <string name="profile_menu_regional">इलाका इंटेलिजेंस</string>
+    <string name="profile_menu_developer">डेवलपर पैनल</string>
+
+    <string name="common_save">सहेजो</string>
+    <string name="common_cancel">रद्द करो</string>
+    <string name="common_edit">बदलो</string>
+    <string name="common_continue">आगे जाओ</string>
+    <string name="common_retry">फेर कोशिश करो</string>
+    <string name="common_search">खोजो</string>
+    <string name="common_add">जोड़ो</string>
+
+    <string name="weather_condition_clear">साफ आकाश</string>
+    <string name="weather_condition_partly_cloudy">थोड़ा बादल</string>
+    <string name="weather_condition_cloudy">बादलई</string>
+    <string name="weather_condition_rain">बरसात</string>
+    <string name="weather_condition_storm">तूफान</string>
+    <string name="weather_condition_night">साफ रात</string>
+
+    <string name="field_ops_no_fields_body">आज के काम देखे बर खेत जोड़ो।</string>
+    <string name="field_ops_all_clear">सब ठीक हे — अभी कोनो जरूरी काम नइए।</string>
+    <string name="field_ops_actions_suggested">तोर खेत ले %1$d काम सुझाए हे।</string>
+    <string name="alerts_empty_with_fields">तूफान, गरमी अउ सूखा के चेतावनी इहाँ आही।</string>
+    <string name="alerts_empty_no_fields">खेत जोड़ो — मौसम अउ खेत के चेतावनी इहाँ आही।</string>
+    <string name="crop_no_data_title">अभी कोनो डेटा नइए</string>
+    <string name="crop_no_data_body">सेहत ट्रैक करे बर खेत जोड़ो अउ स्कैन करो।</string>
+    <string name="crop_overall_health">कुल फसल सेहत</string>
+    <string name="crop_avg_summary">%1$d खेत के औसत। ताजा करे बर स्कैन करो।</string>
+    <string name="pest_risk_level">खतरा स्तर</string>
+    <string name="pest_no_data_body">मौसम + फसल के आधार में आगाही बर खेत जोड़ो।</string>
+    <string name="pest_risk_low">कम</string>
+    <string name="pest_risk_moderate">मध्यम</string>
+    <string name="pest_risk_high">जादा</string>
+    <string name="pest_risk_severe">गंभीर</string>
+    <string name="insights_empty_body">अभी कोनो जानकारी नइए — खेत जोड़ो, AgroSphere दिखाना शुरू करही।</string>
+
+    <string name="glance_fields">खेत</string>
+    <string name="glance_crops">फसल</string>
+    <string name="glance_irrigation">सिंचाई</string>
+    <string name="glance_soil">माटी</string>
+    <string name="glance_active">चालू</string>
+    <string name="glance_growing">बढ़त हे</string>
+    <string name="glance_efficiency">कुशलता</string>
+    <string name="glance_moisture">नमी</string>
+
+    <string name="fields_eyebrow">प्लाट</string>
+    <string name="fields_title">तोर खेत</string>
+    <string name="fields_metric_fields">खेत</string>
+    <string name="fields_metric_area">रकबा</string>
+    <string name="fields_metric_avg_health">औसत सेहत</string>
+    <string name="fields_search_placeholder">खेत या फसल खोजो…</string>
+    <string name="fields_map_chip">नक्शा</string>
+    <string name="fields_draw_on_map_chip">नक्शा में बनाओ</string>
+    <string name="fields_results_count">%2$d में %1$d खेत</string>
+    <string name="fields_sort_label">क्रम: %1$s</string>
+    <string name="fields_filter_all">सब</string>
+    <string name="fields_filter_cereals">अनाज</string>
+    <string name="fields_filter_pulses">दाल</string>
+    <string name="fields_filter_rice">धान</string>
+    <string name="fields_filter_healthy">स्वस्थ 80+</string>
+    <string name="fields_filter_attention">ध्यान चाही</string>
+    <string name="fields_sort_health">सेहत</string>
+    <string name="fields_sort_area">रकबा</string>
+    <string name="fields_sort_recent">नवा</string>
+    <string name="fields_sort_name">नाम</string>
+    <string name="fields_first_or_draw">या नक्शा में बनाओ →</string>
+    <string name="fields_empty_filter_title">कोनो खेत नइ मिले</string>
+    <string name="fields_empty_filter_body">खोज साफ करो या फिल्टर बदलो।</string>
+
+    <string name="scanner_eyebrow">जाँच</string>
+    <string name="scanner_title">स्कैनर</string>
+    <string name="scanner_history">इतिहास</string>
+    <string name="scanner_mode_crop">फसल</string>
+    <string name="scanner_mode_pest">कीड़ा</string>
+    <string name="scanner_mode_soil">माटी</string>
+    <string name="scanner_hint_crop">पत्ता या छतरी में निशाना लगाओ</string>
+    <string name="scanner_hint_pest">प्रभावित हिस्सा नजदीक ले कैप्चर करो</string>
+    <string name="scanner_hint_soil">अच्छे उजाले में माटी कैप्चर करो</string>
+    <string name="scanner_hold_steady">स्थिर रहो — फोकस होत हे</string>
+    <string name="scanner_scan_complete">स्कैन पूरा</string>
+    <string name="scanner_findings_count">%1$d नतीजा मिले</string>
+    <string name="scanner_capture">कैप्चर &amp; विश्लेषण</string>
+    <string name="scanner_rescan">फेर स्कैन</string>
+    <string name="scanner_recent_scans">नवा स्कैन</string>
+    <string name="scanner_recent_empty">अभी कोनो स्कैन नइए। ML मॉडल जुड़े के बाद इहाँ दिखही।</string>
+    <string name="camera_flash_on">फ्लैश चालू</string>
+    <string name="camera_flash_off">फ्लैश बंद</string>
+    <string name="camera_rear">पिछला</string>
+    <string name="camera_front">अगला</string>
+    <string name="camera_gallery">गैलरी</string>
+
+    <string name="weather_forecast_eyebrow">आगाही</string>
+    <string name="weather_forecast_title">मौसम</string>
+    <string name="weather_section_hourly">घंटा-वार आगाही</string>
+    <string name="weather_section_farming_intel">खेती जानकारी</string>
+    <string name="weather_section_7day">7-दिन के नजरिया</string>
+    <string name="weather_section_realtime">रियलटाइम माप</string>
+    <string name="weather_right_now">अभी</string>
+    <string name="weather_sunset">सुरुज डूबे %1$s</string>
+    <string name="weather_dry">सूखा</string>
+    <string name="weather_unavailable">मौसम उपलब्ध नइए</string>
+    <string name="weather_loading">आसमान पढ़त हन…</string>
+    <string name="weather_uv_low">कम</string>
+    <string name="weather_uv_moderate">मध्यम</string>
+    <string name="weather_uv_high">जादा</string>
+    <string name="weather_uv_very_high">बहुत जादा</string>
+    <string name="weather_uv_extreme">बहुत खतरनाक</string>
+    <string name="weather_uv_chip">UV · %1$s</string>
+
+    <string name="profile_quick_invite">बुलाओ</string>
+    <string name="profile_quick_share">शेयर</string>
+    <string name="profile_stats_farms">खेत</string>
+    <string name="profile_stats_area">रकबा</string>
+    <string name="profile_stats_crops">फसल</string>
+    <string name="profile_stats_avg_health">औसत सेहत</string>
+    <string name="profile_score_eyebrow">खेत इंटेलिजेंस</string>
+    <string name="profile_score_title">खेत इंटेलिजेंस स्कोर</string>
+    <string name="profile_score_of_100">100 में से</string>
+    <string name="profile_role_owner">खेत मालिक</string>
+    <string name="profile_role_guest">मेहमान मोड</string>
+    <string name="profile_sub_farm_overview">खेत, फसल, कुल</string>
+    <string name="profile_sub_my_farms">बदलो या साथी बुलाओ</string>
+    <string name="profile_sub_subscription">फ्री प्लान · Pro में अपग्रेड</string>
+    <string name="profile_sub_account">नाम, ईमेल, फोन, सुरक्षा</string>
+    <string name="profile_sub_notif_on">तूफान + सिंचाई चेतावनी चालू</string>
+    <string name="profile_sub_notif_off">सब शांत</string>
+    <string name="profile_sub_units_metric">मेट्रिक (°C, mm, ha, km/h)</string>
+    <string name="profile_sub_units_imperial">इम्पीरियल (°F, in, ac, mph)</string>
+    <string name="profile_sub_dark_on">हमेशा डार्क</string>
+    <string name="profile_sub_dark_off">सिस्टम के अनुसार</string>
+    <string name="profile_sub_ai_prefs">टोन, यूनिट, सलाह</string>
+    <string name="profile_sub_ai_reliability">डेटा के ताजगी · मॉडल सेहत</string>
+    <string name="profile_sub_learning">AgroSphere का सीखत हे</string>
+    <string name="profile_sub_regional">गुमनाम नेटवर्क — 23 खेत पास में</string>
+    <string name="profile_sub_help">डॉक्स, संपर्क, राय</string>
+    <string name="profile_sub_about">v0.1.0 · बिल्ड नोट्स</string>
+    <string name="profile_sub_developer">लॉग, फ्लैग, टेस्ट</string>
+    <string name="profile_made_with_care">मया से बनाए · AgroSphere 0.1.0</string>
+    <string name="profile_toggle_units">यूनिट</string>
+    <string name="profile_toggle_dark">डार्क थीम</string>
+</resources>
