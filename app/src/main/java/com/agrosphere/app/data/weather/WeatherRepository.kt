@@ -8,7 +8,8 @@ import com.agrosphere.app.data.model.WeatherInsight
 import com.agrosphere.app.data.model.WeatherMetric
 import com.agrosphere.app.data.model.WeatherSnapshot
 import com.agrosphere.app.ui.theme.AgroPalette
-import java.time.DayOfWeek
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -28,16 +29,33 @@ data class WeatherBundle(
 
 object WeatherRepository {
 
-    suspend fun load(context: Context): WeatherBundle {
-        val place = LocationProvider.current(context)
-        val r = WeatherApi.fetch(place.latitude, place.longitude)
-        return WeatherBundle(
-            snapshot = toSnapshot(place.label, r),
+    /** In-memory cache so opening Weather a second time is instant. */
+    @Volatile private var cache: WeatherBundle? = null
+    fun cached(): WeatherBundle? = cache
+
+    /**
+     * Fast load — uses lastLocation (cached on device, no GPS wait) and runs
+     * the reverse-geocode in parallel with the Open-Meteo fetch. Cold path is
+     * one network round-trip (~1s). Warm path (cached) is ~0s — see [cached].
+     */
+    suspend fun load(context: Context): WeatherBundle = coroutineScope {
+        val place = LocationProvider.fastCurrent(context)
+        // Kick off both in parallel — total time = max(both), not sum.
+        val weatherDeferred = async { WeatherApi.fetch(place.latitude, place.longitude) }
+        val labelDeferred = async {
+            LocationProvider.reverseGeocode(context, place.latitude, place.longitude) ?: place.label
+        }
+        val r = weatherDeferred.await()
+        val label = labelDeferred.await()
+        val bundle = WeatherBundle(
+            snapshot = toSnapshot(label, r),
             hourly = toHourly(r),
             daily = toDaily(r),
             insights = deriveInsights(r),
             metrics = deriveMetrics(r),
         )
+        cache = bundle
+        bundle
     }
 
     // ─── Mapping ──────────────────────────────────────────────────────────

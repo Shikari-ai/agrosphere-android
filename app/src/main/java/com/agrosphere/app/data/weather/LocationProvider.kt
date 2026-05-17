@@ -34,8 +34,28 @@ object LocationProvider {
     }
 
     /**
-     * Returns the device's current location, or [DefaultPlace] if permission isn't granted
-     * or the lookup fails. Never throws — always returns *some* Place.
+     * Fast path — returns the device's last-known location (already cached on
+     * the device, no fresh GPS query). Never blocks waiting for a GPS fix.
+     * Does NOT reverse-geocode; label is "Current location" if we have coords,
+     * otherwise falls back to [DefaultPlace]. The repository runs the actual
+     * geocode in parallel with the weather fetch.
+     */
+    @SuppressLint("MissingPermission")
+    suspend fun fastCurrent(context: Context): Place {
+        if (!hasLocationPermission(context)) return DefaultPlace
+        val client = LocationServices.getFusedLocationProviderClient(context)
+        return try {
+            val location = client.lastLocation.await() ?: return DefaultPlace
+            Place(location.latitude, location.longitude, "Current location")
+        } catch (_: Throwable) {
+            DefaultPlace
+        }
+    }
+
+    /**
+     * Original behaviour — waits for a fresh fix. Used only when we explicitly
+     * want best-effort accuracy (currently unused by Home/Weather screens
+     * which prioritise speed via [fastCurrent]).
      */
     @SuppressLint("MissingPermission")
     suspend fun current(context: Context): Place {
@@ -53,7 +73,8 @@ object LocationProvider {
         }
     }
 
-    private suspend fun reverseGeocode(context: Context, lat: Double, lon: Double): String? = withContext(Dispatchers.IO) {
+    /** Public so the repository can run geocoding in parallel with the weather fetch. */
+    suspend fun reverseGeocode(context: Context, lat: Double, lon: Double): String? = withContext(Dispatchers.IO) {
         val geocoder = Geocoder(context, Locale.getDefault())
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

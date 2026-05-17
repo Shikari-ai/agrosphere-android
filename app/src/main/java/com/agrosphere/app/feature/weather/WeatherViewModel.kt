@@ -21,19 +21,35 @@ sealed class WeatherUiState {
 
 class WeatherViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val _state = MutableStateFlow<WeatherUiState>(WeatherUiState.Loading)
+    private val _state = MutableStateFlow<WeatherUiState>(
+        // Cached bundle → render instantly; cold start → Loading spinner.
+        WeatherRepository.cached()?.let { WeatherUiState.Loaded(it) } ?: WeatherUiState.Loading
+    )
     val state: StateFlow<WeatherUiState> = _state.asStateFlow()
 
-    init { refresh() }
+    init {
+        // Refresh in the background no matter what — if we showed cache, this
+        // silently swaps in fresher numbers; if we showed the spinner, this
+        // resolves it. Either way the user never waits longer than the first
+        // real fetch.
+        refresh(showLoadingIfNoCache = false)
+    }
 
-    fun refresh() {
-        _state.value = WeatherUiState.Loading
+    fun refresh() = refresh(showLoadingIfNoCache = true)
+
+    private fun refresh(showLoadingIfNoCache: Boolean) {
+        if (showLoadingIfNoCache && _state.value !is WeatherUiState.Loaded) {
+            _state.value = WeatherUiState.Loading
+        }
         viewModelScope.launch {
             try {
                 val bundle = WeatherRepository.load(getApplication())
                 _state.value = WeatherUiState.Loaded(bundle)
             } catch (t: Throwable) {
-                _state.value = WeatherUiState.Error(t.message ?: "Couldn't reach the weather service.")
+                // Don't blow away a cached view just because the refresh failed.
+                if (_state.value !is WeatherUiState.Loaded) {
+                    _state.value = WeatherUiState.Error(t.message ?: "Couldn't reach the weather service.")
+                }
             }
         }
     }
