@@ -1105,7 +1105,7 @@ private fun deriveInsights(
 // derived alerts list the dashboard sources, plus an empty state when nothing
 // is firing right now.
 // ─────────────────────────────────────────────────────────────────────────────
-@androidx.compose.material3.ExperimentalMaterial3Api
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun NotificationsSheet(
     alerts: List<AlertItem>,
