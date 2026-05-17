@@ -786,6 +786,7 @@ private fun LanguagePanel(snackbar: SnackbarHostState) {
     val currentTag = com.agrosphere.app.data.i18n.LocaleManager.currentTag().substringBefore('-')
     var selectedTag by remember { mutableStateOf(currentTag.ifEmpty { "en" }) }
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -803,6 +804,10 @@ private fun LanguagePanel(snackbar: SnackbarHostState) {
             GlassCard(radius = 14.dp, padding = 14.dp, onClick = {
                 selectedTag = lang.tag
                 com.agrosphere.app.data.i18n.LocaleManager.setLocale(lang.tag)
+                // Force the host Activity to recreate so every stringResource()
+                // picks up the new locale immediately. setApplicationLocales
+                // auto-recreates on Android 13+ but not in all Compose configs.
+                (context.findActivity())?.recreate()
                 scope.launch { snackbar.showSnackbar("Language set to ${lang.englishName}.") }
             }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -965,4 +970,18 @@ private fun launchUrl(context: android.content.Context, url: String): Boolean {
     } catch (_: android.content.ActivityNotFoundException) {
         false
     }
+}
+
+/**
+ * Walk a Context chain (ContextWrapper → ContextWrapper → ... → Activity) to
+ * find the host Activity. Composables read LocalContext but in some setups
+ * that's a wrapped/themed Context, not the Activity directly.
+ */
+private fun android.content.Context.findActivity(): android.app.Activity? {
+    var ctx: android.content.Context? = this
+    while (ctx is android.content.ContextWrapper) {
+        if (ctx is android.app.Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
 }
