@@ -601,19 +601,27 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCloudWash() {
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDriftingClouds(t: Float) {
-    // Two translucent ovals drifting horizontally.
-    val drift = (t * size.width * 0.4f) % size.width
-    val cloudColor = Color(0xFFE5E7EB).copy(alpha = 0.10f)
-    drawOval(
-        color = cloudColor,
-        topLeft = Offset(drift - size.width * 0.3f, size.height * 0.15f),
-        size = androidx.compose.ui.geometry.Size(size.width * 0.5f, size.height * 0.2f),
-    )
-    drawOval(
-        color = cloudColor.copy(alpha = 0.07f),
-        topLeft = Offset(size.width - drift, size.height * 0.05f),
-        size = androidx.compose.ui.geometry.Size(size.width * 0.6f, size.height * 0.2f),
-    )
+    // Each cloud drifts continuously from fully off-screen left to fully
+    // off-screen right; the wrap happens while both edges are off-canvas so
+    // there's no visible snap-back.
+    val w = size.width
+    val h = size.height
+
+    fun cloud(phase: Float, yFrac: Float, widthFrac: Float, alpha: Float) {
+        val cloudW = w * widthFrac
+        val cloudH = h * 0.20f
+        val totalTravel = w + cloudW * 2f // off-left → off-right
+        val phaseT = ((t + phase) % 1f)
+        val x = -cloudW + phaseT * totalTravel
+        drawOval(
+            color = Color(0xFFE5E7EB).copy(alpha = alpha),
+            topLeft = Offset(x, h * yFrac),
+            size = androidx.compose.ui.geometry.Size(cloudW, cloudH),
+        )
+    }
+
+    cloud(phase = 0.00f, yFrac = 0.15f, widthFrac = 0.55f, alpha = 0.10f)
+    cloud(phase = 0.55f, yFrac = 0.05f, widthFrac = 0.65f, alpha = 0.07f) // staggered, slightly higher
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainStreaks(t: Float) {
