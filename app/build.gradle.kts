@@ -85,6 +85,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.play.services.location)
 
+    // Google Maps (field picker — satellite + polygon area)
+    implementation(libs.play.services.maps)
+    implementation(libs.maps.compose)
+    implementation(libs.android.maps.utils)
+
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)

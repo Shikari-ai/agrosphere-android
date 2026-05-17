@@ -23,6 +23,11 @@
         android:theme="@style/Theme.AgroSphere.Splash"
         tools:targetApi="34">
 
+        <!-- Google Maps API key — populate via strings.xml (maps_api_key) -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/maps_api_key" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

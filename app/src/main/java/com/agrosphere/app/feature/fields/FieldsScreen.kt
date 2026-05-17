@@ -68,6 +68,7 @@ fun FieldsScreen(
     padding: PaddingValues,
     onOpenField: (String) -> Unit,
     onOpenMap: () -> Unit = {},
+    onOpenMapPicker: () -> Unit = {},
     vm: FieldsViewModel = viewModel(factory = FieldsViewModel.Factory),
 ) {
     var query by remember { mutableStateOf("") }
@@ -154,23 +155,42 @@ fun FieldsScreen(
             }
             items(filtered, key = { it.id }) { field -> FieldRow(field = field, onClick = { onOpenField(field.id) }) }
             if (all.isEmpty()) {
-                item { FirstFieldHero(onAdd = { showAddSheet = true }) }
+                item { FirstFieldHero(onAdd = { showAddSheet = true }, onDrawOnMap = onOpenMapPicker) }
             } else if (filtered.isEmpty()) {
                 item { FilteredEmptyState() }
             }
             item { Spacer(Modifier.height(72.dp)) }
         }
 
-        FloatingActionButton(
-            onClick = { showAddSheet = true },
+        // Dual FAB cluster — small "Draw on map" chip + primary "Add field" plus.
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(end = 20.dp, bottom = padding.calculateBottomPadding() + 20.dp),
-            containerColor = AgroPalette.Primary,
-            contentColor = AgroPalette.BgDeep,
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Icon(Icons.Rounded.Add, contentDescription = "Add field")
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(AgroPalette.SurfaceGlass)
+                    .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
+                    .clickable(onClick = onOpenMapPicker)
+                    .padding(start = 12.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.Map, null, tint = AgroPalette.Primary, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Draw on map", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+            }
+            FloatingActionButton(
+                onClick = { showAddSheet = true },
+                containerColor = AgroPalette.Primary,
+                contentColor = AgroPalette.BgDeep,
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = "Add field")
+            }
         }
 
         SnackbarHost(
@@ -357,7 +377,7 @@ private fun FilteredEmptyState() {
 }
 
 @Composable
-private fun FirstFieldHero(onAdd: () -> Unit) {
+private fun FirstFieldHero(onAdd: () -> Unit, onDrawOnMap: () -> Unit = {}) {
     GlassCard(
         background = com.agrosphere.app.ui.theme.AgroBrushes.leafCard,
         radius = 26.dp,
@@ -385,6 +405,11 @@ private fun FirstFieldHero(onAdd: () -> Unit) {
                 text = "Add a field",
                 icon = Icons.Rounded.Add,
                 onClick = onAdd,
+            )
+            Spacer(Modifier.height(8.dp))
+            com.agrosphere.app.ui.components.GhostButton(
+                text = "or draw it on the map →",
+                onClick = onDrawOnMap,
             )
         }
     }

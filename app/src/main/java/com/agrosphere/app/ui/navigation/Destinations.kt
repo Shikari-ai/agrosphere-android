@@ -21,6 +21,7 @@ sealed class Dest(val route: String) {
     data object Assistant : Dest("assistant")
     data object Copilot : Dest("copilot")
     data object Map : Dest("map")
+    data object MapPicker : Dest("fields/add-from-map")
     data object Regional : Dest("regional")
     data object Developer : Dest("developer")
     data object Profile : Dest("profile")

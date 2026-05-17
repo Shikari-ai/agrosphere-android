@@ -42,6 +42,7 @@ import com.agrosphere.app.feature.copilot.CopilotScreen
 import com.agrosphere.app.feature.developer.DeveloperScreen
 import com.agrosphere.app.feature.fields.FieldDetailScreen
 import com.agrosphere.app.feature.fields.FieldsScreen
+import com.agrosphere.app.feature.fields.MapPickerScreen
 import com.agrosphere.app.feature.home.HomeScreen
 import com.agrosphere.app.feature.map.MapScreen
 import com.agrosphere.app.feature.profile.ProfileDetailScreen
@@ -116,7 +117,11 @@ fun AgroSphereApp() {
                     padding = innerPadding,
                     onOpenField = { id -> navController.navigate(Dest.FieldDetail.build(id)) },
                     onOpenMap = { navController.navigate(Dest.Map.route) },
+                    onOpenMapPicker = { navController.navigate(Dest.MapPicker.route) },
                 )
+            }
+            composable(Dest.MapPicker.route) {
+                MapPickerScreen(onBack = { navController.popBackStack() })
             }
             composable(Dest.FieldDetail.route) { backStack ->
                 val id = backStack.arguments?.getString("id") ?: ""
