@@ -45,8 +45,8 @@ camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "
 
 # Firebase
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
-firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
-firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 
 # Google Sign-In via Credential Manager
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
