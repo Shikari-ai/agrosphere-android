@@ -75,6 +75,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.PrimaryButton
+import com.agrosphere.app.ui.navigation.ProfileSections
 import com.agrosphere.app.ui.theme.AgroBrushes
 import com.agrosphere.app.ui.theme.AgroPalette
 
@@ -86,84 +87,122 @@ import com.agrosphere.app.ui.theme.AgroPalette
 fun ProfileScreen(
     onBack: () -> Unit,
     onSignOut: () -> Unit,
+    onOpenSection: (String) -> Unit = {},
     vm: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.systemBars)
-            .padding(horizontal = 20.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item { TopBar(onBack = onBack) }
-        item { Hero(state = state) }
-        item { QuickActionsRow() }
-        item { ScoreCard(score = 86, label = "Excellent — top 15%") }
-        item { StatsGrid() }
+    Box(modifier = Modifier.fillMaxSize()) {
+        ProfileBackdrop()
 
-        item { GroupLabel("Farm") }
-        item { MenuItem(Icons.Rounded.Grass, "Farm overview", "Fields, crops, totals", AgroPalette.Primary) }
-        item { MenuItem(Icons.Rounded.Group, "My farms", "Switch or invite collaborators", AgroPalette.Sky) }
-        item { MenuItem(Icons.Rounded.WorkspacePremium, "Subscription", "Free plan · upgrade to Pro", AgroPalette.Amber, trailing = { ProPill() }) }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.systemBars)
+                .padding(horizontal = 20.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            item { TopBar(onBack = onBack) }
+            item { Hero(state = state) }
+            item { QuickActionsRow(onOpenSection = onOpenSection) }
+            item { ScoreCard(score = 86, label = "Excellent — top 15%") }
+            item { StatsGrid(onOpen = { onOpenSection(ProfileSections.FARM_OVERVIEW) }) }
 
-        item { GroupLabel("Intelligence") }
-        item { MenuItem(Icons.Rounded.Psychology, "AI preferences", "Tone, units, recommendations", AgroPalette.Iris) }
-        item { MenuItem(Icons.Rounded.Shield, "AI reliability", "Data freshness · model health", Color(0xFF67D4F0)) }
-        item { MenuItem(Icons.Rounded.History, "Learning evolution", "What AgroSphere is learning", AgroPalette.Iris) }
+            item { GroupLabel("Farm") }
+            item {
+                MenuItem(Icons.Rounded.Grass, "Farm overview", "Fields, crops, totals", AgroPalette.Primary,
+                    onClick = { onOpenSection(ProfileSections.FARM_OVERVIEW) })
+            }
+            item {
+                MenuItem(Icons.Rounded.Group, "My farms", "Switch or invite collaborators", AgroPalette.Sky,
+                    onClick = { onOpenSection(ProfileSections.MY_FARMS) })
+            }
+            item {
+                MenuItem(Icons.Rounded.WorkspacePremium, "Subscription", "Free plan · upgrade to Pro", AgroPalette.Amber,
+                    trailing = { ProPill() },
+                    onClick = { onOpenSection(ProfileSections.SUBSCRIPTION) })
+            }
 
-        item { GroupLabel("Account") }
-        item {
-            ToggleItem(
-                icon = Icons.Rounded.Notifications, title = "Notifications",
-                subtitle = if (state.notificationsOn) "Storm + irrigation alerts on" else "All quiet",
-                tint = AgroPalette.Primary,
-                checked = state.notificationsOn, onCheckedChange = vm::toggleNotifications,
-            )
-        }
-        item {
-            ToggleItem(
-                icon = Icons.Rounded.Straighten, title = "Units",
-                subtitle = if (state.useMetric) "Metric (°C, mm, ha, km/h)" else "Imperial (°F, in, ac, mph)",
-                tint = AgroPalette.Sky,
-                checked = state.useMetric, onCheckedChange = vm::toggleUnits,
-            )
-        }
-        item {
-            ToggleItem(
-                icon = Icons.Rounded.DarkMode, title = "Dark theme",
-                subtitle = if (state.darkTheme) "Always dark" else "Follow system",
-                tint = AgroPalette.Iris,
-                checked = state.darkTheme, onCheckedChange = vm::toggleTheme,
-            )
-        }
-        item { MenuItem(Icons.Rounded.Language, "Language", "English (auto)", AgroPalette.Amber) }
+            item { GroupLabel("Intelligence") }
+            item {
+                MenuItem(Icons.Rounded.Psychology, "AI preferences", "Tone, units, recommendations", AgroPalette.Iris,
+                    onClick = { onOpenSection(ProfileSections.AI_PREFS) })
+            }
+            item {
+                MenuItem(Icons.Rounded.Shield, "AI reliability", "Data freshness · model health", Color(0xFF67D4F0),
+                    onClick = { onOpenSection(ProfileSections.AI_RELIABILITY) })
+            }
+            item {
+                MenuItem(Icons.Rounded.History, "Learning evolution", "What AgroSphere is learning", AgroPalette.Iris,
+                    onClick = { onOpenSection(ProfileSections.LEARNING) })
+            }
 
-        item { GroupLabel("Support") }
-        item { MenuItem(Icons.Rounded.SupportAgent, "Help & support", "Docs, contact, feedback", AgroPalette.Sky) }
-        item { MenuItem(Icons.Rounded.Info, "About AgroSphere", "v0.1.0 · build notes", AgroPalette.InkMuted) }
+            item { GroupLabel("Account") }
+            item {
+                MenuItem(Icons.Rounded.Person, "Account settings", "Name, email, phone, security", AgroPalette.Sky,
+                    onClick = { onOpenSection(ProfileSections.ACCOUNT) })
+            }
+            item {
+                ToggleItem(
+                    icon = Icons.Rounded.Notifications, title = "Notifications",
+                    subtitle = if (state.notificationsOn) "Storm + irrigation alerts on" else "All quiet",
+                    tint = AgroPalette.Primary,
+                    checked = state.notificationsOn, onCheckedChange = vm::toggleNotifications,
+                    onRowClick = { onOpenSection(ProfileSections.NOTIFICATIONS) },
+                )
+            }
+            item {
+                ToggleItem(
+                    icon = Icons.Rounded.Straighten, title = "Units",
+                    subtitle = if (state.useMetric) "Metric (°C, mm, ha, km/h)" else "Imperial (°F, in, ac, mph)",
+                    tint = AgroPalette.Sky,
+                    checked = state.useMetric, onCheckedChange = vm::toggleUnits,
+                )
+            }
+            item {
+                ToggleItem(
+                    icon = Icons.Rounded.DarkMode, title = "Dark theme",
+                    subtitle = if (state.darkTheme) "Always dark" else "Follow system",
+                    tint = AgroPalette.Iris,
+                    checked = state.darkTheme, onCheckedChange = vm::toggleTheme,
+                )
+            }
+            item {
+                MenuItem(Icons.Rounded.Language, "Language", "English (auto)", AgroPalette.Amber,
+                    onClick = { onOpenSection(ProfileSections.LANGUAGE) })
+            }
 
-        item {
-            Spacer(Modifier.height(8.dp))
-            PrimaryButton(
-                text = "Sign out",
-                icon = Icons.Rounded.Logout,
-                brush = SolidColor(AgroPalette.Rose),
-                onClick = {
-                    vm.signOut()
-                    onSignOut()
-                },
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "Made with care · AgroSphere 0.1.0",
-                style = MaterialTheme.typography.labelSmall,
-                color = AgroPalette.InkDim,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(24.dp))
+            item { GroupLabel("Support") }
+            item {
+                MenuItem(Icons.Rounded.SupportAgent, "Help & support", "Docs, contact, feedback", AgroPalette.Sky,
+                    onClick = { onOpenSection(ProfileSections.HELP) })
+            }
+            item {
+                MenuItem(Icons.Rounded.Info, "About AgroSphere", "v0.1.0 · build notes", AgroPalette.InkMuted,
+                    onClick = { onOpenSection(ProfileSections.ABOUT) })
+            }
+
+            item {
+                Spacer(Modifier.height(8.dp))
+                PrimaryButton(
+                    text = "Sign out",
+                    icon = Icons.Rounded.Logout,
+                    brush = SolidColor(AgroPalette.Rose),
+                    onClick = {
+                        vm.signOut()
+                        onSignOut()
+                    },
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Made with care · AgroSphere 0.1.0",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AgroPalette.InkDim,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
 }
@@ -321,17 +360,17 @@ private fun RoleBadge(isAnonymous: Boolean) {
 // Quick actions
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun QuickActionsRow() {
+private fun QuickActionsRow(onOpenSection: (String) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-        QuickAction("Edit", Icons.Rounded.Person, Modifier.weight(1f))
-        QuickAction("Invite", Icons.Rounded.Group, Modifier.weight(1f))
-        QuickAction("Share", Icons.Rounded.Share, Modifier.weight(1f))
+        QuickAction("Edit", Icons.Rounded.Person, Modifier.weight(1f)) { onOpenSection(ProfileSections.EDIT_PROFILE) }
+        QuickAction("Invite", Icons.Rounded.Group, Modifier.weight(1f)) { onOpenSection(ProfileSections.MY_FARMS) }
+        QuickAction("Share", Icons.Rounded.Share, Modifier.weight(1f)) { onOpenSection(ProfileSections.ABOUT) }
     }
 }
 
 @Composable
-private fun QuickAction(label: String, icon: ImageVector, modifier: Modifier = Modifier) {
-    GlassCard(modifier = modifier, radius = 16.dp, padding = 12.dp) {
+private fun QuickAction(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    GlassCard(modifier = modifier, radius = 16.dp, padding = 12.dp, onClick = onClick) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Icon(icon, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
             Spacer(Modifier.height(6.dp))
@@ -424,7 +463,7 @@ private fun StarsRow(rating: Float) {
 // Stats grid (2×2)
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun StatsGrid() {
+private fun StatsGrid(onOpen: () -> Unit) {
     val stats = listOf(
         Triple("Farms", "4", AgroPalette.Primary),
         Triple("Area", "15.3 ha", AgroPalette.Sky),
@@ -435,7 +474,7 @@ private fun StatsGrid() {
         stats.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (label, value, tint) ->
-                    StatTile(label = label, value = value, tint = tint, modifier = Modifier.weight(1f))
+                    StatTile(label = label, value = value, tint = tint, modifier = Modifier.weight(1f), onClick = onOpen)
                 }
             }
         }
@@ -443,8 +482,8 @@ private fun StatsGrid() {
 }
 
 @Composable
-private fun StatTile(label: String, value: String, tint: Color, modifier: Modifier = Modifier) {
-    GlassCard(modifier = modifier, radius = 18.dp, padding = 14.dp) {
+private fun StatTile(label: String, value: String, tint: Color, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
+    GlassCard(modifier = modifier, radius = 18.dp, padding = 14.dp, onClick = onClick) {
         Column {
             Text(label, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
             Spacer(Modifier.height(6.dp))
@@ -505,8 +544,9 @@ private fun ToggleItem(
     tint: Color,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    onRowClick: (() -> Unit)? = null,
 ) {
-    GlassCard(radius = 18.dp, padding = 14.dp, onClick = { onCheckedChange(!checked) }) {
+    GlassCard(radius = 18.dp, padding = 14.dp, onClick = onRowClick ?: { onCheckedChange(!checked) }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier

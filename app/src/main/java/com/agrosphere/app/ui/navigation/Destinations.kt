@@ -20,6 +20,25 @@ sealed class Dest(val route: String) {
     data object Weather : Dest("weather")
     data object Assistant : Dest("assistant")
     data object Profile : Dest("profile")
+    data object ProfileDetail : Dest("profile/{section}") {
+        fun build(section: String) = "profile/$section"
+    }
+}
+
+/** Section ids consumed by [ProfileDetail] — kept as constants so the menu + screen can't drift. */
+object ProfileSections {
+    const val FARM_OVERVIEW = "farm-overview"
+    const val ACCOUNT = "account"
+    const val EDIT_PROFILE = "edit"
+    const val MY_FARMS = "my-farms"
+    const val SUBSCRIPTION = "subscription"
+    const val AI_PREFS = "ai-prefs"
+    const val AI_RELIABILITY = "ai-reliability"
+    const val LEARNING = "learning"
+    const val NOTIFICATIONS = "notifications"
+    const val LANGUAGE = "language"
+    const val HELP = "help"
+    const val ABOUT = "about"
 }
 
 data class TabItem(

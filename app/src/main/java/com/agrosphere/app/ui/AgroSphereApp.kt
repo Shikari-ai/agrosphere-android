@@ -41,6 +41,7 @@ import com.agrosphere.app.feature.auth.AuthScreen
 import com.agrosphere.app.feature.fields.FieldDetailScreen
 import com.agrosphere.app.feature.fields.FieldsScreen
 import com.agrosphere.app.feature.home.HomeScreen
+import com.agrosphere.app.feature.profile.ProfileDetailScreen
 import com.agrosphere.app.feature.profile.ProfileScreen
 import com.agrosphere.app.feature.scanner.ScannerScreen
 import com.agrosphere.app.feature.weather.WeatherScreen
@@ -130,8 +131,15 @@ fun AgroSphereApp() {
                         navController.navigate(Dest.Auth.route) {
                             popUpTo(0) { inclusive = true }
                         }
-                    }
+                    },
+                    onOpenSection = { section ->
+                        navController.navigate(Dest.ProfileDetail.build(section))
+                    },
                 )
+            }
+            composable(Dest.ProfileDetail.route) { entry ->
+                val section = entry.arguments?.getString("section") ?: ""
+                ProfileDetailScreen(section = section, onBack = { navController.popBackStack() })
             }
         }
     }
