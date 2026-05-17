@@ -43,9 +43,18 @@ import androidx.compose.material.icons.rounded.WbTwilight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.agrosphere.app.data.weather.LocationProvider
+import com.agrosphere.app.data.weather.WeatherBundle
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -67,8 +76,8 @@ import com.agrosphere.app.data.model.WeatherDay
 import com.agrosphere.app.data.model.WeatherInsight
 import com.agrosphere.app.data.model.WeatherMetric
 import com.agrosphere.app.data.model.WeatherSnapshot
-import com.agrosphere.app.data.repo.MockRepository
 import com.agrosphere.app.ui.components.GlassCard
+import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.components.ScreenTitle
 import com.agrosphere.app.ui.components.SectionHeader
 import com.agrosphere.app.ui.theme.AgroPalette
@@ -81,38 +90,102 @@ import kotlin.math.sin
 // Sections: location header, hero, chip row, hourly forecast with mini temp
 // curve, farming intelligence, 7-day outlook, realtime metrics grid (2×2).
 // ═════════════════════════════════════════════════════════════════════════════
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun WeatherScreen(padding: PaddingValues) {
-    val now = MockRepository.weatherNow
+fun WeatherScreen(
+    padding: PaddingValues,
+    vm: WeatherViewModel = viewModel(factory = WeatherViewModel.Factory),
+) {
+    val context = LocalContext.current
+    val state by vm.state.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize().background(backgroundBrushFor(now.kind))) {
-        ConditionOverlay(now.kind)
-
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(bottom = padding.calculateBottomPadding()),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item { LocationHeader(location = now.location) }
-            item { HeroBlock(snapshot = now) }
-            item { ChipRow(snapshot = now) }
-
-            item { SectionHeader(title = "Hourly forecast") }
-            item { HourlyStrip(hours = MockRepository.hourlyForecast) }
-
-            item { SectionHeader(title = "Farming intelligence") }
-            items(MockRepository.weatherInsights) { ins -> InsightCard(insight = ins) }
-
-            item { SectionHeader(title = "7-day outlook") }
-            items(MockRepository.weekForecast) { day -> DayRow(day = day) }
-
-            item { SectionHeader(title = "Realtime metrics") }
-            item { MetricsGrid(metrics = MockRepository.realtimeMetrics) }
-            item { Spacer(Modifier.height(16.dp)) }
+    // Ask for location once, on entry. If granted, re-fetch so we get device-local weather.
+    val permissions = rememberMultiplePermissionsState(
+        listOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION,
+        )
+    )
+    LaunchedEffect(Unit) {
+        if (!LocationProvider.hasLocationPermission(context) && !permissions.allPermissionsGranted) {
+            permissions.launchMultiplePermissionRequest()
         }
+    }
+    LaunchedEffect(permissions.allPermissionsGranted) {
+        if (permissions.allPermissionsGranted) vm.refresh()
+    }
+
+    // Background brush follows the *current* condition, with a sensible
+    // default while we're still loading or in an error state.
+    val kind = (state as? WeatherUiState.Loaded)?.data?.snapshot?.kind ?: ConditionKind.PartlyCloudy
+
+    Box(modifier = Modifier.fillMaxSize().background(backgroundBrushFor(kind))) {
+        ConditionOverlay(kind)
+
+        when (val s = state) {
+            is WeatherUiState.Loading -> CenteredLoader()
+            is WeatherUiState.Error -> ErrorBlock(message = s.message, onRetry = vm::refresh)
+            is WeatherUiState.Loaded -> LoadedContent(bundle = s.data, padding = padding)
+        }
+    }
+}
+
+@Composable
+private fun CenteredLoader() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = AgroPalette.Primary)
+            Spacer(Modifier.height(12.dp))
+            Text("Reading the sky…", style = MaterialTheme.typography.labelMedium, color = AgroPalette.InkMuted)
+        }
+    }
+}
+
+@Composable
+private fun ErrorBlock(message: String, onRetry: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        GlassCard(radius = 20.dp, padding = 20.dp) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Rounded.Cloud, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(36.dp))
+                Spacer(Modifier.height(10.dp))
+                Text("Weather unavailable", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+                Spacer(Modifier.height(6.dp))
+                Text(message, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                Spacer(Modifier.height(16.dp))
+                PrimaryButton(text = "Retry", onClick = onRetry)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoadedContent(bundle: WeatherBundle, padding: PaddingValues) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(bottom = padding.calculateBottomPadding()),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item { LocationHeader(location = bundle.snapshot.location) }
+        item { HeroBlock(snapshot = bundle.snapshot) }
+        item { ChipRow(snapshot = bundle.snapshot) }
+
+        item { SectionHeader(title = "Hourly forecast") }
+        item { HourlyStrip(hours = bundle.hourly) }
+
+        if (bundle.insights.isNotEmpty()) {
+            item { SectionHeader(title = "Farming intelligence") }
+            items(bundle.insights) { ins -> InsightCard(insight = ins) }
+        }
+
+        item { SectionHeader(title = "7-day outlook") }
+        items(bundle.daily) { day -> DayRow(day = day) }
+
+        item { SectionHeader(title = "Realtime metrics") }
+        item { MetricsGrid(metrics = bundle.metrics) }
+        item { Spacer(Modifier.height(16.dp)) }
     }
 }
 

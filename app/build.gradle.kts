@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -79,6 +80,10 @@ dependencies {
 
     // Coroutines interop for Firebase Task<T>.await()
     implementation(libs.kotlinx.coroutines.play.services)
+
+    // Real-time weather (Open-Meteo) + device location
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.play.services.location)
 
     debugImplementation(libs.androidx.ui.tooling)
 
