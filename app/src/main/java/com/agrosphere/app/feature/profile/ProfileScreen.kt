@@ -73,8 +73,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.agrosphere.app.R
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.navigation.ProfileSections
@@ -113,30 +115,30 @@ fun ProfileScreen(
             item { ScoreCard(score = 86, label = "Excellent — top 15%") }
             item { StatsGrid(onOpen = { onOpenSection(ProfileSections.FARM_OVERVIEW) }) }
 
-            item { GroupLabel("Farm") }
+            item { GroupLabel(stringResource(R.string.profile_section_farm)) }
             item {
-                MenuItem(Icons.Rounded.Grass, "Farm overview", "Fields, crops, totals", AgroPalette.Primary,
+                MenuItem(Icons.Rounded.Grass, stringResource(R.string.profile_menu_farm_overview), stringResource(R.string.profile_sub_farm_overview), AgroPalette.Primary,
                     onClick = { onOpenSection(ProfileSections.FARM_OVERVIEW) })
             }
             item {
-                MenuItem(Icons.Rounded.Group, "My farms", "Switch or invite collaborators", AgroPalette.Sky,
+                MenuItem(Icons.Rounded.Group, stringResource(R.string.profile_menu_my_farms), stringResource(R.string.profile_sub_my_farms), AgroPalette.Sky,
                     onClick = { onOpenSection(ProfileSections.MY_FARMS) })
             }
             item {
-                MenuItem(Icons.Rounded.WorkspacePremium, "Subscription", "Free plan · upgrade to Pro", AgroPalette.Amber,
+                MenuItem(Icons.Rounded.WorkspacePremium, stringResource(R.string.profile_menu_subscription), stringResource(R.string.profile_sub_subscription), AgroPalette.Amber,
                     trailing = { ProPill() },
                     onClick = { onOpenSection(ProfileSections.SUBSCRIPTION) })
             }
 
-            item { GroupLabel("Account") }
+            item { GroupLabel(stringResource(R.string.profile_section_account)) }
             item {
-                MenuItem(Icons.Rounded.Person, "Account settings", "Name, email, phone, security", AgroPalette.Sky,
+                MenuItem(Icons.Rounded.Person, stringResource(R.string.profile_menu_account_settings), stringResource(R.string.profile_sub_account), AgroPalette.Sky,
                     onClick = { onOpenSection(ProfileSections.ACCOUNT) })
             }
             item {
                 ToggleItem(
-                    icon = Icons.Rounded.Notifications, title = "Notifications",
-                    subtitle = if (state.notificationsOn) "Storm + irrigation alerts on" else "All quiet",
+                    icon = Icons.Rounded.Notifications, title = stringResource(R.string.profile_menu_notifications),
+                    subtitle = if (state.notificationsOn) stringResource(R.string.profile_sub_notif_on) else stringResource(R.string.profile_sub_notif_off),
                     tint = AgroPalette.Primary,
                     checked = state.notificationsOn, onCheckedChange = vm::toggleNotifications,
                     onRowClick = { onOpenSection(ProfileSections.NOTIFICATIONS) },
@@ -144,16 +146,16 @@ fun ProfileScreen(
             }
             item {
                 ToggleItem(
-                    icon = Icons.Rounded.Straighten, title = "Units",
-                    subtitle = if (state.useMetric) "Metric (°C, mm, ha, km/h)" else "Imperial (°F, in, ac, mph)",
+                    icon = Icons.Rounded.Straighten, title = stringResource(R.string.profile_toggle_units),
+                    subtitle = if (state.useMetric) stringResource(R.string.profile_sub_units_metric) else stringResource(R.string.profile_sub_units_imperial),
                     tint = AgroPalette.Sky,
                     checked = state.useMetric, onCheckedChange = vm::toggleUnits,
                 )
             }
             item {
                 ToggleItem(
-                    icon = Icons.Rounded.DarkMode, title = "Dark theme",
-                    subtitle = if (state.darkTheme) "Always dark" else "Follow system",
+                    icon = Icons.Rounded.DarkMode, title = stringResource(R.string.profile_toggle_dark),
+                    subtitle = if (state.darkTheme) stringResource(R.string.profile_sub_dark_on) else stringResource(R.string.profile_sub_dark_off),
                     tint = AgroPalette.Iris,
                     checked = state.darkTheme, onCheckedChange = vm::toggleTheme,
                 )
@@ -161,49 +163,49 @@ fun ProfileScreen(
             item {
                 MenuItem(
                     icon = Icons.Rounded.Language,
-                    title = androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.profile_menu_language),
+                    title = stringResource(R.string.profile_menu_language),
                     subtitle = com.agrosphere.app.data.i18n.LocaleManager.currentDisplayLabel(),
                     tint = AgroPalette.Amber,
                     onClick = { onOpenSection(ProfileSections.LANGUAGE) },
                 )
             }
 
-            item { GroupLabel("Intelligence") }
+            item { GroupLabel(stringResource(R.string.profile_section_intelligence)) }
             item {
-                MenuItem(Icons.Rounded.Psychology, "AI preferences", "Tone, units, recommendations", AgroPalette.Iris,
+                MenuItem(Icons.Rounded.Psychology, stringResource(R.string.profile_menu_ai_prefs), stringResource(R.string.profile_sub_ai_prefs), AgroPalette.Iris,
                     onClick = { onOpenSection(ProfileSections.AI_PREFS) })
             }
             item {
-                MenuItem(Icons.Rounded.Shield, "AI reliability", "Data freshness · model health", Color(0xFF67D4F0),
+                MenuItem(Icons.Rounded.Shield, stringResource(R.string.profile_menu_ai_reliability), stringResource(R.string.profile_sub_ai_reliability), Color(0xFF67D4F0),
                     onClick = { onOpenSection(ProfileSections.AI_RELIABILITY) })
             }
             item {
-                MenuItem(Icons.Rounded.History, "Learning evolution", "What AgroSphere is learning", AgroPalette.Iris,
+                MenuItem(Icons.Rounded.History, stringResource(R.string.profile_menu_learning), stringResource(R.string.profile_sub_learning), AgroPalette.Iris,
                     onClick = { onOpenSection(ProfileSections.LEARNING) })
             }
             item {
-                MenuItem(Icons.Rounded.Public, "Regional intelligence", "Anonymous network — 23 farms nearby", Color(0xFF22D3EE),
+                MenuItem(Icons.Rounded.Public, stringResource(R.string.profile_menu_regional), stringResource(R.string.profile_sub_regional), Color(0xFF22D3EE),
                     onClick = onOpenRegional)
             }
 
-            item { GroupLabel("Support") }
+            item { GroupLabel(stringResource(R.string.profile_section_support)) }
             item {
-                MenuItem(Icons.Rounded.SupportAgent, "Help & support", "Docs, contact, feedback", AgroPalette.Sky,
+                MenuItem(Icons.Rounded.SupportAgent, stringResource(R.string.profile_menu_help), stringResource(R.string.profile_sub_help), AgroPalette.Sky,
                     onClick = { onOpenSection(ProfileSections.HELP) })
             }
             item {
-                MenuItem(Icons.Rounded.Info, "About AgroSphere", "v0.1.0 · build notes", AgroPalette.InkMuted,
+                MenuItem(Icons.Rounded.Info, stringResource(R.string.profile_menu_about), stringResource(R.string.profile_sub_about), AgroPalette.InkMuted,
                     onClick = { onOpenSection(ProfileSections.ABOUT) })
             }
             item {
-                MenuItem(Icons.Rounded.Code, "Developer panel", "Logs, flags, test injection", AgroPalette.Iris,
+                MenuItem(Icons.Rounded.Code, stringResource(R.string.profile_menu_developer), stringResource(R.string.profile_sub_developer), AgroPalette.Iris,
                     onClick = onOpenDeveloper)
             }
 
             item {
                 Spacer(Modifier.height(8.dp))
                 PrimaryButton(
-                    text = "Sign out",
+                    text = stringResource(R.string.profile_sign_out),
                     icon = Icons.Rounded.Logout,
                     brush = SolidColor(AgroPalette.Rose),
                     onClick = {
@@ -213,7 +215,7 @@ fun ProfileScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "Made with care · AgroSphere 0.1.0",
+                    stringResource(R.string.profile_made_with_care),
                     style = MaterialTheme.typography.labelSmall,
                     color = AgroPalette.InkDim,
                     modifier = Modifier.fillMaxWidth(),
@@ -234,7 +236,7 @@ private fun TopBar(onBack: () -> Unit) {
             Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = AgroPalette.Ink)
         }
         Spacer(Modifier.width(4.dp))
-        Text("Profile", style = MaterialTheme.typography.titleMedium, color = AgroPalette.InkMuted)
+        Text(stringResource(R.string.profile_title), style = MaterialTheme.typography.titleMedium, color = AgroPalette.InkMuted)
     }
 }
 
@@ -357,8 +359,8 @@ private fun initialsOf(name: String): String {
 
 @Composable
 private fun RoleBadge(isAnonymous: Boolean) {
-    val (label, tint) = if (isAnonymous) "GUEST MODE" to AgroPalette.Amber
-        else "FARM OWNER" to AgroPalette.Primary
+    val (label, tint) = if (isAnonymous) stringResource(R.string.profile_role_guest) to AgroPalette.Amber
+        else stringResource(R.string.profile_role_owner) to AgroPalette.Primary
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
@@ -379,9 +381,9 @@ private fun RoleBadge(isAnonymous: Boolean) {
 @Composable
 private fun QuickActionsRow(onOpenSection: (String) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-        QuickAction("Edit", Icons.Rounded.Person, Modifier.weight(1f)) { onOpenSection(ProfileSections.EDIT_PROFILE) }
-        QuickAction("Invite", Icons.Rounded.Group, Modifier.weight(1f)) { onOpenSection(ProfileSections.MY_FARMS) }
-        QuickAction("Share", Icons.Rounded.Share, Modifier.weight(1f)) { onOpenSection(ProfileSections.ABOUT) }
+        QuickAction(stringResource(R.string.common_edit), Icons.Rounded.Person, Modifier.weight(1f)) { onOpenSection(ProfileSections.EDIT_PROFILE) }
+        QuickAction(stringResource(R.string.profile_quick_invite), Icons.Rounded.Group, Modifier.weight(1f)) { onOpenSection(ProfileSections.MY_FARMS) }
+        QuickAction(stringResource(R.string.profile_quick_share), Icons.Rounded.Share, Modifier.weight(1f)) { onOpenSection(ProfileSections.ABOUT) }
     }
 }
 
@@ -415,13 +417,13 @@ private fun ScoreCard(score: Int, label: String) {
                     Icon(Icons.Rounded.AutoAwesome, null, tint = AgroPalette.Primary, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        "FARM INTELLIGENCE",
+                        stringResource(R.string.profile_score_eyebrow),
                         style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.sp),
                         color = AgroPalette.Primary,
                     )
                 }
                 Spacer(Modifier.height(4.dp))
-                Text("Farm Intelligence Score", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+                Text(stringResource(R.string.profile_score_title), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
                 Spacer(Modifier.height(2.dp))
                 Text(label, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
                 Spacer(Modifier.height(8.dp))
@@ -457,7 +459,7 @@ private fun ScoreGauge(progress: Float, score: Int, modifier: Modifier = Modifie
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("$score", style = MaterialTheme.typography.displayMedium.copy(fontSize = 30.sp), color = AgroPalette.Ink, fontWeight = FontWeight.Black)
-            Text("of 100", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
+            Text(stringResource(R.string.profile_score_of_100), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
         }
     }
 }
@@ -483,15 +485,15 @@ private fun StarsRow(rating: Float) {
 private fun StatsGrid(onOpen: () -> Unit) {
     val fields by com.agrosphere.app.data.repo.FieldRepository.fields.collectAsState()
     val stats = listOf(
-        Triple("Farms", "${fields.size}", AgroPalette.Primary),
+        Triple(stringResource(R.string.profile_stats_farms), "${fields.size}", AgroPalette.Primary),
         Triple(
-            "Area",
+            stringResource(R.string.profile_stats_area),
             if (fields.isEmpty()) "—" else "%.1f ha".format(fields.sumOf { it.areaHa }),
             AgroPalette.Sky,
         ),
-        Triple("Crops", if (fields.isEmpty()) "—" else "${fields.map { it.crop }.distinct().size} types", AgroPalette.Amber),
+        Triple(stringResource(R.string.profile_stats_crops), if (fields.isEmpty()) "—" else "${fields.map { it.crop }.distinct().size}", AgroPalette.Amber),
         Triple(
-            "Avg health",
+            stringResource(R.string.profile_stats_avg_health),
             if (fields.isEmpty()) "—" else "${fields.map { it.healthScore }.average().toInt()}",
             AgroPalette.Iris,
         ),

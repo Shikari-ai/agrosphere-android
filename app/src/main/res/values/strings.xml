@@ -173,4 +173,56 @@
     <string name="camera_rear">Rear</string>
     <string name="camera_front">Front</string>
     <string name="camera_gallery">Gallery</string>
+
+    <!-- Weather screen sections + labels -->
+    <string name="weather_forecast_eyebrow">Forecast</string>
+    <string name="weather_forecast_title">Weather</string>
+    <string name="weather_section_hourly">Hourly forecast</string>
+    <string name="weather_section_farming_intel">Farming intelligence</string>
+    <string name="weather_section_7day">7-day outlook</string>
+    <string name="weather_section_realtime">Realtime metrics</string>
+    <string name="weather_right_now">RIGHT NOW</string>
+    <string name="weather_sunset">Sunset %1$s</string>
+    <string name="weather_dry">dry</string>
+    <string name="weather_unavailable">Weather unavailable</string>
+    <string name="weather_loading">Reading the sky…</string>
+    <string name="weather_uv_low">Low</string>
+    <string name="weather_uv_moderate">Moderate</string>
+    <string name="weather_uv_high">High</string>
+    <string name="weather_uv_very_high">Very high</string>
+    <string name="weather_uv_extreme">Extreme</string>
+    <string name="weather_uv_chip">UV · %1$s</string>
+
+    <!-- Profile screen -->
+    <string name="profile_quick_invite">Invite</string>
+    <string name="profile_quick_share">Share</string>
+    <string name="profile_stats_farms">Farms</string>
+    <string name="profile_stats_area">Area</string>
+    <string name="profile_stats_crops">Crops</string>
+    <string name="profile_stats_avg_health">Avg health</string>
+    <string name="profile_score_eyebrow">FARM INTELLIGENCE</string>
+    <string name="profile_score_title">Farm Intelligence Score</string>
+    <string name="profile_score_of_100">of 100</string>
+    <string name="profile_role_owner">FARM OWNER</string>
+    <string name="profile_role_guest">GUEST MODE</string>
+    <string name="profile_sub_farm_overview">Fields, crops, totals</string>
+    <string name="profile_sub_my_farms">Switch or invite collaborators</string>
+    <string name="profile_sub_subscription">Free plan · upgrade to Pro</string>
+    <string name="profile_sub_account">Name, email, phone, security</string>
+    <string name="profile_sub_notif_on">Storm + irrigation alerts on</string>
+    <string name="profile_sub_notif_off">All quiet</string>
+    <string name="profile_sub_units_metric">Metric (°C, mm, ha, km/h)</string>
+    <string name="profile_sub_units_imperial">Imperial (°F, in, ac, mph)</string>
+    <string name="profile_sub_dark_on">Always dark</string>
+    <string name="profile_sub_dark_off">Follow system</string>
+    <string name="profile_sub_ai_prefs">Tone, units, recommendations</string>
+    <string name="profile_sub_ai_reliability">Data freshness · model health</string>
+    <string name="profile_sub_learning">What AgroSphere is learning</string>
+    <string name="profile_sub_regional">Anonymous network — 23 farms nearby</string>
+    <string name="profile_sub_help">Docs, contact, feedback</string>
+    <string name="profile_sub_about">v0.1.0 · build notes</string>
+    <string name="profile_sub_developer">Logs, flags, test injection</string>
+    <string name="profile_made_with_care">Made with care · AgroSphere 0.1.0</string>
+    <string name="profile_toggle_units">Units</string>
+    <string name="profile_toggle_dark">Dark theme</string>
 </resources>

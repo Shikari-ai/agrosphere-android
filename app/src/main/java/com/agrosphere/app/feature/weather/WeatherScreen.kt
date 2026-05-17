@@ -51,6 +51,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.agrosphere.app.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agrosphere.app.data.weather.LocationProvider
 import com.agrosphere.app.data.weather.WeatherBundle
@@ -137,7 +139,7 @@ private fun CenteredLoader() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(color = AgroPalette.Primary)
             Spacer(Modifier.height(12.dp))
-            Text("Reading the sky…", style = MaterialTheme.typography.labelMedium, color = AgroPalette.InkMuted)
+            Text(stringResource(R.string.weather_loading), style = MaterialTheme.typography.labelMedium, color = AgroPalette.InkMuted)
         }
     }
 }
@@ -149,11 +151,11 @@ private fun ErrorBlock(message: String, onRetry: () -> Unit) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Rounded.Cloud, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(36.dp))
                 Spacer(Modifier.height(10.dp))
-                Text("Weather unavailable", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+                Text(stringResource(R.string.weather_unavailable), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
                 Spacer(Modifier.height(6.dp))
                 Text(message, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
                 Spacer(Modifier.height(16.dp))
-                PrimaryButton(text = "Retry", onClick = onRetry)
+                PrimaryButton(text = stringResource(R.string.common_retry), onClick = onRetry)
             }
         }
     }
@@ -173,18 +175,18 @@ private fun LoadedContent(bundle: WeatherBundle, padding: PaddingValues) {
         item { HeroBlock(snapshot = bundle.snapshot) }
         item { ChipRow(snapshot = bundle.snapshot) }
 
-        item { SectionHeader(title = "Hourly forecast") }
+        item { SectionHeader(title = stringResource(R.string.weather_section_hourly)) }
         item { HourlyStrip(hours = bundle.hourly) }
 
         if (bundle.insights.isNotEmpty()) {
-            item { SectionHeader(title = "Farming intelligence") }
+            item { SectionHeader(title = stringResource(R.string.weather_section_farming_intel)) }
             items(bundle.insights) { ins -> InsightCard(insight = ins) }
         }
 
-        item { SectionHeader(title = "7-day outlook") }
+        item { SectionHeader(title = stringResource(R.string.weather_section_7day)) }
         items(bundle.daily) { day -> DayRow(day = day) }
 
-        item { SectionHeader(title = "Realtime metrics") }
+        item { SectionHeader(title = stringResource(R.string.weather_section_realtime)) }
         item { MetricsGrid(metrics = bundle.metrics) }
         item { Spacer(Modifier.height(16.dp)) }
     }
@@ -335,7 +337,7 @@ private fun LocationHeader(location: String) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        ScreenTitle(eyebrow = "Forecast", title = "Weather")
+        ScreenTitle(eyebrow = stringResource(R.string.weather_forecast_eyebrow), title = stringResource(R.string.weather_forecast_title))
         RadarChip(label = location)
     }
 }
@@ -411,7 +413,7 @@ private fun HeroBlock(snapshot: WeatherSnapshot) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "RIGHT NOW",
+                        stringResource(R.string.weather_right_now),
                         style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.sp),
                         color = AgroPalette.Sky,
                     )
@@ -423,7 +425,7 @@ private fun HeroBlock(snapshot: WeatherSnapshot) {
                         fontWeight = FontWeight.Black,
                     )
                     Text(
-                        "feels like ${snapshot.feelsLikeC}°",
+                        stringResource(R.string.weather_feels_like, snapshot.feelsLikeC),
                         style = MaterialTheme.typography.labelMedium,
                         color = AgroPalette.InkMuted,
                     )
@@ -505,10 +507,10 @@ private fun SunTrack(sunrise: String, sunset: String) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.WbTwilight, null, tint = AgroPalette.Amber, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("Sunrise $sunrise", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                Text(stringResource(R.string.weather_sunrise, sunrise), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Sunset $sunset", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                Text(stringResource(R.string.weather_sunset, sunset), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
                 Spacer(Modifier.width(4.dp))
                 Icon(Icons.Rounded.NightlightRound, null, tint = AgroPalette.Iris, modifier = Modifier.size(16.dp))
             }
@@ -592,9 +594,9 @@ private fun ChipRow(snapshot: WeatherSnapshot) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SmallChip("${snapshot.humidityPct}%", "Humidity", Icons.Rounded.WaterDrop, AgroPalette.Sky, Modifier.weight(1f))
-        SmallChip("${snapshot.windKph} km/h", "Wind", Icons.Rounded.Air, AgroPalette.Primary, Modifier.weight(1f))
-        SmallChip("${snapshot.rainMm} mm", "Rain", Icons.Rounded.Cloud, AgroPalette.InkMuted, Modifier.weight(1f))
+        SmallChip("${snapshot.humidityPct}%", stringResource(R.string.weather_humidity), Icons.Rounded.WaterDrop, AgroPalette.Sky, Modifier.weight(1f))
+        SmallChip("${snapshot.windKph} km/h", stringResource(R.string.weather_wind), Icons.Rounded.Air, AgroPalette.Primary, Modifier.weight(1f))
+        SmallChip("${snapshot.rainMm} mm", stringResource(R.string.weather_rain), Icons.Rounded.Cloud, AgroPalette.InkMuted, Modifier.weight(1f))
         UvChip(value = snapshot.uvIndex, modifier = Modifier.weight(1f))
     }
 }
@@ -615,11 +617,11 @@ private fun SmallChip(value: String, label: String, icon: ImageVector, tint: Col
 @Composable
 private fun UvChip(value: Int, modifier: Modifier = Modifier) {
     val severity = when {
-        value <= 2 -> "Low" to AgroPalette.Primary
-        value <= 5 -> "Moderate" to AgroPalette.Amber
-        value <= 7 -> "High" to AgroPalette.Orange
-        value <= 10 -> "Very high" to AgroPalette.Rose
-        else -> "Extreme" to AgroPalette.Iris
+        value <= 2 -> stringResource(R.string.weather_uv_low) to AgroPalette.Primary
+        value <= 5 -> stringResource(R.string.weather_uv_moderate) to AgroPalette.Amber
+        value <= 7 -> stringResource(R.string.weather_uv_high) to AgroPalette.Orange
+        value <= 10 -> stringResource(R.string.weather_uv_very_high) to AgroPalette.Rose
+        else -> stringResource(R.string.weather_uv_extreme) to AgroPalette.Iris
     }
     GlassCard(modifier = modifier, radius = 16.dp, padding = 12.dp) {
         Column {
@@ -638,7 +640,7 @@ private fun UvChip(value: Int, modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(8.dp))
             Text("$value", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
-            Text("UV · ${severity.first}", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
+            Text(stringResource(R.string.weather_uv_chip, severity.first), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
         }
     }
 }
@@ -835,7 +837,7 @@ private fun DayRow(day: WeatherDay) {
             Column(horizontalAlignment = Alignment.End) {
                 Text("${day.tempC}°/${day.tempLowC}°", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
                 Text(
-                    if (day.rainMm > 0) "${day.rainMm} mm" else "dry",
+                    if (day.rainMm > 0) "${day.rainMm} mm" else stringResource(R.string.weather_dry),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (day.rainMm > 0) AgroPalette.Sky else AgroPalette.InkDim,
                 )
