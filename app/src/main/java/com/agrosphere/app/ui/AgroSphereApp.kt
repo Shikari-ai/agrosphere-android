@@ -39,11 +39,14 @@ import androidx.navigation.compose.rememberNavController
 import com.agrosphere.app.feature.assistant.AssistantScreen
 import com.agrosphere.app.feature.auth.AuthScreen
 import com.agrosphere.app.feature.copilot.CopilotScreen
+import com.agrosphere.app.feature.developer.DeveloperScreen
 import com.agrosphere.app.feature.fields.FieldDetailScreen
 import com.agrosphere.app.feature.fields.FieldsScreen
 import com.agrosphere.app.feature.home.HomeScreen
+import com.agrosphere.app.feature.map.MapScreen
 import com.agrosphere.app.feature.profile.ProfileDetailScreen
 import com.agrosphere.app.feature.profile.ProfileScreen
+import com.agrosphere.app.feature.regional.RegionalScreen
 import com.agrosphere.app.feature.scanner.ScannerScreen
 import com.agrosphere.app.feature.weather.WeatherScreen
 import com.agrosphere.app.ui.navigation.BottomTabs
@@ -112,6 +115,7 @@ fun AgroSphereApp() {
                 FieldsScreen(
                     padding = innerPadding,
                     onOpenField = { id -> navController.navigate(Dest.FieldDetail.build(id)) },
+                    onOpenMap = { navController.navigate(Dest.Map.route) },
                 )
             }
             composable(Dest.FieldDetail.route) { backStack ->
@@ -130,6 +134,18 @@ fun AgroSphereApp() {
             composable(Dest.Copilot.route) {
                 CopilotScreen(onBack = { navController.popBackStack() })
             }
+            composable(Dest.Map.route) {
+                MapScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenField = { id -> navController.navigate(Dest.FieldDetail.build(id)) },
+                )
+            }
+            composable(Dest.Regional.route) {
+                RegionalScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Dest.Developer.route) {
+                DeveloperScreen(onBack = { navController.popBackStack() })
+            }
             composable(Dest.Profile.route) {
                 ProfileScreen(
                     onBack = { navController.popBackStack() },
@@ -142,6 +158,8 @@ fun AgroSphereApp() {
                     onOpenSection = { section ->
                         navController.navigate(Dest.ProfileDetail.build(section))
                     },
+                    onOpenRegional = { navController.navigate(Dest.Regional.route) },
+                    onOpenDeveloper = { navController.navigate(Dest.Developer.route) },
                 )
             }
             composable(Dest.ProfileDetail.route) { entry ->

@@ -88,6 +88,8 @@ fun ProfileScreen(
     onBack: () -> Unit,
     onSignOut: () -> Unit,
     onOpenSection: (String) -> Unit = {},
+    onOpenRegional: () -> Unit = {},
+    onOpenDeveloper: () -> Unit = {},
     vm: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
@@ -137,6 +139,10 @@ fun ProfileScreen(
                 MenuItem(Icons.Rounded.History, "Learning evolution", "What AgroSphere is learning", AgroPalette.Iris,
                     onClick = { onOpenSection(ProfileSections.LEARNING) })
             }
+            item {
+                MenuItem(androidx.compose.material.icons.Icons.Rounded.Public, "Regional intelligence", "Anonymous network — 23 farms nearby", Color(0xFF22D3EE),
+                    onClick = onOpenRegional)
+            }
 
             item { GroupLabel("Account") }
             item {
@@ -181,6 +187,10 @@ fun ProfileScreen(
             item {
                 MenuItem(Icons.Rounded.Info, "About AgroSphere", "v0.1.0 · build notes", AgroPalette.InkMuted,
                     onClick = { onOpenSection(ProfileSections.ABOUT) })
+            }
+            item {
+                MenuItem(androidx.compose.material.icons.Icons.Rounded.Code, "Developer panel", "Logs, flags, test injection", AgroPalette.Iris,
+                    onClick = onOpenDeveloper)
             }
 
             item {

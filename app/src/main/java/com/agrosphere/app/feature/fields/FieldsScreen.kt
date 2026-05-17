@@ -65,6 +65,7 @@ private enum class SortOrder(val label: String) { Health("Health"), Area("Area")
 fun FieldsScreen(
     padding: PaddingValues,
     onOpenField: (String) -> Unit,
+    onOpenMap: () -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(FilterChip.All) }
@@ -109,7 +110,28 @@ fun FieldsScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item { TopBlock(allCount = all.size, allArea = all.sumOf { it.areaHa }, avgHealth = all.map { it.healthScore }.average().toInt()) }
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        TopBlock(allCount = all.size, allArea = all.sumOf { it.areaHa }, avgHealth = all.map { it.healthScore }.average().toInt())
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(AgroPalette.SurfaceGlass)
+                            .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
+                            .clickable(onClick = onOpenMap)
+                            .padding(start = 12.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(androidx.compose.material.icons.Icons.Rounded.Map, null, tint = AgroPalette.Sky, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Map", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
             item {
                 SearchBar(value = query, onChange = { query = it })
             }
