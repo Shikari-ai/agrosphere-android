@@ -134,23 +134,30 @@ fun HomeScreen(
                     onAssistant = onOpenAssistant,
                 )
             }
-            item { FieldOperationsCard(onOpenFields = onOpenFields) }
-            item { SectionHeader(title = "Recent alerts", trailing = "See all") }
-            items(state.alerts.take(3)) { alert -> AlertCard(alert) }
-
-            item {
-                CropHealthCard(
-                    score = state.cropHealth,
-                    verdict = state.cropHealthVerdict,
-                    onTap = onOpenScanner,
-                )
-            }
-            item {
-                PestPredictionCard(
-                    riskLevel = state.pestRiskLevel,
-                    blipRadiusFraction = state.pestRiskBlip,
-                    onTap = onOpenScanner,
-                )
+            // Sections below depend on having at least one field. With zero
+            // fields, swap to a single onboarding nudge instead.
+            if (state.fieldsCount > 0) {
+                item { FieldOperationsCard(onOpenFields = onOpenFields) }
+                if (state.alerts.isNotEmpty()) {
+                    item { SectionHeader(title = "Recent alerts", trailing = "See all") }
+                    items(state.alerts.take(3)) { alert -> AlertCard(alert) }
+                }
+                item {
+                    CropHealthCard(
+                        score = state.cropHealth,
+                        verdict = state.cropHealthVerdict,
+                        onTap = onOpenScanner,
+                    )
+                }
+                item {
+                    PestPredictionCard(
+                        riskLevel = state.pestRiskLevel,
+                        blipRadiusFraction = state.pestRiskBlip,
+                        onTap = onOpenScanner,
+                    )
+                }
+            } else {
+                item { OnboardingNudge(onAddField = onOpenFields) }
             }
 
             item { SectionHeader(title = "At a glance") }
@@ -934,5 +941,58 @@ private fun InsightsCarousel() {
                 }
             }
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Onboarding nudge — shown on Home when the user has no fields yet.
+// Replaces the field-ops + alerts + crop-health + pest cards which are all
+// meaningless without at least one field.
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun OnboardingNudge(onAddField: () -> Unit) {
+    GlassCard(background = AgroBrushes.leafCard, radius = 24.dp, padding = 22.dp, onClick = onAddField) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(AgroPalette.PrimaryDim),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Rounded.Grass, null, tint = AgroPalette.Primary) }
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Set up your farm to see live insights", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "Field operations, crop health, and pest predictions kick in the moment you add your first field.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AgroPalette.InkMuted,
+                    )
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                NudgeStep("①", "Add a field", AgroPalette.Primary)
+                NudgeStep("②", "Run a scan", AgroPalette.Sky)
+                NudgeStep("③", "Get insights", AgroPalette.Iris)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NudgeStep(num: String, label: String, tint: Color) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(tint.copy(alpha = 0.14f))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(num, style = MaterialTheme.typography.labelMedium, color = tint, fontWeight = FontWeight.Black)
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = AgroPalette.Ink)
     }
 }

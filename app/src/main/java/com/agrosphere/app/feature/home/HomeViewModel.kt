@@ -33,11 +33,11 @@ data class HomeUiState(
     val notificationCount: Int = 3,
     val weather: WeatherSnapshot? = null,
     val weatherLoading: Boolean = true,
-    val alerts: List<AlertItem> = MockRepository.homeAlerts,
-    val cropHealth: Int = 76,                 // 0..100
-    val cropHealthVerdict: String = "Strong",
-    val pestRiskLevel: String = "Low",
-    val pestRiskBlip: Float = 0.25f,          // 0..1 — radius fraction
+    val alerts: List<AlertItem> = emptyList(),
+    val cropHealth: Int = 0,                  // 0..100 — 0 means "no data"
+    val cropHealthVerdict: String = "—",
+    val pestRiskLevel: String = "—",
+    val pestRiskBlip: Float = 0f,             // 0..1 — radius fraction
     val fieldsCount: Int = 0,
     val totalAreaHa: Double = 0.0,
     val cropsCount: Int = 0,
@@ -65,12 +65,30 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             FieldRepository.fields.collect { fields ->
+                val hasFields = fields.isNotEmpty()
+                val avgHealth = if (hasFields) fields.map { f -> f.healthScore }.average().toInt() else 0
                 _state.update {
                     it.copy(
                         fieldsCount = fields.size,
                         totalAreaHa = fields.sumOf { f -> f.areaHa },
                         cropsCount = fields.map { f -> f.crop }.distinct().size,
-                        avgMoisture = if (fields.isNotEmpty()) fields.map { f -> f.moisturePct }.average().toInt() else 0,
+                        avgMoisture = if (hasFields) fields.map { f -> f.moisturePct }.average().toInt() else 0,
+                        // Crop health is derived from your fields, not a fake number.
+                        cropHealth = avgHealth,
+                        cropHealthVerdict = when {
+                            !hasFields -> "—"
+                            avgHealth >= 85 -> "Excellent"
+                            avgHealth >= 70 -> "Strong"
+                            avgHealth >= 55 -> "Watch"
+                            else -> "At risk"
+                        },
+                        // Pest risk is a placeholder until we wire real scans;
+                        // stays "—" until at least one field exists.
+                        pestRiskLevel = if (hasFields) "Low" else "—",
+                        pestRiskBlip = if (hasFields) 0.25f else 0f,
+                        // Real alerts will come from Firestore later;
+                        // for now stay empty unless we have fields.
+                        alerts = if (hasFields) MockRepository.homeAlerts else emptyList(),
                     )
                 }
             }
