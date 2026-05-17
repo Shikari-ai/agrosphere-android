@@ -139,30 +139,34 @@ fun HomeScreen(
                     onAssistant = onOpenAssistant,
                 )
             }
-            // Sections below depend on having at least one field. With zero
-            // fields, swap to a single onboarding nudge instead.
-            if (state.fieldsCount > 0) {
-                item { FieldOperationsCard(onOpenFields = onOpenFields) }
-                if (state.alerts.isNotEmpty()) {
-                    item { SectionHeader(title = "Recent alerts", trailing = "See all") }
-                    items(state.alerts.take(3)) { alert -> AlertCard(alert) }
-                }
-                item {
-                    CropHealthCard(
-                        score = state.cropHealth,
-                        verdict = state.cropHealthVerdict,
-                        onTap = onOpenScanner,
-                    )
-                }
-                item {
-                    PestPredictionCard(
-                        riskLevel = state.pestRiskLevel,
-                        blipRadiusFraction = state.pestRiskBlip,
-                        onTap = onOpenScanner,
-                    )
-                }
+            // Section order mirrors the web home (index.html):
+            // Field operations → Recent alerts → Crop health → Pest prediction.
+            // Every card stays mounted; each shows its own inline empty state
+            // when there's no data yet.
+            item { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) }
+
+            item { SectionHeader(title = "Recent alerts", trailing = if (state.alerts.isEmpty()) null else "See all") }
+            if (state.alerts.isEmpty()) {
+                item { AlertsEmptyCard(hasFields = state.fieldsCount > 0) }
             } else {
-                item { OnboardingNudge(onAddField = onOpenFields) }
+                items(state.alerts.take(3)) { alert -> AlertCard(alert) }
+            }
+
+            item {
+                CropHealthCard(
+                    score = state.cropHealth,
+                    verdict = state.cropHealthVerdict,
+                    hasFields = state.fieldsCount > 0,
+                    onTap = onOpenScanner,
+                )
+            }
+            item {
+                PestPredictionCard(
+                    riskLevel = state.pestRiskLevel,
+                    blipRadiusFraction = state.pestRiskBlip,
+                    hasFields = state.fieldsCount > 0,
+                    onTap = onOpenScanner,
+                )
             }
 
             item { SectionHeader(title = "At a glance") }
@@ -553,7 +557,7 @@ private fun QuickActionPill(action: QuickActionData) {
 // Field operations — today's tasks
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun FieldOperationsCard(onOpenFields: () -> Unit) {
+private fun FieldOperationsCard(onOpenFields: () -> Unit, hasFields: Boolean) {
     val fields by FieldRepository.fields.collectAsState()
     val ops = remember(fields) { deriveFieldOps(fields) }
 
@@ -566,7 +570,13 @@ private fun FieldOperationsCard(onOpenFields: () -> Unit) {
                 Text("Fields", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
             }
             Spacer(Modifier.height(4.dp))
-            if (ops.isEmpty()) {
+            if (!hasFields) {
+                Text(
+                    "Add a field to see today's prioritised operations.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgroPalette.InkMuted,
+                )
+            } else if (ops.isEmpty()) {
                 Text(
                     "All clear — no priority actions queued right now.",
                     style = MaterialTheme.typography.bodySmall,
@@ -616,7 +626,7 @@ private fun deriveFieldOps(fields: List<com.agrosphere.app.data.model.Field>): L
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Alert card
+// Alert card + empty state
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun AlertCard(alert: AlertItem) {
@@ -638,48 +648,95 @@ private fun AlertCard(alert: AlertItem) {
     }
 }
 
+@Composable
+private fun AlertsEmptyCard(hasFields: Boolean) {
+    GlassCard(radius = 18.dp, padding = 14.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(AgroPalette.SurfaceGlassBorder),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Rounded.Bolt, null, tint = AgroPalette.InkMuted) }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("No alerts right now", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                Text(
+                    if (hasFields) "Storm watches, heat stress, and dry-soil pings will appear here as they're detected."
+                    else "Add a field — weather + field-level alerts will appear here.",
+                    style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted,
+                )
+            }
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Crop Health Monitor — animated sweep gradient ring
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun CropHealthCard(score: Int, verdict: String, onTap: () -> Unit) {
+private fun CropHealthCard(score: Int, verdict: String, hasFields: Boolean, onTap: () -> Unit) {
     val target = (score / 100f).coerceIn(0f, 1f)
     val progress by animateFloatAsState(
         targetValue = target,
         animationSpec = tween(durationMillis = 1400, easing = LinearOutSlowInEasing),
         label = "crop-progress",
     )
+    val fields by FieldRepository.fields.collectAsState()
     GlassCard(radius = 22.dp, padding = 18.dp, onClick = onTap) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Eco, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Crop health monitor", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
-                Text("View all", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
+                if (hasFields) Text("View all", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
             }
             Spacer(Modifier.height(14.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                HealthRing(progress = progress, score = score, modifier = Modifier.size(98.dp))
-                Spacer(Modifier.width(16.dp))
-                Column {
-                    Text("Overall crop health", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
-                    Spacer(Modifier.height(2.dp))
-                    Text(verdict, style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Primary, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "12 healthy plants · 1 leaf rust spotted today. Re-scan in 5 days for trend.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = AgroPalette.InkMuted,
-                    )
+            if (!hasFields) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    HealthRing(progress = 0f, score = 0, modifier = Modifier.size(80.dp))
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text("No data yet", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Add a field and run a scan to start tracking health.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AgroPalette.InkMuted,
+                        )
+                    }
                 }
-            }
-            Spacer(Modifier.height(12.dp))
-            // Per-crop mini strip
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    "Wheat" to 86, "Soybean" to 71, "Maize" to 92, "Rice" to 58,
-                ).forEach { (crop, value) ->
-                    CropChip(name = crop, value = value, modifier = Modifier.weight(1f))
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    HealthRing(progress = progress, score = score, modifier = Modifier.size(98.dp))
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text("Overall crop health", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                        Spacer(Modifier.height(2.dp))
+                        Text(verdict, style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Primary, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Average across ${fields.size} field${if (fields.size == 1) "" else "s"}. Run a scan to refresh.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AgroPalette.InkMuted,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                // Per-crop mini strip — derived from real field data
+                val byCrop = remember(fields) {
+                    fields.groupBy { it.crop }
+                        .mapValues { (_, list) -> list.map { it.healthScore }.average().toInt() }
+                        .toList()
+                        .take(4)
+                }
+                if (byCrop.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        byCrop.forEach { (crop, value) ->
+                            CropChip(name = crop, value = value, modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
             }
         }
@@ -743,12 +800,13 @@ private fun CropChip(name: String, value: Int, modifier: Modifier = Modifier) {
 // Pest Prediction — animated radar canvas
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun PestPredictionCard(riskLevel: String, blipRadiusFraction: Float, onTap: () -> Unit) {
+private fun PestPredictionCard(riskLevel: String, blipRadiusFraction: Float, hasFields: Boolean, onTap: () -> Unit) {
     val (tint, desc) = when (riskLevel.lowercase()) {
         "low" -> AgroPalette.Primary to "Conditions unfavourable for pest activity. Continue routine scouting."
         "moderate" -> AgroPalette.Amber to "Watch for early signs in vulnerable crops. Re-scan in 3 days."
         "high" -> AgroPalette.Rose to "Pest pressure climbing. Inspect tomorrow; preventive spray ready."
-        else -> AgroPalette.InkMuted to "Analyzing patterns…"
+        "severe" -> AgroPalette.Rose to "Severe pressure — preventive spray strongly advised."
+        else -> AgroPalette.InkMuted to "Add a field to enable predictions based on weather + crop."
     }
     GlassCard(radius = 22.dp, padding = 18.dp, onClick = onTap) {
         Column {
@@ -756,17 +814,20 @@ private fun PestPredictionCard(riskLevel: String, blipRadiusFraction: Float, onT
                 Icon(Icons.Rounded.BugReport, null, tint = AgroPalette.Amber, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Pest prediction", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
-                Text("View details", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
+                if (hasFields) Text("View details", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
             }
             Spacer(Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                PestRadar(blipRadiusFraction = blipRadiusFraction, modifier = Modifier.size(110.dp))
+                PestRadar(
+                    blipRadiusFraction = if (hasFields) blipRadiusFraction else 0f,
+                    modifier = Modifier.size(if (hasFields) 110.dp else 90.dp),
+                )
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Risk level", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        riskLevel,
+                        if (hasFields) riskLevel else "—",
                         style = MaterialTheme.typography.headlineSmall,
                         color = tint, fontWeight = FontWeight.Bold,
                     )
