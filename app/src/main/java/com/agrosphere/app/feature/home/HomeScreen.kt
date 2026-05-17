@@ -101,6 +101,7 @@ fun HomeScreen(
     vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
+    var showNotifications by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         HomeBackdrop(isDay = state.timeOfDay.isDay)
@@ -121,6 +122,7 @@ fun HomeScreen(
                     systemHealthy = state.systemHealthy,
                     notifCount = state.notificationCount,
                     onAvatarTap = onOpenProfile,
+                    onBellTap = { showNotifications = true },
                 )
             }
             item {
@@ -171,6 +173,13 @@ fun HomeScreen(
             item { InsightsCarousel(weather = state.weather) }
 
             item { Spacer(Modifier.height(8.dp)) }
+        }
+
+        if (showNotifications) {
+            NotificationsSheet(
+                alerts = state.alerts,
+                onDismiss = { showNotifications = false },
+            )
         }
     }
 }
@@ -261,6 +270,7 @@ private fun StickyHeader(
     systemHealthy: Boolean,
     notifCount: Int,
     onAvatarTap: () -> Unit,
+    onBellTap: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -286,7 +296,7 @@ private fun StickyHeader(
             SystemBadge(healthy = systemHealthy)
         }
         Spacer(Modifier.width(8.dp))
-        NotificationBell(count = notifCount)
+        NotificationBell(count = notifCount, onClick = onBellTap)
         Spacer(Modifier.width(10.dp))
         AvatarChip(photoUrl = photoUrl, name = name, onTap = onAvatarTap)
     }
@@ -317,7 +327,7 @@ private fun SystemBadge(healthy: Boolean) {
 }
 
 @Composable
-private fun NotificationBell(count: Int) {
+private fun NotificationBell(count: Int, onClick: () -> Unit = {}) {
     Box {
         Box(
             modifier = Modifier
@@ -325,7 +335,7 @@ private fun NotificationBell(count: Int) {
                 .clip(CircleShape)
                 .background(AgroPalette.SurfaceGlass)
                 .border(1.dp, AgroPalette.SurfaceGlassBorder, CircleShape)
-                .clickable { /* future: notification center */ },
+                .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Rounded.Notifications, null, tint = AgroPalette.Ink, modifier = Modifier.size(20.dp))
@@ -1086,4 +1096,78 @@ private fun deriveInsights(
         }
     }
     return out
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notifications bottom sheet — opened from the header bell. Shows the same
+// derived alerts list the dashboard sources, plus an empty state when nothing
+// is firing right now.
+// ─────────────────────────────────────────────────────────────────────────────
+@androidx.compose.material3.ExperimentalMaterial3Api
+@Composable
+private fun NotificationsSheet(
+    alerts: List<AlertItem>,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = AgroPalette.Surface,
+        scrimColor = Color(0xAA000000),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 22.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(AgroPalette.PrimaryDim),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Rounded.Notifications, null, tint = AgroPalette.Primary, modifier = Modifier.size(18.dp)) }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (alerts.isEmpty()) "All quiet" else "Notifications",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = AgroPalette.Ink,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        if (alerts.isEmpty())
+                            "Nothing actionable from weather or your fields right now."
+                        else
+                            "${alerts.size} signal${if (alerts.size == 1) "" else "s"} from weather + fields",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AgroPalette.InkMuted,
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            if (alerts.isEmpty()) {
+                GlassCard(radius = 18.dp, padding = 20.dp) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Rounded.Notifications, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(28.dp))
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Notifications appear here when storms approach, soil moisture drops, or UV climbs.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AgroPalette.InkMuted,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
+                }
+            } else {
+                alerts.forEach { a ->
+                    AlertCard(a)
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
 }
