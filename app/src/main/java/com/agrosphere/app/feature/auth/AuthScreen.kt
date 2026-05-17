@@ -16,6 +16,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
@@ -80,6 +81,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.agrosphere.app.ui.components.GoogleLogo
 import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.theme.AgroBrushes
 import com.agrosphere.app.ui.theme.AgroPalette
@@ -175,7 +177,7 @@ fun AuthScreen(onAuthenticated: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    SocialButton("G", "Google", AgroPalette.Sky, Modifier.weight(1f)) { onAuthenticated() }
+                    SocialButton(null, "Google", AgroPalette.Ink.copy(alpha = 0.85f), Modifier.weight(1f), googleLogo = true) { onAuthenticated() }
                     SocialButton(null, "Phone", AgroPalette.Iris, Modifier.weight(1f), icon = Icons.Rounded.Phone) { onAuthenticated() }
                 }
             }
@@ -600,6 +602,7 @@ private fun SocialButton(
     accent: Color,
     modifier: Modifier = Modifier,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    googleLogo: Boolean = false,
     onClick: () -> Unit,
 ) {
     Row(
@@ -613,6 +616,11 @@ private fun SocialButton(
         horizontalArrangement = Arrangement.Center,
     ) {
         when {
+            googleLogo -> Image(
+                imageVector = GoogleLogo,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
             icon != null -> Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(18.dp))
             glyph != null -> Text(glyph, style = MaterialTheme.typography.titleMedium, color = accent, fontWeight = FontWeight.Black)
         }
