@@ -22,8 +22,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,9 +35,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -64,8 +70,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.agrosphere.app.data.geocoding.GeocodingApi
+import com.agrosphere.app.data.geocoding.NominatimPlace
 import com.agrosphere.app.data.weather.LocationProvider
 import com.agrosphere.app.ui.components.GhostButton
 import com.agrosphere.app.ui.components.GlassCard
@@ -107,6 +116,12 @@ fun MapPickerScreen(
 
     val vertices = remember { mutableStateListOf<GeoPoint>() }
     var layerStyle by remember { mutableStateOf(MapLayer.Satellite) }
+
+    // Place search state
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<NominatimPlace>>(emptyList()) }
+    var searching by remember { mutableStateOf(false) }
+    var resultsExpanded by remember { mutableStateOf(false) }
 
     // Form state
     var name by remember { mutableStateOf("") }
@@ -213,34 +228,97 @@ fun MapPickerScreen(
             }
         }
 
-        // ─── Top status pill ───
-        Row(
+        // ─── Top: back button + search bar (+ floating results list) ───
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.systemBars)
                 .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            CircleIconButton(Icons.Rounded.ArrowBack, onClick = onBack)
-            Spacer(Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(50))
-                    .background(Color(0xCC0A1118))
-                    .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-            ) {
-                Text(
-                    when {
-                        vertices.isEmpty() -> "Tap the map to add the first corner"
-                        vertices.size < 3 -> "${vertices.size}/3+ vertices — keep tapping"
-                        else -> "${vertices.size} vertices · ${"%.2f".format(areaHa)} ha"
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircleIconButton(Icons.Rounded.ArrowBack, onClick = onBack)
+                Spacer(Modifier.width(8.dp))
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = { newValue ->
+                        searchQuery = newValue
+                        if (newValue.isBlank()) {
+                            searchResults = emptyList()
+                            resultsExpanded = false
+                        }
                     },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = AgroPalette.Ink,
-                    fontWeight = FontWeight.SemiBold,
+                    searching = searching,
+                    onSearch = {
+                        val q = searchQuery.trim()
+                        if (q.isEmpty()) return@SearchBar
+                        searching = true
+                        resultsExpanded = true
+                        scope.launch {
+                            searchResults = GeocodingApi.search(q)
+                            searching = false
+                            if (searchResults.isEmpty()) {
+                                snackbar.showSnackbar("No matches for \"$q\".")
+                                resultsExpanded = false
+                            }
+                        }
+                    },
+                    onClear = {
+                        searchQuery = ""
+                        searchResults = emptyList()
+                        resultsExpanded = false
+                    },
+                    modifier = Modifier.weight(1f),
                 )
+            }
+
+            // Floating results list — only when we have results and the user
+            // hasn't dismissed them.
+            AnimatedVisibility(visible = resultsExpanded && searchResults.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 52.dp, top = 6.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color(0xEE0A1118))
+                        .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(18.dp)),
+                ) {
+                    LazyColumn(modifier = Modifier.height((searchResults.size * 64).dp.coerceAtMost(280.dp))) {
+                        items(searchResults, key = { it.place_id ?: it.display_name.hashCode().toLong() }) { p ->
+                            SearchResultRow(p) {
+                                val target = GeoPoint(p.latitude, p.longitude)
+                                mapViewState.value?.controller?.animateTo(target, 15.5, 600L)
+                                resultsExpanded = false
+                                searchQuery = p.shortLabel
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Status pill — kept underneath the search bar so the vertex count
+            // info still shows. Hidden while results are open.
+            if (!resultsExpanded) {
+                Spacer(Modifier.height(6.dp))
+                Row(modifier = Modifier.padding(start = 52.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(Color(0xCC0A1118))
+                            .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            when {
+                                vertices.isEmpty() -> "Tap the map to add the first corner"
+                                vertices.size < 3 -> "${vertices.size}/3+ vertices — keep tapping"
+                                else -> "${vertices.size} vertices · ${"%.2f".format(areaHa)} ha"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = AgroPalette.Ink,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
             }
         }
 
@@ -453,6 +531,97 @@ private fun PickerChip(label: String, selected: Boolean, onClick: () -> Unit) {
             color = if (selected) AgroPalette.BgDeep else AgroPalette.InkMuted,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
         )
+    }
+}
+
+@Composable
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    searching: Boolean,
+    onSearch: () -> Unit,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color(0xEE0A1118))
+            .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.padding(start = 12.dp)) {
+            if (searching) {
+                CircularProgressIndicator(
+                    strokeWidth = 1.6.dp,
+                    color = AgroPalette.Primary,
+                    modifier = Modifier.size(16.dp),
+                )
+            } else {
+                Icon(Icons.Rounded.Search, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(18.dp))
+            }
+        }
+        androidx.compose.material3.OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            placeholder = { Text("Search places — Nashik, Lake Plot…", color = AgroPalette.InkDim, style = MaterialTheme.typography.bodyMedium) },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(50),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedTextColor = AgroPalette.Ink,
+                unfocusedTextColor = AgroPalette.Ink,
+                cursorColor = AgroPalette.Primary,
+            ),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Search,
+            ),
+            keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+        )
+        if (query.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onClear)
+                    .padding(6.dp),
+            ) {
+                Icon(Icons.Rounded.Close, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultRow(place: NominatimPlace, onTap: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onTap)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.LocationOn, null, tint = AgroPalette.Primary, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                place.shortLabel,
+                style = MaterialTheme.typography.titleSmall,
+                color = AgroPalette.Ink,
+                maxLines = 1,
+            )
+            Text(
+                place.display_name,
+                style = MaterialTheme.typography.labelSmall,
+                color = AgroPalette.InkMuted,
+                maxLines = 1,
+            )
+        }
     }
 }
 
