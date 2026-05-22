@@ -19,6 +19,8 @@ sealed class Dest(val route: String) {
         fun build(id: String) = "field/$id"
     }
     data object Scanner : Dest("scanner")
+    data object ScanHistory : Dest("scan-history")
+    data object PestPrediction : Dest("pest-prediction")
     data object Weather : Dest("weather")
     data object Assistant : Dest("assistant")
     data object Copilot : Dest("copilot")

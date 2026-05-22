@@ -5,6 +5,9 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -48,20 +51,27 @@ import androidx.compose.material.icons.rounded.NightlightRound
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.agrosphere.app.R
+import android.content.Context
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -99,6 +109,7 @@ fun HomeScreen(
     onOpenProfile: () -> Unit,
     onOpenField: (String) -> Unit,
     onOpenScanner: () -> Unit,
+    onOpenPestPrediction: () -> Unit = {},
     onOpenAssistant: () -> Unit,
     onOpenWeather: () -> Unit = {},
     onOpenFields: () -> Unit = {},
@@ -119,7 +130,7 @@ fun HomeScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item {
+            item { EntranceItem(0) {
                 StickyHeader(
                     name = state.displayName,
                     photoUrl = state.photoUrl,
@@ -129,11 +140,11 @@ fun HomeScreen(
                     onAvatarTap = onOpenProfile,
                     onBellTap = { showNotifications = true },
                 )
-            }
-            item {
+            } }
+            item { EntranceItem(1) {
                 WeatherHeroCard(snapshot = state.weather, loading = state.weatherLoading, onTap = onOpenWeather)
-            }
-            item {
+            } }
+            item { EntranceItem(2) {
                 QuickActionsRow(
                     onScan = onOpenScanner,
                     onAddField = onOpenFields,
@@ -141,34 +152,34 @@ fun HomeScreen(
                     onCopilot = onOpenCopilot,
                     onAssistant = onOpenAssistant,
                 )
-            }
+            } }
             // Section order mirrors the web home (index.html):
             // Field operations → Recent alerts → Crop health → Pest prediction.
             // Every card stays mounted; each shows its own inline empty state
             // when there's no data yet.
-            item { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) }
+            item { EntranceItem(3) { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) } }
 
-            item { SectionHeader(title = stringResource(R.string.section_recent_alerts), trailing = if (state.alerts.isEmpty()) null else stringResource(R.string.section_see_all)) }
+            item { EntranceItem(4) { SectionHeader(title = stringResource(R.string.section_recent_alerts), trailing = if (state.alerts.isEmpty()) null else stringResource(R.string.section_see_all)) } }
             if (state.alerts.isEmpty()) {
-                item { AlertsEmptyCard(hasFields = state.fieldsCount > 0) }
+                item { EntranceItem(5) { AlertsEmptyCard(hasFields = state.fieldsCount > 0) } }
             } else {
-                items(state.alerts.take(3)) { alert -> AlertCard(alert) }
+                items(state.alerts.take(3)) { alert -> EntranceItem(5) { AlertCard(alert) } }
             }
 
-            item {
+            item { EntranceItem(6) {
                 CropHealthCard(
                     score = state.cropHealth,
                     verdict = state.cropHealthVerdict,
                     hasFields = state.fieldsCount > 0,
                     onTap = onOpenScanner,
                 )
-            }
+            } }
             item {
                 PestPredictionCard(
                     riskLevel = state.pestRiskLevel,
                     blipRadiusFraction = state.pestRiskBlip,
                     hasFields = state.fieldsCount > 0,
-                    onTap = onOpenScanner,
+                    onTap = onOpenPestPrediction,
                 )
             }
 
@@ -191,6 +202,28 @@ fun HomeScreen(
             )
         }
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Staggered fade + slide-up entrance for the first screenful of cards.
+// Below-fold items (index >= 7) render normally so scrolling never lags.
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun EntranceItem(index: Int, content: @Composable () -> Unit) {
+    if (index >= 7) { content(); return }
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(index * 55L)
+        visible = true
+    }
+    val alpha by animateFloatAsState(if (visible) 1f else 0f, tween(durationMillis = 430), label = "entranceAlpha")
+    val ty by animateFloatAsState(if (visible) 0f else 26f, tween(durationMillis = 430), label = "entranceY")
+    Box(
+        modifier = Modifier.graphicsLayer {
+            this.alpha = alpha
+            translationY = ty.dp.toPx()
+        }
+    ) { content() }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -341,14 +374,13 @@ private fun SystemBadge(healthy: Boolean) {
 @Composable
 private fun NotificationBell(count: Int, onClick: () -> Unit = {}) {
     Box {
-        Box(
+        IconButton(
+            onClick = onClick,
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
                 .background(AgroPalette.SurfaceGlass)
-                .border(1.dp, AgroPalette.SurfaceGlassBorder, CircleShape)
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center,
+                .border(1.dp, AgroPalette.SurfaceGlassBorder, CircleShape),
         ) {
             Icon(Icons.Rounded.Notifications, null, tint = AgroPalette.Ink, modifier = Modifier.size(20.dp))
         }
@@ -794,11 +826,43 @@ private data class QuickActionData(val label: String, val icon: ImageVector, val
 
 @Composable
 private fun QuickActionPill(action: QuickActionData) {
+    val inf  = rememberInfiniteTransition(label = "pill-${action.label}")
+    val glow by inf.animateFloat(
+        0.35f, 1f,
+        infiniteRepeatable(tween(1800), RepeatMode.Reverse),
+        label = "g",
+    )
+    val shape = RoundedCornerShape(18.dp)
     Column(
         modifier = Modifier
-            .clip(RoundedCornerShape(18.dp))
+            .clip(shape)
+            .drawBehind {
+                // Tinted top plasma hairline (unique color per action)
+                drawLine(
+                    brush = Brush.horizontalGradient(
+                        0f   to Color.Transparent,
+                        0.5f to action.tint.copy(alpha = 0.75f * glow),
+                        1f   to Color.Transparent,
+                    ),
+                    start       = Offset(0f, 0.7f),
+                    end         = Offset(size.width, 0.7f),
+                    strokeWidth = 1.5f,
+                )
+                // Soft radial glow behind icon area
+                val iconCy = size.height * 0.30f
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        0f to action.tint.copy(alpha = 0.20f * glow),
+                        1f to Color.Transparent,
+                        center = Offset(size.width / 2f, iconCy),
+                        radius = size.width * 0.55f,
+                    ),
+                    radius = size.width * 0.55f,
+                    center = Offset(size.width / 2f, iconCy),
+                )
+            }
             .background(AgroPalette.SurfaceGlass)
-            .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(18.dp))
+            .border(1.dp, action.tint.copy(alpha = 0.22f), shape)
             .clickable(onClick = action.onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1006,27 +1070,56 @@ private fun CropHealthCard(score: Int, verdict: String, hasFields: Boolean, onTa
 
 @Composable
 private fun HealthRing(progress: Float, score: Int, modifier: Modifier = Modifier) {
+    // Pulsing tip dot glow
+    val inf    = rememberInfiniteTransition(label = "ring-tip")
+    val tipPulse by inf.animateFloat(
+        0.55f, 1.45f,
+        infiniteRepeatable(tween(850, easing = LinearEasing), RepeatMode.Reverse),
+        label = "tp",
+    )
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val stroke = 9f
-            val inset = stroke / 2f
-            val arc = size.minDimension - stroke
+            val inset  = stroke / 2f
+            val arc    = size.minDimension - stroke
+            val arcR   = arc / 2f
+
+            // Track ring
             drawArc(
                 color = AgroPalette.SurfaceGlassBorder,
                 startAngle = -90f, sweepAngle = 360f, useCenter = false,
                 topLeft = Offset(inset, inset),
-                size = androidx.compose.ui.geometry.Size(arc, arc),
-                style = Stroke(width = stroke, cap = StrokeCap.Round),
+                size    = androidx.compose.ui.geometry.Size(arc, arc),
+                style   = Stroke(width = stroke, cap = StrokeCap.Round),
             )
+            // Progress arc
             drawArc(
                 brush = Brush.sweepGradient(
                     listOf(AgroPalette.Primary, AgroPalette.Sky, AgroPalette.Iris, AgroPalette.Primary)
                 ),
                 startAngle = -90f, sweepAngle = 360f * progress, useCenter = false,
                 topLeft = Offset(inset, inset),
-                size = androidx.compose.ui.geometry.Size(arc, arc),
-                style = Stroke(width = stroke, cap = StrokeCap.Round),
+                size    = androidx.compose.ui.geometry.Size(arc, arc),
+                style   = Stroke(width = stroke, cap = StrokeCap.Round),
             )
+            // Glowing dot at the arc tip
+            if (progress > 0.02f) {
+                val tipAngle = ((-90f + 360f * progress) * PI / 180.0)
+                val cx  = size.width  / 2f
+                val cy  = size.height / 2f
+                val tipX = cx + arcR * cos(tipAngle).toFloat()
+                val tipY = cy + arcR * sin(tipAngle).toFloat()
+                val glowR = stroke * 2.8f * tipPulse.coerceIn(0.5f, 1.5f)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        0f to AgroPalette.Sky.copy(alpha = 0.90f),
+                        1f to Color.Transparent,
+                        center = Offset(tipX, tipY), radius = glowR,
+                    ),
+                    radius = glowR, center = Offset(tipX, tipY),
+                )
+                drawCircle(AgroPalette.Ink, radius = stroke * 0.52f, center = Offset(tipX, tipY))
+            }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("$score", style = MaterialTheme.typography.displayMedium.copy(fontSize = 28.sp), color = AgroPalette.Ink, fontWeight = FontWeight.Black)
@@ -1062,12 +1155,17 @@ private fun CropChip(name: String, value: Int, modifier: Modifier = Modifier) {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun PestPredictionCard(riskLevel: String, blipRadiusFraction: Float, hasFields: Boolean, onTap: () -> Unit) {
+    val descLow = stringResource(R.string.pest_desc_low)
+    val descModerate = stringResource(R.string.pest_desc_moderate)
+    val descHigh = stringResource(R.string.pest_desc_high)
+    val descSevere = stringResource(R.string.pest_desc_severe)
+    val descNoData = stringResource(R.string.pest_no_data_body)
     val (tint, desc) = when (riskLevel.lowercase()) {
-        "low" -> AgroPalette.Primary to "Conditions unfavourable for pest activity. Continue routine scouting."
-        "moderate" -> AgroPalette.Amber to "Watch for early signs in vulnerable crops. Re-scan in 3 days."
-        "high" -> AgroPalette.Rose to "Pest pressure climbing. Inspect tomorrow; preventive spray ready."
-        "severe" -> AgroPalette.Rose to "Severe pressure — preventive spray strongly advised."
-        else -> AgroPalette.InkMuted to "Add a field to enable predictions based on weather + crop."
+        "low" -> AgroPalette.Primary to descLow
+        "moderate" -> AgroPalette.Amber to descModerate
+        "high" -> AgroPalette.Rose to descHigh
+        "severe" -> AgroPalette.Rose to descSevere
+        else -> AgroPalette.InkMuted to descNoData
     }
     GlassCard(radius = 22.dp, padding = 18.dp, onClick = onTap) {
         Column {
@@ -1115,47 +1213,65 @@ private fun PestRadar(blipRadiusFraction: Float, modifier: Modifier = Modifier) 
     )
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val r = size.minDimension / 2
-            val cx = size.width / 2
+            val r  = size.minDimension / 2
+            val cx = size.width  / 2
             val cy = size.height / 2
-            // 3 concentric rings
-            listOf(0.4f, 0.7f, 1f).forEach { f ->
+
+            // 3 concentric rings — slightly brighter than before
+            listOf(0.38f, 0.68f, 1f).forEach { f ->
                 drawCircle(
-                    color = AgroPalette.Primary.copy(alpha = 0.25f),
-                    radius = r * f,
-                    center = Offset(cx, cy),
+                    color = AgroPalette.Primary.copy(alpha = 0.28f),
+                    radius = r * f, center = Offset(cx, cy),
                     style = Stroke(width = 1f),
                 )
             }
-            // crosshair
-            drawLine(
-                color = AgroPalette.Primary.copy(alpha = 0.15f),
-                start = Offset(cx - r, cy), end = Offset(cx + r, cy),
-                strokeWidth = 1f,
+            // Crosshair
+            drawLine(AgroPalette.Primary.copy(alpha = 0.15f), Offset(cx - r, cy), Offset(cx + r, cy), 1f)
+            drawLine(AgroPalette.Primary.copy(alpha = 0.15f), Offset(cx, cy - r), Offset(cx, cy + r), 1f)
+
+            // ── Trailing sector: wide dim layer ──────────────────────────────
+            drawArc(
+                color      = AgroPalette.Primary.copy(alpha = 0.07f),
+                startAngle = angle - 65f, sweepAngle = 65f, useCenter = true,
+                topLeft    = Offset(cx - r, cy - r),
+                size       = androidx.compose.ui.geometry.Size(r * 2f, r * 2f),
             )
-            drawLine(
-                color = AgroPalette.Primary.copy(alpha = 0.15f),
-                start = Offset(cx, cy - r), end = Offset(cx, cy + r),
-                strokeWidth = 1f,
+            // ── Trailing sector: narrow bright layer near the sweep line ─────
+            drawArc(
+                color      = AgroPalette.Primary.copy(alpha = 0.13f),
+                startAngle = angle - 28f, sweepAngle = 28f, useCenter = true,
+                topLeft    = Offset(cx - r, cy - r),
+                size       = androidx.compose.ui.geometry.Size(r * 2f, r * 2f),
             )
-            // rotating sweep — a gradient triangle
-            val rad = angle * PI.toFloat() / 180f
+
+            // ── Sweep line — brighter + thicker ──────────────────────────────
+            val rad      = angle * PI.toFloat() / 180f
             val sweepLen = r * 0.95f
             val sx = cx + cos(rad) * sweepLen
             val sy = cy + sin(rad) * sweepLen
             drawLine(
                 brush = Brush.linearGradient(
-                    0f to AgroPalette.Primary.copy(alpha = 0.0f),
-                    1f to AgroPalette.Primary.copy(alpha = 0.85f),
+                    0f   to AgroPalette.Primary.copy(alpha = 0.0f),
+                    0.4f to AgroPalette.Primary.copy(alpha = 0.55f),
+                    1f   to AgroPalette.Primary.copy(alpha = 1.00f),
                     start = Offset(cx, cy), end = Offset(sx, sy),
                 ),
                 start = Offset(cx, cy), end = Offset(sx, sy),
-                strokeWidth = 2.5f,
-                cap = StrokeCap.Round,
+                strokeWidth = 2.8f, cap = StrokeCap.Round,
             )
-            // blip — pulsing dot at a fixed radius/angle
+            // Bright glint at sweep tip
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to AgroPalette.Sky.copy(alpha = 0.85f),
+                    1f to Color.Transparent,
+                    center = Offset(sx, sy), radius = 8f,
+                ),
+                radius = 8f, center = Offset(sx, sy),
+            )
+
+            // ── Blip — pulsing amber dot ──────────────────────────────────────
             val blipAngle = 35f * PI.toFloat() / 180f
-            val blipR = r * blipRadiusFraction
+            val blipR     = r * blipRadiusFraction
             val bx = cx + cos(blipAngle) * blipR
             val by = cy + sin(blipAngle) * blipR
             drawCircle(color = AgroPalette.Amber.copy(alpha = 0.4f), radius = 6f * blipPulse, center = Offset(bx, by))
@@ -1172,7 +1288,7 @@ private fun AtAGlanceGrid(state: HomeUiState) {
     val items = listOf(
         GlanceItem(stringResource(R.string.glance_fields), "${state.fieldsCount}", stringResource(R.string.glance_active), Icons.Rounded.Grass, AgroPalette.Primary),
         GlanceItem(stringResource(R.string.glance_crops), "${state.cropsCount}", stringResource(R.string.glance_growing), Icons.Rounded.Eco, AgroPalette.Primary),
-        GlanceItem(stringResource(R.string.glance_irrigation), "92%", stringResource(R.string.glance_efficiency), Icons.Rounded.WaterDrop, AgroPalette.Sky),
+        GlanceItem(stringResource(R.string.glance_irrigation), if (state.irrigationEfficiency > 0) "${state.irrigationEfficiency}%" else "—", stringResource(R.string.glance_efficiency), Icons.Rounded.WaterDrop, AgroPalette.Sky),
         GlanceItem(stringResource(R.string.glance_soil), "${state.avgMoisture}%", stringResource(R.string.glance_moisture), Icons.Rounded.WaterDrop, AgroPalette.Sky),
     )
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1279,8 +1395,9 @@ private fun MyFieldsCarousel(onOpenField: (String) -> Unit, onAddField: () -> Un
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun InsightsCarousel(weather: WeatherSnapshot? = null) {
+    val context = LocalContext.current
     val fields by FieldRepository.fields.collectAsState()
-    val insights = remember(fields, weather) { deriveInsights(fields, weather) }
+    val insights = remember(fields, weather) { deriveInsights(context, fields, weather) }
     if (insights.isEmpty()) {
         GlassCard(radius = 20.dp, padding = 16.dp) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1333,10 +1450,10 @@ private fun OnboardingNudge(onAddField: () -> Unit) {
                 ) { Icon(Icons.Rounded.Grass, null, tint = AgroPalette.Primary) }
                 Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Set up your farm to see live insights", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.onboarding_setup_title), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        "Field operations, crop health, and pest predictions kick in the moment you add your first field.",
+                        stringResource(R.string.onboarding_setup_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = AgroPalette.InkMuted,
                     )
@@ -1344,9 +1461,9 @@ private fun OnboardingNudge(onAddField: () -> Unit) {
             }
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NudgeStep("①", "Add a field", AgroPalette.Primary)
-                NudgeStep("②", "Run a scan", AgroPalette.Sky)
-                NudgeStep("③", "Get insights", AgroPalette.Iris)
+                NudgeStep("①", stringResource(R.string.nudge_add_field), AgroPalette.Primary)
+                NudgeStep("②", stringResource(R.string.nudge_run_scan), AgroPalette.Sky)
+                NudgeStep("③", stringResource(R.string.nudge_get_insights), AgroPalette.Iris)
             }
         }
     }
@@ -1369,6 +1486,7 @@ private fun NudgeStep(num: String, label: String, tint: Color) {
 
 /** Insights derived from the user's real fields + the current weather snapshot. */
 private fun deriveInsights(
+    context: Context,
     fields: List<com.agrosphere.app.data.model.Field>,
     weather: WeatherSnapshot?,
 ): List<Triple<String, String, Color>> {
@@ -1377,26 +1495,26 @@ private fun deriveInsights(
         when {
             weather.kind == ConditionKind.Storm ->
                 out += Triple(
-                    "Storm overhead",
-                    "Avoid field operations until conditions settle. The Weather tab has the next clear window.",
+                    context.getString(R.string.insight_storm_title),
+                    context.getString(R.string.insight_storm_body),
                     AgroPalette.Iris,
                 )
             weather.humidityPct >= 80 ->
                 out += Triple(
-                    "Ambient humidity high",
-                    "${weather.humidityPct}% humidity — disease pressure climbs. Inspect lower canopy on susceptible crops.",
+                    context.getString(R.string.insight_humidity_title),
+                    context.getString(R.string.insight_humidity_body, weather.humidityPct),
                     AgroPalette.Sky,
                 )
             weather.tempC >= 33 ->
                 out += Triple(
-                    "Hot day ahead",
-                    "${weather.tempC}°C reading. Shift labour windows to early morning; check soil moisture this evening.",
+                    context.getString(R.string.insight_hot_day_title),
+                    context.getString(R.string.insight_hot_day_body, weather.tempC.toInt()),
                     AgroPalette.Orange,
                 )
             weather.windKph <= 8 && weather.kind != ConditionKind.Rain ->
                 out += Triple(
-                    "Calm spray window",
-                    "Wind at ${weather.windKph} km/h — ideal for foliar passes if you have one queued.",
+                    context.getString(R.string.insight_calm_spray_title),
+                    context.getString(R.string.insight_calm_spray_body, weather.windKph.toInt()),
                     AgroPalette.Primary,
                 )
         }
@@ -1406,15 +1524,15 @@ private fun deriveInsights(
         val driest = fields.minByOrNull { it.moisturePct }
         if (driest != null && driest.moisturePct < fields.map { it.moisturePct }.average() - 10) {
             out += Triple(
-                "Soil moisture trend",
-                "${driest.name} is drying faster than your other plots — check the drip layout.",
+                context.getString(R.string.insight_soil_moisture_title),
+                context.getString(R.string.insight_soil_moisture_body, driest.name),
                 AgroPalette.Sky,
             )
         }
         if (avgHealth >= 85) {
             out += Triple(
-                "Crops trending strong",
-                "Average health $avgHealth across ${fields.size} field${if (fields.size == 1) "" else "s"}. Keep current cadence.",
+                context.getString(R.string.insight_crops_strong_title),
+                context.getString(R.string.insight_crops_strong_body, avgHealth, fields.size),
                 AgroPalette.Primary,
             )
         }
@@ -1427,14 +1545,14 @@ private fun deriveInsights(
 // derived alerts list the dashboard sources, plus an empty state when nothing
 // is firing right now.
 // ─────────────────────────────────────────────────────────────────────────────
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NotificationsSheet(
     alerts: List<AlertItem>,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    androidx.compose.material3.ModalBottomSheet(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = AgroPalette.Surface,
@@ -1457,16 +1575,16 @@ private fun NotificationsSheet(
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        if (alerts.isEmpty()) "All quiet" else "Notifications",
+                        if (alerts.isEmpty()) stringResource(R.string.notif_sheet_title_empty) else stringResource(R.string.notif_sheet_title),
                         style = MaterialTheme.typography.titleLarge,
                         color = AgroPalette.Ink,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
                         if (alerts.isEmpty())
-                            "Nothing actionable from weather or your fields right now."
+                            stringResource(R.string.notif_empty_body)
                         else
-                            "${alerts.size} signal${if (alerts.size == 1) "" else "s"} from weather + fields",
+                            stringResource(R.string.notif_sheet_subtitle, alerts.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = AgroPalette.InkMuted,
                     )
@@ -1479,7 +1597,7 @@ private fun NotificationsSheet(
                         Icon(Icons.Rounded.Notifications, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(28.dp))
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "Notifications appear here when storms approach, soil moisture drops, or UV climbs.",
+                            stringResource(R.string.notif_empty_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = AgroPalette.InkMuted,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,

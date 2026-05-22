@@ -1,14 +1,38 @@
 package com.agrosphere.app.feature.scanner
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.graphics.Matrix
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import android.text.format.DateUtils
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
+import androidx.camera.view.LifecycleCameraController
+import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,18 +53,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.FlipCameraAndroid
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.History
@@ -48,59 +68,100 @@ import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Terrain
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.annotation.StringRes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import com.agrosphere.app.R
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.agrosphere.app.data.repo.MockRepository
-import com.agrosphere.app.ui.components.GhostButton
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.agrosphere.app.R
+import com.agrosphere.app.data.repo.SavedScan
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.components.ScreenTitle
-import com.agrosphere.app.ui.theme.AgroBrushes
 import com.agrosphere.app.ui.theme.AgroPalette
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
 // ═════════════════════════════════════════════════════════════════════════════
-// ScannerScreen — three scan modes (Crop / Pest / Soil) with viewfinder,
-// animated capture flash, scan history strip, and rich findings card.
+// Scanner — live in-app camera (CameraX) → AI vision diagnosis. No external app.
 // ═════════════════════════════════════════════════════════════════════════════
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun ScannerScreen(padding: PaddingValues) {
-    var mode by remember { mutableStateOf(ScanMode.Crop) }
-    var scanned by remember { mutableStateOf(false) }
-    var flashOn by remember { mutableStateOf(false) }
-    var frontCamera by remember { mutableStateOf(false) }
-    val captureFlash = remember { mutableStateOf(0f) } // 0..1 — alpha overlay
+fun ScannerScreen(padding: PaddingValues, onOpenHistory: () -> Unit = {}) {
+    val context = LocalContext.current
+    val vm: ScannerViewModel = viewModel()
+    val scan by vm.state.collectAsState()
+    val history by vm.history.collectAsState()
+    val scrollState = rememberScrollState()
 
-    val flashAlpha by animateFloatAsState(
-        targetValue = captureFlash.value,
-        animationSpec = tween(durationMillis = 280),
-        label = "flash",
-    )
+    // When a diagnosis arrives, scroll down so the solution (recommendations +
+    // treatments) is immediately visible without manual scrolling.
+    LaunchedEffect(scan.diagnosis) {
+        if (scan.diagnosis != null) scrollState.animateScrollTo(scrollState.maxValue)
+    }
+
+    var mode by remember { mutableStateOf(ScanMode.Crop) }
+    var lensFacing by remember { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
+    var controller by remember { mutableStateOf<LifecycleCameraController?>(null) }
+
+    val cameraPermission = rememberPermissionState(android.Manifest.permission.CAMERA)
+
+    // Gallery upload (robust: photo picker → GetContent fallback)
+    fun handlePicked(uri: Uri?) {
+        if (uri != null) decodeBitmap(context, uri)?.let { bmp -> vm.scan(bmp) }
+    }
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? -> handlePicked(uri) }
+    val getContentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? -> handlePicked(uri) }
+    fun pickImage() {
+        runCatching {
+            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }.onFailure { runCatching { getContentLauncher.launch("image/*") } }
+    }
+
+    fun doCapture() {
+        val c = controller ?: return
+        if (scan.scanning) return
+        capturePhoto(c, context) { bmp -> if (bmp != null) vm.scan(bmp) }
+    }
+
+    val hasResult = scan.diagnosis != null || scan.error != null
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(bottom = padding.calculateBottomPadding())
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(horizontal = 20.dp, vertical = 12.dp),
     ) {
         Row(
@@ -109,102 +170,201 @@ fun ScannerScreen(padding: PaddingValues) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ScreenTitle(eyebrow = stringResource(R.string.scanner_eyebrow), title = stringResource(R.string.scanner_title))
-            HistoryChip()
+            HistoryChip(onClick = onOpenHistory)
         }
         Spacer(Modifier.height(14.dp))
 
-        // Mode selector
-        ModeSelector(selected = mode, onSelect = { mode = it; scanned = false })
+        ModeSelector(selected = mode, onSelect = { mode = it; vm.reset() })
         Spacer(Modifier.height(14.dp))
 
-        // Viewfinder
-        Viewfinder(
-            mode = mode,
-            scanned = scanned,
-            flashAlpha = flashAlpha,
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        // Camera controls
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // ── Viewfinder ──
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF050E0A)),
+            contentAlignment = Alignment.Center,
         ) {
-            CameraControlChip(
-                icon = Icons.Rounded.FlashOn,
-                label = if (flashOn) stringResource(R.string.camera_flash_on) else stringResource(R.string.camera_flash_off),
-                active = flashOn,
-                onClick = { flashOn = !flashOn },
-                modifier = Modifier.weight(1f),
-            )
-            CameraControlChip(
-                icon = Icons.Rounded.FlipCameraAndroid,
-                label = if (frontCamera) stringResource(R.string.camera_front) else stringResource(R.string.camera_rear),
-                active = frontCamera,
-                onClick = { frontCamera = !frontCamera },
-                modifier = Modifier.weight(1f),
-            )
-            CameraControlChip(
-                icon = Icons.Rounded.PhotoLibrary,
-                label = stringResource(R.string.camera_gallery),
-                active = false,
-                onClick = {
-                    captureFlash.value = 1f
-                    scanned = true
-                    captureFlash.value = 0f
-                },
-                modifier = Modifier.weight(1f),
-            )
-        }
-
-        Spacer(Modifier.height(14.dp))
-
-        // Big capture / re-scan button
-        PrimaryButton(
-            text = if (scanned) stringResource(R.string.scanner_rescan) else stringResource(R.string.scanner_capture),
-            icon = if (scanned) Icons.Rounded.Refresh else Icons.Rounded.CameraAlt,
-            onClick = {
-                if (scanned) {
-                    scanned = false
-                } else {
-                    captureFlash.value = 1f
-                    scanned = true
-                    captureFlash.value = 0f
+            when {
+                !cameraPermission.status.isGranted -> CameraPermissionPrompt(mode) {
+                    cameraPermission.launchPermissionRequest()
                 }
-            },
-        )
+                else -> {
+                    CameraPreview(
+                        lensFacing = lensFacing,
+                        onControllerReady = { controller = it },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    CornerBrackets(tint = mode.tint)
 
-        AnimatedVisibility(
-            visible = scanned,
-            enter = fadeIn(tween(500)),
-            exit = fadeOut(),
-        ) {
-            Column {
-                Spacer(Modifier.height(20.dp))
-                ResultsBlock(mode = mode)
+                    if (!scan.scanning && scan.diagnosis == null) {
+                        ScanSweep(mode.tint)
+                        // Flip camera button
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(12.dp)
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x66000000))
+                                .clickable {
+                                    lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK)
+                                        CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Rounded.FlipCameraAndroid, null, tint = Color.White, modifier = Modifier.size(20.dp)) }
+                    }
+
+                    if (scan.scanning) {
+                        AiAnalyzingOverlay(tint = mode.tint)
+                    } else if (scan.diagnosis != null) {
+                        val d = scan.diagnosis!!
+                        Box(Modifier.fillMaxSize().background(Color(0xAA02080A)), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Rounded.CheckCircle, null, tint = riskTint(d.riskLevel), modifier = Modifier.size(54.dp))
+                                Spacer(Modifier.height(10.dp))
+                                Text(d.diseaseName, style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+                                Spacer(Modifier.height(4.dp))
+                                Text(stringResource(R.string.scan_confidence, d.confidence), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                            }
+                        }
+                    }
+                }
             }
         }
 
+        Spacer(Modifier.height(14.dp))
+
+        // ── Capture / Upload controls ──
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(modifier = Modifier.weight(1f)) {
+                PrimaryButton(
+                    text = when {
+                        scan.scanning -> stringResource(R.string.scan_analyzing)
+                        hasResult -> stringResource(R.string.scanner_rescan)
+                        else -> stringResource(R.string.scanner_capture)
+                    },
+                    icon = if (hasResult) Icons.Rounded.Refresh else Icons.Rounded.CameraAlt,
+                    onClick = {
+                        if (!scan.scanning) {
+                            if (hasResult) vm.reset() else doCapture()
+                        }
+                    },
+                )
+            }
+            UploadChip(onClick = { if (!scan.scanning) pickImage() })
+        }
+
+        AnimatedVisibility(visible = scan.diagnosis != null, enter = fadeIn(tween(400)), exit = fadeOut()) {
+            scan.diagnosis?.let {
+                Column {
+                    Spacer(Modifier.height(20.dp))
+                    DiagnosisCard(it)
+                }
+            }
+        }
+        AnimatedVisibility(visible = scan.error != null, enter = fadeIn(), exit = fadeOut()) {
+            Column { Spacer(Modifier.height(20.dp)); ErrorBlock() }
+        }
+
         Spacer(Modifier.height(22.dp))
-        ScanHistorySection()
+        ScanHistorySection(history)
         Spacer(Modifier.height(20.dp))
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scan modes
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── CameraX preview ─────────────────────────────────────────────────────────
+
+@Composable
+private fun CameraPreview(
+    lensFacing: Int,
+    onControllerReady: (LifecycleCameraController) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    // LifecycleCameraController manages the camera provider internally — no
+    // ProcessCameraProvider / Guava ListenableFuture to wrangle.
+    val controller = remember { LifecycleCameraController(context) }
+    val previewView = remember {
+        PreviewView(context).apply {
+            this.controller = controller
+            scaleType = PreviewView.ScaleType.FILL_CENTER
+        }
+    }
+
+    LaunchedEffect(lensFacing) {
+        controller.cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
+        controller.bindToLifecycle(lifecycleOwner)
+        onControllerReady(controller)
+    }
+
+    AndroidView(factory = { previewView }, modifier = modifier)
+}
+
+private fun capturePhoto(controller: LifecycleCameraController, context: Context, onResult: (Bitmap?) -> Unit) {
+    controller.takePicture(
+        ContextCompat.getMainExecutor(context),
+        object : ImageCapture.OnImageCapturedCallback() {
+            override fun onCaptureSuccess(image: ImageProxy) {
+                val rotation = image.imageInfo.rotationDegrees
+                val bmp = try { image.toBitmap() } catch (_: Throwable) { null }
+                image.close()
+                onResult(bmp?.let { rotateBitmap(it, rotation) })
+            }
+            override fun onError(exc: ImageCaptureException) { onResult(null) }
+        },
+    )
+}
+
+private fun rotateBitmap(b: Bitmap, deg: Int): Bitmap {
+    if (deg == 0) return b
+    return try {
+        Bitmap.createBitmap(b, 0, 0, b.width, b.height, Matrix().apply { postRotate(deg.toFloat()) }, true)
+    } catch (_: Throwable) { b }
+}
+
+// ─── Permission prompt ───────────────────────────────────────────────────────
+
+@Composable
+private fun CameraPermissionPrompt(mode: ScanMode, onEnable: () -> Unit) {
+    Column(
+        modifier = Modifier.padding(28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier.size(72.dp).clip(CircleShape).background(mode.tint.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Rounded.CameraAlt, null, tint = mode.tint, modifier = Modifier.size(34.dp)) }
+        Spacer(Modifier.height(14.dp))
+        Text(stringResource(R.string.scan_camera_needed), style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.scan_camera_needed_sub),
+            style = MaterialTheme.typography.bodySmall,
+            color = AgroPalette.InkMuted,
+        )
+        Spacer(Modifier.height(14.dp))
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(mode.tint)
+                .clickable(onClick = onEnable)
+                .padding(horizontal = 20.dp, vertical = 10.dp),
+        ) { Text(stringResource(R.string.scan_enable_camera), style = MaterialTheme.typography.labelLarge, color = AgroPalette.BgDeep, fontWeight = FontWeight.Bold) }
+    }
+}
+
+// ─── Scan modes ──────────────────────────────────────────────────────────────
 private enum class ScanMode(
     @StringRes val labelRes: Int,
     val icon: ImageVector,
     val tint: Color,
-    @StringRes val hintRes: Int,
 ) {
-    Crop(R.string.scanner_mode_crop, Icons.Rounded.Grass, AgroPalette.Primary, R.string.scanner_hint_crop),
-    Pest(R.string.scanner_mode_pest, Icons.Rounded.BugReport, AgroPalette.Amber, R.string.scanner_hint_pest),
-    Soil(R.string.scanner_mode_soil, Icons.Rounded.Terrain, AgroPalette.Orange, R.string.scanner_hint_soil),
+    Crop(R.string.scanner_mode_crop, Icons.Rounded.Grass, AgroPalette.Primary),
+    Pest(R.string.scanner_mode_pest, Icons.Rounded.BugReport, AgroPalette.Amber),
+    Soil(R.string.scanner_mode_soil, Icons.Rounded.Terrain, AgroPalette.Orange),
 }
 
 @Composable
@@ -225,9 +385,8 @@ private fun ModeSelector(selected: ScanMode, onSelect: (ScanMode) -> Unit) {
                     .weight(1f)
                     .clip(RoundedCornerShape(50))
                     .background(
-                        if (isSelected) {
-                            Brush.horizontalGradient(listOf(m.tint, m.tint.copy(alpha = 0.7f)))
-                        } else androidx.compose.ui.graphics.SolidColor(Color.Transparent)
+                        if (isSelected) Brush.horizontalGradient(listOf(m.tint, m.tint.copy(alpha = 0.7f)))
+                        else androidx.compose.ui.graphics.SolidColor(Color.Transparent)
                     )
                     .clickable { onSelect(m) }
                     .padding(vertical = 10.dp),
@@ -247,175 +406,261 @@ private fun ModeSelector(selected: ScanMode, onSelect: (ScanMode) -> Unit) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Viewfinder — animated corner brackets + scanning sweep + capture flash
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Enhanced scan sweep — brighter line with trailing energy glow ───────────
+
 @Composable
-private fun Viewfinder(mode: ScanMode, scanned: Boolean, flashAlpha: Float) {
+private fun ScanSweep(tint: Color) {
     val tr = rememberInfiniteTransition(label = "scan")
     val sweep by tr.animateFloat(
         0f, 1f,
-        animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing)),
+        animationSpec = infiniteRepeatable(tween(1800, easing = LinearEasing)),
         label = "sweep",
     )
-    val pulse by tr.animateFloat(
-        0.5f, 1f,
-        animationSpec = infiniteRepeatable(tween(1400)),
-        label = "pulse",
+    Canvas(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+        val y = size.height * sweep
+
+        // Trailing glow above sweep line
+        val trailH = (size.height * 0.10f).coerceAtMost(y + 1f)
+        if (trailH > 2f) {
+            drawRect(
+                brush = Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    1f to tint.copy(alpha = 0.10f),
+                    startY = (y - trailH).coerceAtLeast(0f),
+                    endY   = y,
+                ),
+                topLeft = Offset(0f, (y - trailH).coerceAtLeast(0f)),
+                size    = Size(size.width, trailH.coerceAtLeast(0f)),
+            )
+        }
+
+        // Main sweep line — wide gradient with bright centre
+        drawLine(
+            brush = Brush.horizontalGradient(
+                0f    to Color.Transparent,
+                0.08f to tint.copy(alpha = 0.45f),
+                0.30f to tint.copy(alpha = 0.90f),
+                0.50f to tint,
+                0.70f to tint.copy(alpha = 0.90f),
+                0.92f to tint.copy(alpha = 0.45f),
+                1f    to Color.Transparent,
+            ),
+            start = Offset(0f, y),
+            end   = Offset(size.width, y),
+            strokeWidth = 2.5f,
+            cap   = StrokeCap.Round,
+        )
+
+        // Side reflection dots
+        listOf(0f, size.width).forEach { edgeX ->
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to tint.copy(alpha = 0.7f),
+                    1f to Color.Transparent,
+                    center = Offset(edgeX, y), radius = 12f,
+                ),
+                radius = 12f, center = Offset(edgeX, y),
+            )
+        }
+    }
+}
+
+// ─── Enhanced corner brackets — animated in, pulsing glow ────────────────────
+
+@Composable
+private fun CornerBrackets(tint: Color) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(80)
+        visible = true
+    }
+    val armP by animateFloatAsState(
+        if (visible) 1f else 0f,
+        spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+        label = "arm",
+    )
+    val inf = rememberInfiniteTransition(label = "brackets")
+    val glowP by inf.animateFloat(
+        0.35f, 1f,
+        infiniteRepeatable(tween(1700), RepeatMode.Reverse),
+        label = "gp",
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(0.78f)
-            .clip(RoundedCornerShape(28.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF071210), AgroPalette.SurfaceElev, Color(0xFF050E0A))
-                )
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val inset  = 18.dp.toPx()
+        val armLen = 30.dp.toPx() * armP
+        val thick  = 2.6f
+
+        val corners = listOf(
+            Offset(inset, inset),
+            Offset(size.width - inset, inset),
+            Offset(inset, size.height - inset),
+            Offset(size.width - inset, size.height - inset),
+        )
+        val dirs = listOf(
+            Pair(1f,  1f), Pair(-1f,  1f),
+            Pair(1f, -1f), Pair(-1f, -1f),
+        )
+
+        corners.zip(dirs).forEach { (o, d) ->
+            val (dx, dy) = d
+            // Horizontal arm
+            drawLine(tint, o, Offset(o.x + armLen * dx, o.y), thick, cap = StrokeCap.Round)
+            // Vertical arm
+            drawLine(tint, o, Offset(o.x, o.y + armLen * dy), thick, cap = StrokeCap.Round)
+            // Corner glow
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to tint.copy(alpha = 0.45f * glowP * armP),
+                    1f to Color.Transparent,
+                    center = o, radius = 22f,
+                ),
+                radius = 22f, center = o,
+            )
+        }
+
+        // Subtle centre targeting reticle (crosshair dot)
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        drawCircle(
+            color  = tint.copy(alpha = 0.20f * glowP),
+            radius = 4.dp.toPx(),
+            center = Offset(cx, cy),
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                0f to tint.copy(alpha = 0.12f * glowP),
+                1f to Color.Transparent,
+                center = Offset(cx, cy), radius = 28.dp.toPx(),
             ),
-        contentAlignment = Alignment.Center,
-    ) {
-        // Centered guidance content
-        if (scanned) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Rounded.CheckCircle, null, tint = AgroPalette.Primary, modifier = Modifier.size(56.dp))
-                Spacer(Modifier.height(10.dp))
-                Text(stringResource(R.string.scanner_scan_complete), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
-                Spacer(Modifier.height(4.dp))
-                Text(stringResource(R.string.scanner_findings_count, 3), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
-            }
-        } else {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(mode.tint.copy(alpha = 0.18f * pulse)),
-                    contentAlignment = Alignment.Center,
-                ) { Icon(mode.icon, null, tint = mode.tint, modifier = Modifier.size(36.dp)) }
-                Spacer(Modifier.height(14.dp))
-                Text(stringResource(mode.hintRes), style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
-                Spacer(Modifier.height(4.dp))
-                Text(stringResource(R.string.scanner_hold_steady), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
-            }
-        }
-
-        // Scanning sweep line (only when not yet scanned)
-        if (!scanned) {
-            Canvas(modifier = Modifier.fillMaxSize().padding(28.dp)) {
-                val y = size.height * sweep
-                drawLine(
-                    brush = Brush.horizontalGradient(
-                        listOf(
-                            mode.tint.copy(alpha = 0f),
-                            mode.tint.copy(alpha = 0.9f),
-                            mode.tint.copy(alpha = 0f),
-                        )
-                    ),
-                    start = androidx.compose.ui.geometry.Offset(0f, y),
-                    end = androidx.compose.ui.geometry.Offset(size.width, y),
-                    strokeWidth = 2f,
-                    cap = StrokeCap.Round,
-                )
-            }
-        }
-
-        // Corner brackets
-        CornerBrackets(tint = mode.tint)
-
-        // Capture flash overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White.copy(alpha = flashAlpha * 0.6f))
+            radius = 28.dp.toPx(), center = Offset(cx, cy),
         )
     }
 }
 
-@Composable
-private fun CornerBrackets(tint: Color) {
-    Box(modifier = Modifier.fillMaxSize().padding(18.dp)) {
-        val len = 28.dp
-        val w = 3.dp
-        Box(Modifier.size(len, w).background(tint).align(Alignment.TopStart))
-        Box(Modifier.size(w, len).background(tint).align(Alignment.TopStart))
-        Box(Modifier.size(len, w).background(tint).align(Alignment.TopEnd))
-        Box(Modifier.size(w, len).background(tint).align(Alignment.TopEnd))
-        Box(Modifier.size(len, w).background(tint).align(Alignment.BottomStart))
-        Box(Modifier.size(w, len).background(tint).align(Alignment.BottomStart))
-        Box(Modifier.size(len, w).background(tint).align(Alignment.BottomEnd))
-        Box(Modifier.size(w, len).background(tint).align(Alignment.BottomEnd))
-    }
-}
+// ─── AI analyzing overlay ────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Camera control chip
-// ─────────────────────────────────────────────────────────────────────────────
+private val analyzeSteps = listOf(
+    "Examining leaf texture…",
+    "Detecting pathogens…",
+    "Analyzing symptom patterns…",
+    "Consulting disease database…",
+    "Generating field diagnosis…",
+)
+
 @Composable
-private fun CameraControlChip(
-    icon: ImageVector,
-    label: String,
-    active: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val tint = if (active) AgroPalette.Primary else AgroPalette.InkMuted
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (active) AgroPalette.PrimaryDim else AgroPalette.SurfaceGlass)
-            .border(1.dp, if (active) AgroPalette.Primary.copy(alpha = 0.4f) else AgroPalette.SurfaceGlassBorder, RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
+private fun AiAnalyzingOverlay(tint: Color) {
+    val inf = rememberInfiniteTransition(label = "ai-scan")
+    val rot1 by inf.animateFloat( 0f,  360f,  infiniteRepeatable(tween(2600, easing = LinearEasing)), label = "r1")
+    val rot2 by inf.animateFloat( 0f, -360f,  infiniteRepeatable(tween(4100, easing = LinearEasing)), label = "r2")
+    val rot3 by inf.animateFloat( 0f,  360f,  infiniteRepeatable(tween(6800, easing = LinearEasing)), label = "r3")
+    val pulse by inf.animateFloat(0.55f, 1f, infiniteRepeatable(tween(1300), RepeatMode.Reverse),     label = "p")
+    val ptT   by inf.animateFloat( 0f,  1f,  infiniteRepeatable(tween(3200, easing = LinearEasing)), label = "pt")
+
+    var stepIdx by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(2400)
+            stepIdx = (stepIdx + 1) % analyzeSteps.size
+        }
+    }
+
+    Box(
+        modifier          = Modifier
+            .fillMaxSize()
+            .background(Color(0xCC020A0F)),
+        contentAlignment  = Alignment.Center,
     ) {
-        Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, maxLines = 1)
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Results block
-// ─────────────────────────────────────────────────────────────────────────────
-@Composable
-private fun ResultsBlock(mode: ScanMode) {
-    // Honest: no ML model is wired yet. Show a "demo capture" card explaining
-    // exactly what's hooked up vs what needs a real model.
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.AutoAwesome, null, tint = AgroPalette.Primary, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("Capture saved", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
-            Spacer(Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(AgroPalette.Amber.copy(alpha = 0.18f))
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-            ) {
-                Text(
-                    "DEMO",
-                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.4.sp, fontSize = 9.sp),
-                    color = AgroPalette.Amber,
-                    fontWeight = FontWeight.Bold,
-                )
+        // Floating particle field
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            repeat(22) { i ->
+                val seed  = ((i * 37) % 1000).toFloat() / 1000f
+                val x     = size.width  * ((i * 53) % 100 / 100f)
+                val t     = (ptT + seed) % 1f
+                val y     = (1f - t) * (size.height + 60f) - 30f
+                val alpha = when {
+                    t < 0.12f -> t / 0.12f * 0.28f
+                    t > 0.88f -> (1f - t) / 0.12f * 0.28f
+                    else -> 0.28f
+                }
+                drawCircle(tint.copy(alpha = alpha), radius = 1.4f + (i % 3) * 0.6f, center = Offset(x, y))
             }
         }
-        Spacer(Modifier.height(12.dp))
-        GlassCard(radius = 18.dp, padding = 16.dp) {
-            Column {
+
+        // Multi-ring scanner
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.size(180.dp)) {
+                    val cx = size.width  / 2f
+                    val cy = size.height / 2f
+                    val s  = size.minDimension
+
+                    // Ring 3 — outer, slow
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            listOf(Color.Transparent, tint.copy(alpha = 0.6f), tint, Color.Transparent),
+                        ),
+                        startAngle = rot1, sweepAngle = 195f, useCenter = false,
+                        topLeft = Offset(cx - s * 0.46f, cy - s * 0.46f),
+                        size    = Size(s * 0.92f, s * 0.92f),
+                        style   = Stroke(width = 2.4f, cap = StrokeCap.Round),
+                    )
+                    // Ring 2 — counter
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            listOf(Color.Transparent, tint.copy(alpha = 0.5f), Color.Transparent),
+                        ),
+                        startAngle = rot2, sweepAngle = 140f, useCenter = false,
+                        topLeft = Offset(cx - s * 0.35f, cy - s * 0.35f),
+                        size    = Size(s * 0.70f, s * 0.70f),
+                        style   = Stroke(width = 2.0f, cap = StrokeCap.Round),
+                    )
+                    // Ring 1 — inner, slowest
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            listOf(Color.Transparent, AgroPalette.Sky.copy(alpha = 0.5f), Color.Transparent),
+                        ),
+                        startAngle = rot3, sweepAngle = 90f, useCenter = false,
+                        topLeft = Offset(cx - s * 0.24f, cy - s * 0.24f),
+                        size    = Size(s * 0.48f, s * 0.48f),
+                        style   = Stroke(width = 1.6f, cap = StrokeCap.Round),
+                    )
+                    // Centre glow
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f   to tint.copy(alpha = 0.85f * pulse),
+                            0.4f to tint.copy(alpha = 0.30f * pulse),
+                            1f   to Color.Transparent,
+                            center = Offset(cx, cy), radius = s * 0.14f,
+                        ),
+                        radius = s * 0.14f, center = Offset(cx, cy),
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(22.dp))
+
+            // "AI ANALYZING" label
+            Text(
+                "AI ANALYZING",
+                style      = MaterialTheme.typography.labelMedium.copy(letterSpacing = 2.2.sp),
+                color      = tint,
+                fontWeight = FontWeight.Bold,
+            )
+
+            Spacer(Modifier.height(6.dp))
+
+            // Cycling status text
+            AnimatedContent(
+                targetState = stepIdx,
+                transitionSpec = {
+                    fadeIn(tween(320)) togetherWith fadeOut(tween(220))
+                },
+                label = "step",
+            ) { idx ->
                 Text(
-                    "Real ${stringResource(mode.labelRes).lowercase()} diagnostics light up once a TFLite model is bundled.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = AgroPalette.Ink,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "The capture pipeline, viewfinder, and saving flow are real — only the inference step is stubbed. Drop a model into assets and AgroSphere will surface real findings here.",
-                    style = MaterialTheme.typography.bodySmall,
+                    analyzeSteps[idx],
+                    style = MaterialTheme.typography.labelSmall,
                     color = AgroPalette.InkMuted,
                 )
             }
@@ -423,77 +668,67 @@ private fun ResultsBlock(mode: ScanMode) {
     }
 }
 
-private data class Finding(val label: String, val confidence: Float, val severity: String, val tint: Color, val advice: String)
+@Composable
+private fun UploadChip(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(54.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(AgroPalette.SurfaceGlass)
+            .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Icon(Icons.Rounded.PhotoLibrary, stringResource(R.string.camera_gallery), tint = AgroPalette.InkMuted) }
+}
+
+// ─── image decode (OOM-safe, downsampled) ────────────────────────────────────
+
+private fun decodeBitmap(context: Context, uri: Uri): Bitmap? = try {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        val src = ImageDecoder.createSource(context.contentResolver, uri)
+        ImageDecoder.decodeBitmap(src) { decoder, info, _ ->
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            decoder.isMutableRequired = false
+            val max = maxOf(info.size.width, info.size.height)
+            if (max > 1600) {
+                val scale = 1600f / max
+                decoder.setTargetSize(
+                    (info.size.width * scale).toInt().coerceAtLeast(1),
+                    (info.size.height * scale).toInt().coerceAtLeast(1),
+                )
+            }
+        }
+    } else {
+        @Suppress("DEPRECATION")
+        MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+    }
+} catch (_: Throwable) {
+    null
+}
+
+// ─── Results ─────────────────────────────────────────────────────────────────
+// DiagnosisCard, TreatmentRow, riskTint, riskLabelRes live in ScanDiagnosisCard.kt
 
 @Composable
-private fun FindingCard(f: Finding) {
-    GlassCard(radius = 18.dp, padding = 16.dp) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(f.tint.copy(alpha = 0.18f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    val cIcon: ImageVector = when {
-                        f.tint == AgroPalette.Primary -> Icons.Rounded.CheckCircle
-                        f.tint == AgroPalette.Amber -> Icons.Rounded.Warning
-                        else -> Icons.Rounded.AutoAwesome
-                    }
-                    Icon(cIcon, null, tint = f.tint, modifier = Modifier.size(18.dp))
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(f.label, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
-                    Text(
-                        "Severity: ${f.severity}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = f.tint, fontWeight = FontWeight.Bold,
-                    )
-                }
-                Text(
-                    "${(f.confidence * 100).toInt()}%",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = f.tint,
-                    fontWeight = FontWeight.Black,
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            // confidence bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(AgroPalette.SurfaceGlassBorder),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(f.confidence)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(f.tint),
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(f.advice, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+private fun ErrorBlock() {
+    GlassCard(radius = 16.dp, padding = 16.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Warning, null, tint = AgroPalette.Amber, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(stringResource(R.string.scan_failed), style = MaterialTheme.typography.bodyMedium, color = AgroPalette.Ink)
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scan history strip
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── History ───────────────────────────────────────────────────────────────────
 @Composable
-private fun HistoryChip() {
+private fun HistoryChip(onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
             .background(AgroPalette.SurfaceGlass)
             .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
-            .clickable { }
+            .clickable(onClick = onClick)
             .padding(start = 10.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -504,23 +739,44 @@ private fun HistoryChip() {
 }
 
 @Composable
-private fun ScanHistorySection() {
-    // No scan store wired yet — show an honest empty state instead of fakes.
+private fun ScanHistorySection(history: List<SavedScan>) {
     Column {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.scanner_recent_scans), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
-        }
+        Text(stringResource(R.string.scanner_recent_scans), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
         Spacer(Modifier.height(10.dp))
-        GlassCard(radius = 16.dp, padding = 14.dp) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.History, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    stringResource(R.string.scanner_recent_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = AgroPalette.InkMuted,
-                )
+        if (history.isEmpty()) {
+            GlassCard(radius = 16.dp, padding = 14.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.History, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(stringResource(R.string.scanner_recent_empty), style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                }
             }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                history.take(4).forEach { ScanHistoryRow(it) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScanHistoryRow(s: SavedScan) {
+    val tint = riskTint(s.diagnosis.riskLevel)
+    val time = if (s.createdAtMillis > 0)
+        DateUtils.getRelativeTimeSpanString(
+            s.createdAtMillis, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS,
+        ).toString() else ""
+    GlassCard(radius = 14.dp, padding = 12.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(tint))
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(s.diagnosis.diseaseName, style = MaterialTheme.typography.bodyMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+                if (time.isNotBlank()) {
+                    Text(time, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                }
+            }
+            Text("${s.diagnosis.confidence}%", style = MaterialTheme.typography.titleSmall, color = tint, fontWeight = FontWeight.Bold)
         }
     }
 }

@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -23,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -47,13 +46,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.agrosphere.app.data.crops.CropData
 import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.theme.AgroPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddFieldSheet(
-    crops: List<String>,
+    crops: List<String> = emptyList(),   // kept for API compat but unused — CropData is the source
     stages: List<String>,
     accents: List<Color>,
     onDismiss: () -> Unit,
@@ -62,7 +62,8 @@ fun AddFieldSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var name by remember { mutableStateOf("") }
-    var crop by remember { mutableStateOf(crops.first()) }
+    var crop by remember { mutableStateOf(CropData.categories.first().crops.first().cropName) }
+    var showCropPicker by remember { mutableStateOf(false) }
     var areaStr by remember { mutableStateOf("") }
     var stage by remember { mutableStateOf(stages.first()) }
     var moisture by remember { mutableStateOf(60f) }
@@ -102,11 +103,9 @@ fun AddFieldSheet(
             // Name
             FormField(label = "Field name", value = name, onChange = { name = it }, placeholder = "e.g. North paddock")
 
-            // Crop dropdown — picker chip row
+            // Crop picker tile
             FormLabel("Crop")
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(crops) { c -> SelectChip(label = c, selected = c == crop) { crop = c } }
-            }
+            CropSelectorTile(value = crop, onClick = { showCropPicker = true })
 
             // Area + moisture row
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -160,6 +159,53 @@ fun AddFieldSheet(
             )
             Spacer(Modifier.height(8.dp))
         }
+    }
+
+    if (showCropPicker) {
+        CropPickerSheet(
+            currentValue = crop,
+            onDismiss = { showCropPicker = false },
+            onSelect = { crop = it },
+        )
+    }
+}
+
+@Composable
+private fun CropSelectorTile(value: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(AgroPalette.SurfaceGlass)
+            .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(AgroPalette.Primary.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Rounded.Grass, null, tint = AgroPalette.Primary, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = AgroPalette.Ink,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                "Tap to browse all crops & varieties",
+                style = MaterialTheme.typography.labelSmall,
+                color = AgroPalette.InkMuted,
+            )
+        }
+        Icon(Icons.Rounded.ExpandMore, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(20.dp))
     }
 }
 

@@ -55,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -257,44 +258,83 @@ private fun AmbientWaveBackground(active: Boolean) {
 @Composable
 private fun CenterOrb(active: Boolean, hasResponse: Boolean) {
     val tr = rememberInfiniteTransition(label = "orb")
-    val pulse by tr.animateFloat(0.85f, 1.18f, infiniteRepeatable(tween(if (active) 600 else 1800)), label = "p")
-    val rot by tr.animateFloat(0f, 360f, infiniteRepeatable(tween(if (active) 4_000 else 18_000, easing = LinearEasing)), label = "r")
-    val scale by animateFloatAsState(if (active) 1.08f else 1f, animationSpec = tween(400), label = "s")
+    val pulse  by tr.animateFloat(0.85f, 1.18f, infiniteRepeatable(tween(if (active) 600 else 1800)), label = "p")
+    val rot    by tr.animateFloat(0f, 360f, infiniteRepeatable(tween(if (active) 4_000 else 18_000, easing = LinearEasing)), label = "r")
+    // Second outer ring counter-rotating
+    val rot2   by tr.animateFloat(360f, 0f, infiniteRepeatable(tween(if (active) 6_500 else 28_000, easing = LinearEasing)), label = "r2")
+    // Wave for expanding rings when listening
+    val wave   by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(1400, easing = LinearEasing)), label = "w")
+    val scale  by animateFloatAsState(if (active) 1.08f else 1f, animationSpec = tween(400), label = "s")
     val coreTint = when {
-        active -> AgroPalette.Primary
-        hasResponse -> AgroPalette.Sky
-        else -> AgroPalette.Primary
+        active       -> AgroPalette.Primary
+        hasResponse  -> AgroPalette.Sky
+        else         -> AgroPalette.Primary
     }
 
-    Box(modifier = Modifier.size(180.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.size(200.dp), contentAlignment = Alignment.Center) {
+        // ── Expanding sound-wave rings when listening ────────────────────────
+        if (active) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val c     = Offset(size.width / 2f, size.height / 2f)
+                val baseR = size.minDimension * 0.22f
+                listOf(0f, 0.33f, 0.67f).forEach { phase ->
+                    val rp     = ((wave + phase) % 1f)
+                    val ringR  = baseR + rp * size.minDimension * 0.42f
+                    val ringAl = (1f - rp) * 0.55f
+                    drawCircle(
+                        color  = coreTint.copy(alpha = ringAl),
+                        radius = ringR, center = c,
+                        style  = Stroke(width = 1.8f),
+                    )
+                }
+            }
+        }
         // Outer halo
         Box(
             modifier = Modifier
-                .size((160 * pulse).dp)
+                .size((170 * pulse).dp)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
-                        0f to coreTint.copy(alpha = 0.30f),
-                        0.7f to coreTint.copy(alpha = 0.05f),
-                        1f to Color.Transparent,
+                        0f   to coreTint.copy(alpha = 0.28f),
+                        0.7f to coreTint.copy(alpha = 0.06f),
+                        1f   to Color.Transparent,
                     )
                 )
         )
-        // Rotating sweep ring
+        // ── Counter-rotating secondary ring ──────────────────────────────────
+        Canvas(modifier = Modifier.size((140 * scale).dp)) {
+            withTransform({ rotate(rot2) }) {
+                drawCircle(
+                    brush = Brush.sweepGradient(
+                        listOf(
+                            AgroPalette.Sky.copy(alpha = 0f),
+                            AgroPalette.Sky.copy(alpha = 0.45f),
+                            AgroPalette.Iris.copy(alpha = 0.30f),
+                            AgroPalette.Sky.copy(alpha = 0f),
+                        ),
+                        center = center,
+                    ),
+                    radius = size.minDimension / 2 - 1f,
+                    style  = Stroke(width = 1.5f),
+                )
+            }
+        }
+        // Rotating primary sweep ring
         Canvas(modifier = Modifier.size((124 * scale).dp)) {
             withTransform({ rotate(rot) }) {
                 drawCircle(
                     brush = Brush.sweepGradient(
                         listOf(
                             coreTint.copy(alpha = 0f),
-                            coreTint.copy(alpha = 0.85f),
-                            AgroPalette.Sky.copy(alpha = 0.55f),
+                            coreTint.copy(alpha = 0.90f),
+                            AgroPalette.Sky.copy(alpha = 0.60f),
                             coreTint.copy(alpha = 0f),
                         ),
                         center = center,
                     ),
                     radius = size.minDimension / 2 - 1f,
-                    style = Stroke(width = 2.4f),
+                    style  = Stroke(width = 2.6f),
                 )
             }
         }
@@ -309,7 +349,7 @@ private fun CenterOrb(active: Boolean, hasResponse: Boolean) {
                         1f to coreTint.copy(alpha = 0.15f),
                     )
                 )
-                .border(1.dp, coreTint.copy(alpha = 0.55f), CircleShape),
+                .border(1.dp, coreTint.copy(alpha = 0.60f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -384,17 +424,40 @@ private fun MicButton(listening: Boolean, onTap: () -> Unit) {
 
 @Composable
 private fun SuggestionChip(text: String) {
+    val shape = RoundedCornerShape(14.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(50))
+            .clip(shape)
+            .drawBehind {
+                // Neon left accent bar
+                drawLine(
+                    brush = Brush.verticalGradient(
+                        0f   to AgroPalette.Primary.copy(alpha = 0.20f),
+                        0.5f to AgroPalette.Primary.copy(alpha = 0.75f),
+                        1f   to AgroPalette.Primary.copy(alpha = 0.20f),
+                    ),
+                    start = Offset(0f, 0f), end = Offset(0f, size.height),
+                    strokeWidth = 2.5f,
+                )
+                // Top hairline
+                drawLine(
+                    brush = Brush.horizontalGradient(
+                        0f   to AgroPalette.Primary.copy(alpha = 0.55f),
+                        0.5f to AgroPalette.Primary.copy(alpha = 0.20f),
+                        1f   to Color.Transparent,
+                    ),
+                    start = Offset(0f, 0.7f), end = Offset(size.width, 0.7f),
+                    strokeWidth = 1.2f,
+                )
+            }
             .background(AgroPalette.SurfaceGlass)
-            .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
+            .border(1.dp, AgroPalette.Primary.copy(alpha = 0.15f), shape)
             .clickable { /* future: pre-fill transcript */ }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Rounded.PlayArrow, null, tint = AgroPalette.Primary, modifier = Modifier.size(14.dp))
+        Icon(Icons.Rounded.PlayArrow, null, tint = AgroPalette.Primary, modifier = Modifier.size(15.dp))
         Spacer(Modifier.width(10.dp))
         Text(text, style = MaterialTheme.typography.bodyMedium, color = AgroPalette.Ink)
     }

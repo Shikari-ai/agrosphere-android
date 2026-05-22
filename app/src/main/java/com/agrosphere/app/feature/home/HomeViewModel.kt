@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import androidx.annotation.StringRes
 import com.agrosphere.app.R
 import java.time.LocalTime
+import kotlin.math.exp
 
 data class TimeOfDay(
     @StringRes val greetingRes: Int,
@@ -46,6 +47,7 @@ data class HomeUiState(
     val totalAreaHa: Double = 0.0,
     val cropsCount: Int = 0,
     val avgMoisture: Int = 0,
+    val irrigationEfficiency: Int = 0,   // 0 = no weather yet
 )
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
@@ -70,6 +72,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             FieldRepository.fields.collect { fields ->
                 recompute(fields = fields, weather = _state.value.weather)
+            }
+        }
+        // Stay in sync with whatever screen last loaded weather (e.g. the Weather
+        // screen getting a fresher GPS fix) so Home never shows a stale location.
+        viewModelScope.launch {
+            WeatherRepository.bundleFlow.collect { bundle ->
+                if (bundle != null) {
+                    _state.update { it.copy(weather = bundle.snapshot, weatherLoading = false) }
+                    recompute(fields = FieldRepository.current(), weather = bundle.snapshot)
+                }
             }
         }
         refreshWeather()
@@ -106,6 +118,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 totalAreaHa = fields.sumOf { f -> f.areaHa },
                 cropsCount = fields.map { f -> f.crop }.distinct().size,
                 avgMoisture = if (hasFields) fields.map { f -> f.moisturePct }.average().toInt() else 0,
+                irrigationEfficiency = deriveIrrigationEfficiency(weather),
                 cropHealth = avgHealth,
                 cropHealthVerdict = when {
                     !hasFields -> "—"
@@ -120,6 +133,36 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 notificationCount = alerts.size,
             )
         }
+    }
+
+    /**
+     * Irrigation efficiency for the user's location: the fraction of applied
+     * water that actually reaches the root zone vs. lost to evaporation, spray
+     * drift and runoff. Driven entirely by the location's live weather.
+     *
+     * The dominant physical driver of evaporative loss is the Vapour Pressure
+     * Deficit (VPD) — how "thirsty" the air is — computed from temperature and
+     * relative humidity via the Tetens saturation-vapour-pressure equation.
+     * Wind adds drift losses, solar load (UV proxy) adds radiative evaporation,
+     * and recent/active rain means applied water runs off or hits already-wet
+     * soil. Result is clamped to a realistic 45–97% band.
+     */
+    private fun deriveIrrigationEfficiency(weather: WeatherSnapshot?): Int {
+        weather ?: return 0
+        val t  = weather.tempC.toDouble()
+        val rh = weather.humidityPct.coerceIn(0, 100).toDouble()
+
+        // Saturation vapour pressure (kPa) → deficit at the current humidity.
+        val svp = 0.6108 * exp(17.27 * t / (t + 237.3))
+        val vpd = (svp * (1.0 - rh / 100.0)).coerceAtLeast(0.0)
+
+        val vpdLoss   = vpd * 4.0                                 // evaporative demand
+        val windLoss  = weather.windKph.coerceAtLeast(0) * 0.25   // spray drift / spread
+        val solarLoss = weather.uvIndex.coerceAtLeast(0) * 0.6    // radiative load (UV proxy)
+        val rainLoss  = weather.rainMm.coerceAtLeast(0) * 0.8 +   // runoff on wet soil
+            if (weather.kind == ConditionKind.Rain || weather.kind == ConditionKind.Storm) 8.0 else 0.0
+
+        return (100.0 - vpdLoss - windLoss - solarLoss - rainLoss).coerceIn(45.0, 97.0).toInt()
     }
 
     /** Derives pest pressure from current humidity + temperature (warm + humid = higher). */

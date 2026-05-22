@@ -39,7 +39,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     }
@@ -60,6 +60,9 @@ dependencies {
     implementation(libs.camera.camera2)
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.view)
+    // Provides Guava's ListenableFuture on the classpath — CameraX's public API
+    // references it, and without it the compiler errors "Cannot access class 'ListenableFuture'".
+    implementation(libs.guava)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

@@ -29,15 +29,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material.icons.rounded.ViewModule
 import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.stringResource
+import com.agrosphere.app.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,6 +57,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size as GeomSize
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -62,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import com.agrosphere.app.data.model.Field
 import com.agrosphere.app.data.repo.MockRepository
 import com.agrosphere.app.ui.components.GlassCard
+import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.components.StatChip
 import com.agrosphere.app.ui.theme.AgroBrushes
 import com.agrosphere.app.ui.theme.AgroPalette
@@ -74,14 +81,14 @@ private enum class DetailTab(val label: String, val icon: ImageVector) {
 }
 
 @Composable
-fun FieldDetailScreen(fieldId: String, onBack: () -> Unit) {
+fun FieldDetailScreen(fieldId: String, onBack: () -> Unit, onDelete: () -> Unit = onBack) {
     val field = MockRepository.field(fieldId)
     if (field == null) {
-        // Field was deleted or never existed — bail back to the list.
         LaunchedEffect(Unit) { onBack() }
         return
     }
     var tab by remember { mutableStateOf(DetailTab.Overview) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -93,8 +100,8 @@ fun FieldDetailScreen(fieldId: String, onBack: () -> Unit) {
         // Tab strip
         TabStrip(selected = tab, onSelect = { tab = it })
 
-        // Tab content
-        Box(modifier = Modifier.fillMaxSize()) {
+        // Tab content fills the remaining space
+        Box(modifier = Modifier.weight(1f)) {
             when (tab) {
                 DetailTab.Overview -> OverviewTab(field)
                 DetailTab.Activity -> ActivityTab()
@@ -102,6 +109,42 @@ fun FieldDetailScreen(fieldId: String, onBack: () -> Unit) {
                 DetailTab.Map -> MapTab(field)
             }
         }
+
+        // ── Delete field button — always visible at the bottom ──────────────
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AgroPalette.BgDeep.copy(alpha = 0.92f))
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+        ) {
+            PrimaryButton(
+                text = stringResource(R.string.field_delete_confirm_title),
+                icon = Icons.Rounded.DeleteOutline,
+                brush = SolidColor(AgroPalette.Rose),
+                onClick = { showDeleteConfirm = true },
+            )
+        }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.field_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.field_delete_confirm_body, field.name)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    onDelete()
+                }) {
+                    Text(stringResource(R.string.common_delete), color = AgroPalette.Rose)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
     }
 }
 

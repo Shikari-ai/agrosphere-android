@@ -1,5 +1,11 @@
 package com.agrosphere.app.feature.fields
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,18 +32,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,7 +57,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -86,6 +102,7 @@ fun FieldsScreen(
     onOpenMapPicker: () -> Unit = {},
     vm: FieldsViewModel = viewModel(factory = FieldsViewModel.Factory),
 ) {
+    val context = LocalContext.current
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(FilterChip.All) }
     var sort by remember { mutableStateOf(SortOrder.Health) }
@@ -168,7 +185,16 @@ fun FieldsScreen(
                     resultCount = filtered.size, totalCount = all.size,
                 )
             }
-            items(filtered, key = { it.id }) { field -> FieldRow(field = field, onClick = { onOpenField(field.id) }) }
+            items(filtered, key = { it.id }) { field ->
+                FieldRow(
+                    field = field,
+                    onClick = { onOpenField(field.id) },
+                    onDelete = {
+                        vm.deleteField(field.id)
+                        scope.launch { snackbar.showSnackbar(context.getString(R.string.field_deleted_snackbar, field.name)) }
+                    },
+                )
+            }
             if (all.isEmpty()) {
                 item { FirstFieldHero(onAdd = { showAddSheet = true }, onDrawOnMap = onOpenMapPicker) }
             } else if (filtered.isEmpty()) {
@@ -282,11 +308,33 @@ private fun SearchBar(value: String, onChange: (String) -> Unit) {
 
 @Composable
 private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
+    val inf   = rememberInfiniteTransition(label = "pill-$label")
+    val glow  by inf.animateFloat(
+        0.4f, 1f,
+        infiniteRepeatable(tween(1400), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "g",
+    )
+    val shape = RoundedCornerShape(50)
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(50))
+            .clip(shape)
+            .drawBehind {
+                if (selected) {
+                    // Subtle radial glow behind selected pill
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to AgroPalette.Primary.copy(alpha = 0.30f * glow),
+                            1f to Color.Transparent,
+                            center = Offset(size.width / 2f, size.height / 2f),
+                            radius = size.width * 0.65f,
+                        ),
+                        radius = size.width * 0.65f,
+                        center = Offset(size.width / 2f, size.height / 2f),
+                    )
+                }
+            }
             .background(if (selected) AgroPalette.Primary else AgroPalette.SurfaceGlass)
-            .border(1.dp, if (selected) AgroPalette.Primary else AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
+            .border(1.dp, if (selected) AgroPalette.Primary.copy(alpha = 0.8f) else AgroPalette.SurfaceGlassBorder, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
@@ -328,14 +376,28 @@ private fun SortRow(sort: SortOrder, onSortChange: (SortOrder) -> Unit, resultCo
 }
 
 @Composable
-private fun FieldRow(field: Field, onClick: () -> Unit) {
-    GlassCard(radius = 20.dp, padding = 16.dp, onClick = onClick) {
+private fun FieldRow(field: Field, onClick: () -> Unit, onDelete: () -> Unit = {}) {
+    var showConfirm by remember { mutableStateOf(false) }
+
+    // Shimmer for the health bar
+    val inf    = rememberInfiniteTransition(label = "field-bar-${field.id}")
+    val shimX  by inf.animateFloat(
+        -0.5f, 1.5f,
+        infiniteRepeatable(tween(2600, easing = LinearEasing)),
+        label = "sx",
+    )
+
+    GlassCard(
+        radius = 20.dp, padding = 16.dp, onClick = onClick,
+        border = BorderStroke(1.dp, field.accent.copy(alpha = 0.28f)),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
                     .size(50.dp)
                     .clip(CircleShape)
-                    .background(field.accent.copy(alpha = 0.18f)),
+                    .background(field.accent.copy(alpha = 0.18f))
+                    .border(1.dp, field.accent.copy(alpha = 0.40f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Rounded.Grass, null, tint = field.accent)
@@ -349,6 +411,7 @@ private fun FieldRow(field: Field, onClick: () -> Unit) {
                     color = AgroPalette.InkMuted,
                 )
                 Spacer(Modifier.height(8.dp))
+                // Animated health bar
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -361,16 +424,70 @@ private fun FieldRow(field: Field, onClick: () -> Unit) {
                             .fillMaxWidth(field.healthScore / 100f)
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp))
-                            .background(field.accent),
+                            .background(
+                                Brush.horizontalGradient(
+                                    0f to field.accent.copy(alpha = 0.55f),
+                                    1f to field.accent,
+                                )
+                            )
+                            .drawWithContent {
+                                drawContent()
+                                // Shimmer sweep
+                                val bH = size.width * 0.28f
+                                val cx = shimX * size.width
+                                drawRect(
+                                    brush = Brush.horizontalGradient(
+                                        0f   to Color.Transparent,
+                                        0.5f to Color.White.copy(alpha = 0.45f),
+                                        1f   to Color.Transparent,
+                                        startX = cx - bH, endX = cx + bH,
+                                    ),
+                                    topLeft = Offset.Zero,
+                                    size    = Size(size.width, size.height),
+                                )
+                            },
                     )
                 }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End) {
                 Text("${field.healthScore}", style = MaterialTheme.typography.headlineSmall, color = field.accent, fontWeight = FontWeight.Black)
                 Text("health", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
             }
+            Spacer(Modifier.width(4.dp))
+            IconButton(
+                onClick = { showConfirm = true },
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    Icons.Rounded.DeleteOutline,
+                    contentDescription = stringResource(R.string.common_delete),
+                    tint = AgroPalette.Rose.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
+    }
+
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            title = { Text(stringResource(R.string.field_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.field_delete_confirm_body, field.name)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showConfirm = false
+                    onDelete()
+                }) {
+                    Text(stringResource(R.string.common_delete), color = AgroPalette.Rose)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
     }
 }
 

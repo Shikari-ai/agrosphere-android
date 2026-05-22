@@ -15,6 +15,10 @@ class FieldsViewModel : ViewModel() {
         FieldRepository.addField(name, crop, areaHa, stage, moisturePct, accent)
     }
 
+    fun deleteField(id: String) {
+        FieldRepository.removeField(id)
+    }
+
     val cropPresets get() = FieldRepository.cropPresets
     val stagePresets get() = FieldRepository.stagePresets
     val accentPresets get() = FieldRepository.accentPresets

@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.agrosphere.app.data.crops.CropData
 import com.agrosphere.app.data.geocoding.GeocodingApi
 import com.agrosphere.app.data.geocoding.NominatimPlace
 import com.agrosphere.app.data.weather.LocationProvider
@@ -125,7 +126,8 @@ fun MapPickerScreen(
 
     // Form state
     var name by remember { mutableStateOf("") }
-    var crop by remember { mutableStateOf(vm.cropPresets.first()) }
+    var crop by remember { mutableStateOf(CropData.categories.first().crops.first().cropName) }
+    var showCropPicker by remember { mutableStateOf(false) }
     var stage by remember { mutableStateOf(vm.stagePresets.first()) }
 
     // Live area (square metres → hectares) via spherical-excess formula.
@@ -358,7 +360,14 @@ fun MapPickerScreen(
                 .imePadding()
                 .padding(horizontal = 12.dp, vertical = 12.dp),
         ) {
-            GlassCard(radius = 24.dp, padding = 16.dp) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF0A1118))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
+                    .padding(16.dp),
+            ) {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
@@ -395,23 +404,21 @@ fun MapPickerScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = AgroPalette.Primary,
-                            unfocusedBorderColor = AgroPalette.SurfaceGlassBorder,
+                            unfocusedBorderColor = Color(0x33FFFFFF),
                             focusedTextColor = AgroPalette.Ink,
                             unfocusedTextColor = AgroPalette.Ink,
                             cursorColor = AgroPalette.Primary,
                             focusedLabelColor = AgroPalette.Primary,
                             unfocusedLabelColor = AgroPalette.InkMuted,
-                            focusedContainerColor = AgroPalette.SurfaceGlass,
-                            unfocusedContainerColor = AgroPalette.SurfaceGlass,
+                            focusedContainerColor = Color(0xFF0E1A14),
+                            unfocusedContainerColor = Color(0xFF0E1A14),
                         ),
                     )
 
                     Spacer(Modifier.height(10.dp))
                     PickerLabel("CROP")
                     Spacer(Modifier.height(4.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(vm.cropPresets) { c -> PickerChip(c, c == crop) { crop = c } }
-                    }
+                    MapCropSelectorTile(value = crop, onClick = { showCropPicker = true })
 
                     Spacer(Modifier.height(10.dp))
                     PickerLabel("STAGE")
@@ -455,6 +462,43 @@ fun MapPickerScreen(
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.systemBars)
                 .padding(16.dp),
+        )
+    }
+
+    if (showCropPicker) {
+        CropPickerSheet(
+            currentValue = crop,
+            onDismiss = { showCropPicker = false },
+            onSelect = { crop = it },
+        )
+    }
+}
+
+@Composable
+private fun MapCropSelectorTile(value: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF0E1A14))
+            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.material3.Icon(
+            Icons.Rounded.Check,
+            null,
+            tint = AgroPalette.Primary,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
+        androidx.compose.material3.Icon(
+            Icons.Rounded.Close,
+            contentDescription = "Change crop",
+            tint = AgroPalette.InkMuted,
+            modifier = Modifier.size(16.dp),
         )
     }
 }
@@ -520,15 +564,15 @@ private fun PickerChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (selected) AgroPalette.Primary else AgroPalette.SurfaceGlass)
-            .border(1.dp, if (selected) AgroPalette.Primary else AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
+            .background(if (selected) AgroPalette.Primary else Color(0xFF0E1A14))
+            .border(1.dp, if (selected) AgroPalette.Primary else Color(0x33FFFFFF), RoundedCornerShape(50))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
         Text(
             label,
             style = MaterialTheme.typography.labelMedium,
-            color = if (selected) AgroPalette.BgDeep else AgroPalette.InkMuted,
+            color = if (selected) AgroPalette.BgDeep else AgroPalette.Ink,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
         )
     }
@@ -635,8 +679,8 @@ private fun CircleIconButton(
         modifier = Modifier
             .size(44.dp)
             .clip(CircleShape)
-            .background(Color(0xCC0A1118))
-            .border(1.dp, AgroPalette.SurfaceGlassBorder, CircleShape)
+            .background(Color(0xF00A1118))
+            .border(1.dp, Color(0x44FFFFFF), CircleShape)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

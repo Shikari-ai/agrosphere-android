@@ -59,8 +59,16 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import com.agrosphere.app.data.weather.WeatherRepository
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,6 +79,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -97,6 +106,15 @@ fun ProfileScreen(
     vm: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
+    var showSignOutConfirm by remember { mutableStateOf(false) }
+
+    // Live location from the (geocoded) weather snapshot.
+    val context = LocalContext.current
+    val weather by WeatherRepository.bundleFlow.collectAsState()
+    LaunchedEffect(Unit) {
+        if (WeatherRepository.cached() == null) runCatching { WeatherRepository.load(context) }
+    }
+    val locationLabel = weather?.snapshot?.location.orEmpty()
 
     Box(modifier = Modifier.fillMaxSize()) {
         ProfileBackdrop()
@@ -110,7 +128,7 @@ fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item { TopBar(onBack = onBack) }
-            item { Hero(state = state) }
+            item { Hero(state = state, location = locationLabel) }
             item { QuickActionsRow(onOpenSection = onOpenSection) }
             item { ScoreCard(score = 86, label = "Excellent — top 15%") }
             item { StatsGrid(onOpen = { onOpenSection(ProfileSections.FARM_OVERVIEW) }) }
@@ -208,20 +226,52 @@ fun ProfileScreen(
                     text = stringResource(R.string.profile_sign_out),
                     icon = Icons.Rounded.Logout,
                     brush = SolidColor(AgroPalette.Rose),
-                    onClick = {
-                        vm.signOut()
-                        onSignOut()
-                    },
+                    onClick = { showSignOutConfirm = true },
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
                     stringResource(R.string.profile_made_with_care),
                     style = MaterialTheme.typography.labelSmall,
                     color = AgroPalette.InkDim,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.profile_made_in_india),
+                    style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 2.sp),
+                    color = AgroPalette.Primary,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(24.dp))
             }
+        }
+
+        if (showSignOutConfirm) {
+            AlertDialog(
+                onDismissRequest = { showSignOutConfirm = false },
+                containerColor = AgroPalette.Surface,
+                title = {
+                    Text(stringResource(R.string.sign_out_confirm_title), color = AgroPalette.Ink)
+                },
+                text = {
+                    Text(stringResource(R.string.sign_out_confirm_body), color = AgroPalette.InkMuted)
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showSignOutConfirm = false
+                        vm.signOut()
+                        onSignOut()
+                    }) { Text(stringResource(R.string.profile_sign_out), color = AgroPalette.Rose) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSignOutConfirm = false }) {
+                        Text(stringResource(R.string.sign_out_confirm_cancel), color = AgroPalette.InkMuted)
+                    }
+                },
+            )
         }
     }
 }
@@ -244,7 +294,7 @@ private fun TopBar(onBack: () -> Unit) {
 // Hero
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun Hero(state: ProfileUiState) {
+private fun Hero(state: ProfileUiState, location: String) {
     GlassCard(background = AgroBrushes.leafCard, radius = 28.dp, padding = 22.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Avatar(photoUrl = state.photoUrl, displayName = state.displayName, isAnonymous = state.isAnonymous)
@@ -275,11 +325,13 @@ private fun Hero(state: ProfileUiState) {
                         Text(state.email, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted, maxLines = 1)
                     }
                 }
-                Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.LocationOn, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(13.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Nashik, Maharashtra", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                if (location.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.LocationOn, null, tint = AgroPalette.InkMuted, modifier = Modifier.size(13.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(location, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                    }
                 }
             }
         }

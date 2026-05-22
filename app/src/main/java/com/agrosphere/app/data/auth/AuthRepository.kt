@@ -3,7 +3,7 @@ package com.agrosphere.app.data.auth
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import com.google.firebase.auth.FirebaseAuth
@@ -13,6 +13,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Thin wrapper around FirebaseAuth and the Credential Manager API.
@@ -70,34 +71,47 @@ class AuthRepository(
         webClientId: String,
     ): FirebaseUser {
         val credentialManager = CredentialManager.create(activityContext)
-        val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(webClientId)
-            .setAutoSelectEnabled(true)
-            .build()
+        // Explicit "Sign in with Google" button flow — always shows the account
+        // chooser and is far more reliable on real devices than one-tap.
+        val signInOption = GetSignInWithGoogleOption.Builder(webClientId).build()
         val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
+            .addCredentialOption(signInOption)
             .build()
         val response = try {
-            credentialManager.getCredential(activityContext, request)
+            // Timeout so a non-responsive credential UI surfaces an error
+            // instead of leaving the button spinning forever.
+            withTimeoutOrNull(120_000) {
+                credentialManager.getCredential(activityContext, request)
+            } ?: throw IllegalStateException("Google sign-in timed out — the account picker didn't respond.")
         } catch (e: GetCredentialException) {
             throw IllegalStateException(
                 "Google sign-in was cancelled or unavailable: ${e.message}", e,
             )
         }
-        val credential = response.credential
         val tokenCred = try {
-            GoogleIdTokenCredential.createFrom(credential.data)
+            GoogleIdTokenCredential.createFrom(response.credential.data)
         } catch (e: GoogleIdTokenParsingException) {
             throw IllegalStateException("Could not parse Google ID token.", e)
         }
         val firebaseCred = GoogleAuthProvider.getCredential(tokenCred.idToken, null)
-        val result = auth.signInWithCredential(firebaseCred).await()
+        val result = withTimeoutOrNull(30_000) {
+            auth.signInWithCredential(firebaseCred).await()
+        } ?: throw IllegalStateException("Firebase sign-in timed out. Check your connection.")
         return result.user ?: error("Google sign-in returned no user.")
     }
 
     fun signOut() {
         auth.signOut()
+    }
+
+    /**
+     * Permanently deletes the signed-in Firebase auth account. On-device data
+     * (scan history, chat) is NOT touched — only the login is removed.
+     * May throw FirebaseAuthRecentLoginRequiredException if the session is old.
+     */
+    suspend fun deleteAccount() {
+        val user = auth.currentUser ?: error("Not signed in.")
+        user.delete().await()
     }
 
     /** Updates the currently-signed-in user's profile displayName on Firebase. */

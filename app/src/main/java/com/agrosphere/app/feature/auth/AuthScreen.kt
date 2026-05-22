@@ -90,6 +90,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agrosphere.app.R
 import com.agrosphere.app.ui.components.GoogleLogo
@@ -99,6 +102,13 @@ import com.agrosphere.app.ui.theme.AgroPalette
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+
+/** Unwrap a Compose [Context] down to the hosting [Activity] (Credential Manager needs it). */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
 
 @Composable
 fun AuthScreen(
@@ -216,7 +226,7 @@ fun AuthScreen(
                         accent = AgroPalette.Ink.copy(alpha = 0.85f),
                         modifier = Modifier.weight(1f),
                         googleLogo = true,
-                    ) { vm.signInGoogle(context, webClientId) }
+                    ) { vm.signInGoogle(context.findActivity() ?: context, webClientId) }
                     SocialButton(
                         glyph = null, label = "Phone",
                         accent = AgroPalette.Iris,

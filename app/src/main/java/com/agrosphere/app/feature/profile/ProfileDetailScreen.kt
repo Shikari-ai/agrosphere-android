@@ -48,9 +48,11 @@ import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
@@ -82,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.collectAsState
 import com.agrosphere.app.data.repo.FieldRepository
+import com.agrosphere.app.data.repo.LocalProfileStore
 import com.agrosphere.app.data.repo.MockRepository
 import com.agrosphere.app.ui.components.GhostButton
 import com.agrosphere.app.ui.components.GlassCard
@@ -104,6 +107,7 @@ fun ProfileDetailScreen(
     onBack: () -> Unit,
     onOpenField: (String) -> Unit = {},
     onSignOut: () -> Unit = {},
+    onOpenSection: (String) -> Unit = {},
 ) {
     val title = titleFor(section)
     val snackbar = remember { SnackbarHostState() }
@@ -121,7 +125,7 @@ fun ProfileDetailScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 when (section) {
                     ProfileSections.FARM_OVERVIEW -> FarmOverviewPanel()
-                    ProfileSections.ACCOUNT -> AccountPanel(snackbar = snackbar, onSignOut = onSignOut)
+                    ProfileSections.ACCOUNT -> AccountPanel(snackbar = snackbar, onSignOut = onSignOut, onOpenSection = onOpenSection)
                     ProfileSections.EDIT_PROFILE -> EditProfilePanel(snackbar = snackbar, onBack = onBack)
                     ProfileSections.MY_FARMS -> MyFarmsPanel(snackbar = snackbar, onOpenField = onOpenField)
                     ProfileSections.SUBSCRIPTION -> SubscriptionPanel(snackbar = snackbar)
@@ -271,42 +275,111 @@ private fun ActivityRow(a: Activity) {
 
 // ─── Account settings ────────────────────────────────────────────────────────
 @Composable
-private fun AccountPanel(snackbar: SnackbarHostState, onSignOut: () -> Unit) {
+private fun AccountPanel(
+    snackbar: SnackbarHostState,
+    onSignOut: () -> Unit,
+    onOpenSection: (String) -> Unit,
+) {
     val scope = rememberCoroutineScope()
-    LazyColumn(
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item { SectionHeader(title = "Personal info") }
-        item {
-            InfoRow(Icons.Rounded.Edit, "Full name", "Guest farmer") {
-                scope.launch { snackbar.showSnackbar("Open Edit profile to change your name.") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val authRepo = remember { com.agrosphere.app.data.auth.AuthRepository() }
+    val user = authRepo.currentUser
+    val name = user?.displayName?.takeIf { it.isNotBlank() }
+        ?: user?.email?.substringBefore('@')
+        ?: "Guest farmer"
+    val email = user?.email ?: "Guest session"
+    val phone = LocalProfileStore.getPhone(context).ifBlank { "Not set" }
+    val weather by com.agrosphere.app.data.weather.WeatherRepository.bundleFlow.collectAsState()
+    val liveLocation = weather?.snapshot?.location.orEmpty()
+    val location = LocalProfileStore.getLocation(context)
+        .ifBlank { liveLocation }
+        .ifBlank { "Locating…" }
+    LaunchedEffect(Unit) {
+        if (com.agrosphere.app.data.weather.WeatherRepository.cached() == null) {
+            runCatching { com.agrosphere.app.data.weather.WeatherRepository.load(context) }
+        }
+    }
+
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item { SectionHeader(title = "Personal info") }
+            item { InfoRow(Icons.Rounded.Edit, "Full name", name) { onOpenSection(ProfileSections.EDIT_PROFILE) } }
+            item { InfoRow(Icons.Rounded.Email, "Email", email, trailing = null) {} }
+            item { InfoRow(Icons.Rounded.Phone, "Phone", phone) { onOpenSection(ProfileSections.EDIT_PROFILE) } }
+            item { InfoRow(Icons.Rounded.LocationOn, "Location", location) { onOpenSection(ProfileSections.EDIT_PROFILE) } }
+
+            item { SectionHeader(title = "Security") }
+            item {
+                InfoRow(Icons.Rounded.Lock, "Password", "Change password") {
+                    scope.launch { snackbar.showSnackbar("Password reset email queued.") }
+                }
+            }
+
+            item {
+                Spacer(Modifier.height(8.dp))
+                PrimaryButton(
+                    text = "Sign out of this device",
+                    icon = Icons.Rounded.Logout,
+                    brush = SolidColor(AgroPalette.Rose),
+                    onClick = onSignOut,
+                )
+                Spacer(Modifier.height(10.dp))
+                GhostButton(
+                    text = if (deleting) "Deleting…" else "Delete account",
+                    onClick = { if (!deleting) showDeleteConfirm = true },
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Your scans and chat history stay on this device.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AgroPalette.InkDim,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+                Spacer(Modifier.height(40.dp))
             }
         }
-        item { InfoRow(Icons.Rounded.Email, "Email", "guest session", trailing = null) {} }
-        item { InfoRow(Icons.Rounded.Phone, "Phone", "Not set") {
-            scope.launch { snackbar.showSnackbar("Tap Edit profile to add a phone number.") }
-        } }
-        item { InfoRow(Icons.Rounded.LocationOn, "Location", "Nashik, Maharashtra") {
-            scope.launch { snackbar.showSnackbar("Location pulled from your device.") }
-        } }
 
-        item { SectionHeader(title = "Security") }
-        item {
-            InfoRow(Icons.Rounded.Lock, "Password", "Change password") {
-                scope.launch { snackbar.showSnackbar("Password reset email queued.") }
-            }
-        }
-
-        item {
-            Spacer(Modifier.height(8.dp))
-            PrimaryButton(
-                text = "Sign out of this device",
-                icon = Icons.Rounded.Logout,
-                brush = SolidColor(AgroPalette.Rose),
-                onClick = onSignOut,
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirm = false },
+                containerColor = AgroPalette.Surface,
+                title = { Text("Delete account?", color = AgroPalette.Ink) },
+                text = {
+                    Text(
+                        "Your login will be permanently deleted. Your saved scans and chat history will stay on this device.",
+                        color = AgroPalette.InkMuted,
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDeleteConfirm = false
+                        deleting = true
+                        scope.launch {
+                            try {
+                                authRepo.deleteAccount()
+                                onSignOut()
+                            } catch (e: com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
+                                deleting = false
+                                snackbar.showSnackbar("For security, sign out and sign in again, then delete.")
+                            } catch (t: Throwable) {
+                                deleting = false
+                                snackbar.showSnackbar("Couldn't delete account: ${t.message ?: "try again"}")
+                            }
+                        }
+                    }) { Text("Delete", color = AgroPalette.Rose) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirm = false }) {
+                        Text("Cancel", color = AgroPalette.InkMuted)
+                    }
+                },
             )
-            Spacer(Modifier.height(40.dp))
         }
     }
 }
@@ -349,11 +422,18 @@ private fun EditProfilePanel(snackbar: SnackbarHostState, onBack: () -> Unit) {
         ?: currentUser?.email?.substringBefore('@')
         ?: "Guest farmer"
     val currentEmail = currentUser?.email ?: "guest session"
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val initialPhone = remember { LocalProfileStore.getPhone(context) }
+    val initialLocation = remember {
+        LocalProfileStore.getLocation(context)
+            .ifBlank { com.agrosphere.app.data.weather.WeatherRepository.cached()?.snapshot?.location.orEmpty() }
+    }
     var name by remember { mutableStateOf(initialName) }
-    var phone by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf(initialPhone) }
+    var location by remember { mutableStateOf(initialLocation) }
     var saving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val changed = name != initialName || phone != initialPhone || location != initialLocation
 
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
@@ -381,19 +461,20 @@ private fun EditProfilePanel(snackbar: SnackbarHostState, onBack: () -> Unit) {
         }
         item { Field(label = "Full name", value = name, onChange = { name = it }) }
         item { Field(label = "Email", value = currentEmail, onChange = {}, enabled = false) }
-        item { Field(label = "Phone (local only — Firestore sync in v1.1)", value = phone, onChange = { phone = it }, keyboard = KeyboardType.Phone) }
-        item { Field(label = "Location (local only)", value = location, onChange = { location = it }) }
+        item { Field(label = "Phone", value = phone, onChange = { phone = it }, keyboard = KeyboardType.Phone) }
+        item { Field(label = "Location", value = location, onChange = { location = it }) }
         item {
             Spacer(Modifier.height(8.dp))
             PrimaryButton(
                 text = if (saving) "Saving…" else "Save changes",
                 icon = Icons.Rounded.CheckCircle,
-                enabled = !saving && name.isNotBlank() && name != initialName,
+                enabled = !saving && name.isNotBlank() && changed,
                 onClick = {
                     saving = true
                     scope.launch {
                         try {
-                            authRepo.updateDisplayName(name)
+                            if (name != initialName) authRepo.updateDisplayName(name)
+                            LocalProfileStore.save(context, phone, location)
                             snackbar.showSnackbar("Saved — your profile is up to date.")
                             onBack()
                         } catch (t: Throwable) {
@@ -835,7 +916,7 @@ private fun HelpPanel(snackbar: SnackbarHostState) {
         "Do I need a paid plan?" to "No. The free plan covers up to 5 fields and the full weather + scanner. Pro adds disease prediction, yield forecasting, and cloud sync.",
         "Can I use AgroSphere offline?" to "Yes — your last forecast and field data cache for 24 h. Scanner works offline once the model has loaded.",
         "How is my data used?" to "Field info stays in your Firebase project. We never sell or share it. AI training uses anonymized, aggregated signals only.",
-        "How do I delete my account?" to "Profile → Sign out, then write to support@agrosphere.app — we'll wipe your data within 7 days.",
+        "How do I delete my account?" to "Profile → Account settings → Delete account. Your login is removed; your saved scans and chat history stay on this device.",
     )
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current

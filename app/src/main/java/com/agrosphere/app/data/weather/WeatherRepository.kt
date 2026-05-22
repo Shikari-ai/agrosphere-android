@@ -10,6 +10,10 @@ import com.agrosphere.app.data.model.WeatherSnapshot
 import com.agrosphere.app.ui.theme.AgroPalette
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -29,9 +33,10 @@ data class WeatherBundle(
 
 object WeatherRepository {
 
-    /** In-memory cache so opening Weather a second time is instant. */
-    @Volatile private var cache: WeatherBundle? = null
-    fun cached(): WeatherBundle? = cache
+    /** Latest weather bundle as a shared flow so every screen stays in sync. */
+    private val _bundle = MutableStateFlow<WeatherBundle?>(null)
+    val bundleFlow: StateFlow<WeatherBundle?> = _bundle.asStateFlow()
+    fun cached(): WeatherBundle? = _bundle.value
 
     /**
      * Fast load — uses lastLocation (cached on device, no GPS wait) and runs
@@ -39,11 +44,16 @@ object WeatherRepository {
      * one network round-trip (~1s). Warm path (cached) is ~0s — see [cached].
      */
     suspend fun load(context: Context): WeatherBundle = coroutineScope {
-        val place = LocationProvider.fastCurrent(context)
+        // Prefer a fresh GPS fix for accuracy; fall back to last-known if it's slow,
+        // so Home doesn't get stuck on a stale fix from a previous location.
+        val place = withTimeoutOrNull(8_000) { LocationProvider.current(context) }
+            ?: LocationProvider.fastCurrent(context)
         // Kick off both in parallel — total time = max(both), not sum.
         val weatherDeferred = async { WeatherApi.fetch(place.latitude, place.longitude) }
         val labelDeferred = async {
-            LocationProvider.reverseGeocode(context, place.latitude, place.longitude) ?: place.label
+            // current() already geocodes; only re-geocode the fast/last-known fallback.
+            if (place.label.isNotBlank() && place.label != "Current location") place.label
+            else LocationProvider.reverseGeocode(context, place.latitude, place.longitude) ?: place.label
         }
         val r = weatherDeferred.await()
         val label = labelDeferred.await()
@@ -54,7 +64,7 @@ object WeatherRepository {
             insights = deriveInsights(r),
             metrics = deriveMetrics(r),
         )
-        cache = bundle
+        _bundle.value = bundle
         bundle
     }
 

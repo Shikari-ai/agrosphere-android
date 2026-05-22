@@ -43,6 +43,7 @@ data class ChatMessage(
     val id: Long,
     val fromUser: Boolean,
     val text: String,
+    val imageUri: String? = null,   // optional attached photo (content/file uri)
 )
 
 data class AlertItem(

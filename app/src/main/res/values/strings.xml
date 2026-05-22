@@ -89,6 +89,10 @@
     <string name="common_retry">Retry</string>
     <string name="common_search">Search</string>
     <string name="common_add">Add</string>
+    <string name="common_delete">Delete</string>
+    <string name="field_delete_confirm_title">Delete field?</string>
+    <string name="field_delete_confirm_body">"%1$s" and all its data will be permanently removed.</string>
+    <string name="field_deleted_snackbar">"%1$s" deleted</string>
 
     <!-- Weather condition labels -->
     <string name="weather_condition_clear">Clear sky</string>
@@ -114,7 +118,33 @@
     <string name="pest_risk_moderate">Moderate</string>
     <string name="pest_risk_high">High</string>
     <string name="pest_risk_severe">Severe</string>
+    <string name="pest_desc_low">Conditions unfavourable for pest activity. Continue routine scouting.</string>
+    <string name="pest_desc_moderate">Watch for early signs in vulnerable crops. Re-scan in 3 days.</string>
+    <string name="pest_desc_high">Pest pressure climbing. Inspect tomorrow; preventive spray ready.</string>
+    <string name="pest_desc_severe">Severe pressure — preventive spray strongly advised.</string>
     <string name="insights_empty_body">No insights yet — add a field and AgroSphere will start surfacing context.</string>
+    <string name="insight_storm_title">Storm overhead</string>
+    <string name="insight_storm_body">Avoid field operations until conditions settle. The Weather tab has the next clear window.</string>
+    <string name="insight_humidity_title">Ambient humidity high</string>
+    <string name="insight_humidity_body">%1$d%% humidity — disease pressure climbs. Inspect lower canopy on susceptible crops.</string>
+    <string name="insight_hot_day_title">Hot day ahead</string>
+    <string name="insight_hot_day_body">%1$d°C reading. Shift labour to early morning; check soil moisture this evening.</string>
+    <string name="insight_calm_spray_title">Calm spray window</string>
+    <string name="insight_calm_spray_body">Wind at %1$d km/h — ideal for foliar passes if you have one queued.</string>
+    <string name="insight_soil_moisture_title">Soil moisture trend</string>
+    <string name="insight_soil_moisture_body">%1$s is drying faster than your other plots — check the drip layout.</string>
+    <string name="insight_crops_strong_title">Crops trending strong</string>
+    <string name="insight_crops_strong_body">Average health %1$d across %2$d fields. Keep current cadence.</string>
+    <string name="onboarding_setup_title">Set up your farm to see live insights</string>
+    <string name="onboarding_setup_body">Field operations, crop health, and pest predictions kick in the moment you add your first field.</string>
+    <string name="nudge_add_field">Add a field</string>
+    <string name="nudge_run_scan">Run a scan</string>
+    <string name="nudge_get_insights">Get insights</string>
+    <string name="notif_sheet_title_empty">All quiet</string>
+    <string name="notif_sheet_title">Notifications</string>
+    <string name="notif_sheet_subtitle">%1$d signals from weather + fields</string>
+    <string name="notif_empty_body">Nothing actionable from weather or your fields right now.</string>
+    <string name="notif_empty_hint">Notifications appear here when storms approach, soil moisture drops, or UV climbs.</string>
 
     <!-- At a glance labels -->
     <string name="glance_fields">Fields</string>
@@ -223,6 +253,66 @@
     <string name="profile_sub_about">v0.1.0 · build notes</string>
     <string name="profile_sub_developer">Logs, flags, test injection</string>
     <string name="profile_made_with_care">Made with care · AgroSphere 0.1.0</string>
+    <string name="profile_made_in_india">MADE IN INDIA</string>
     <string name="profile_toggle_units">Units</string>
     <string name="profile_toggle_dark">Dark theme</string>
+
+    <!-- Pest Radar screen -->
+    <string name="pest_screen_eyebrow">Protection</string>
+    <string name="pest_screen_title">Pest Prediction</string>
+    <string name="pest_back">Back</string>
+    <string name="pest_refresh">Refresh</string>
+    <string name="pest_section_field_risk">Field risk</string>
+    <string name="pest_section_scenarios">Possible scenarios</string>
+    <string name="pest_section_verified">Verified prediction</string>
+    <string name="pest_today_pressure">Today\'s pest pressure</string>
+    <string name="pest_pressure_line">%1$d%% pressure · %2$s</string>
+    <string name="pest_verify_blurb">Cross-check the top risk against live web sources (Wikipedia + DuckDuckGo).</string>
+    <string name="pest_verify_loading">Checking the web…</string>
+    <string name="pest_verify_run">Run web verification</string>
+    <string name="pest_verify_unavailable">Verification unavailable — try again later.</string>
+    <string name="pest_verified_badge">Verified</string>
+    <string name="pest_confidence">%1$d%% confidence</string>
+    <string name="pest_sources">Sources</string>
+    <string name="pest_empty_title">No fields yet</string>
+    <string name="pest_empty_body">Add a field to get pest predictions based on your crop and live weather.</string>
+    <string name="pest_factors">%1$d°C · %2$d%% humidity</string>
+    <string name="pest_factors_nodata">No weather data</string>
+    <string name="pest_scenario_localised_title">Localised to your fields</string>
+    <string name="pest_scenario_localised_detail">%1$s stays contained. Targeted treatment should hold it for now.</string>
+    <string name="pest_scenario_spreading_title">Spreading across the area</string>
+    <string name="pest_scenario_spreading_detail">Some risk %1$s spreads from neighbouring fields. Watch your borders this week.</string>
+    <string name="pest_scenario_flare_title">Weather-driven flare-up</string>
+    <string name="pest_scenario_flare_detail">High humidity favours %1$s — bring forward your next scout.</string>
+    <string name="pest_scenario_stable_title">Weather-stable</string>
+    <string name="pest_scenario_stable_detail">Current weather isn\'t pushing %1$s hard. Lower urgency.</string>
+    <!-- Regional pest activity -->
+    <string name="pest_regional_title">Regional pest activity</string>
+    <string name="pest_regional_note">Pest reports from your area and neighbouring districts this week.</string>
+    <string name="pest_here_and_nearby">Here &amp; nearby</string>
+    <string name="pest_in_your_area">In your area</string>
+    <string name="pest_in_nearby_districts">In nearby districts</string>
+    <string name="pest_reports_word">reports</string>
+    <string name="pest_areas_sampled">areas sampled</string>
+    <string name="pest_xborder_title">Pest activity near you</string>
+    <string name="pest_xborder_body">reported in a neighbouring district — heads up</string>
+    <!-- Scanner results -->
+    <string name="scan_analyzing">Analysing…</string>
+    <string name="scan_analyzing_sub">Reading leaf texture &amp; symptoms</string>
+    <string name="scan_confidence">%1$d%% confidence</string>
+    <string name="scan_recommended">Recommended actions</string>
+    <string name="scan_treatments">Treatments</string>
+    <string name="scan_failed">Scan failed — check your connection and try again.</string>
+    <string name="scan_level_healthy">Healthy</string>
+    <string name="scan_level_low">Low risk</string>
+    <string name="scan_level_medium">Medium risk</string>
+    <string name="scan_level_high">High risk</string>
+    <string name="scan_camera_needed">Camera access needed</string>
+    <string name="scan_camera_needed_sub">Allow camera to scan your crop live.</string>
+    <string name="scan_enable_camera">Enable camera</string>
+    <string name="scan_save">Save to history</string>
+    <string name="scan_saved">Saved</string>
+    <string name="sign_out_confirm_title">Sign out?</string>
+    <string name="sign_out_confirm_body">Are you sure you want to sign out?</string>
+    <string name="sign_out_confirm_cancel">Cancel</string>
 </resources>
