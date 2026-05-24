@@ -64,6 +64,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -119,14 +120,20 @@ fun HomeScreen(
 ) {
     val state by vm.state.collectAsState()
     var showNotifications by remember { mutableStateOf(false) }
-    // Visible-flag array lives here at HomeScreen level so it survives LazyColumn
-    // item disposal (scroll off / scroll back on).  animateFloatAsState called on
-    // a fresh item composition with target=1f snaps instantly — no re-animation.
-    val itemVisible = remember { Array(7) { mutableStateOf(false) } }
+    // rememberSaveable survives NavHost destination disposal (tab switches, back-stack
+    // recreation).  Once true, every future HomeScreen composition seeds itemVisible
+    // with true → animateFloatAsState(1f) snaps instantly — no re-animation ever.
+    var entrancePlayed by rememberSaveable { mutableStateOf(false) }
+    // itemVisible lives at HomeScreen level so LazyColumn item disposal (scroll)
+    // doesn't reset it.  Seeded from entrancePlayed so nav-back is also instant.
+    val itemVisible = remember { Array(7) { mutableStateOf(entrancePlayed) } }
     LaunchedEffect(Unit) {
-        for (i in 0..6) {
-            delay(i * 55L)
-            itemVisible[i].value = true
+        if (!entrancePlayed) {
+            for (i in 0..6) {
+                delay(i * 55L)
+                itemVisible[i].value = true
+            }
+            entrancePlayed = true
         }
     }
 
