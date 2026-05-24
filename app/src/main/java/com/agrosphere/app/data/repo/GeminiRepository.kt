@@ -13,6 +13,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -40,10 +43,11 @@ object GeminiRepository {
 
     suspend fun chat(
         question: String,
-        history: List<ChatMessage>,   // full message list from ViewModel
+        history: List<ChatMessage>,       // full message list from ViewModel
         fields: List<Field>,
         weather: WeatherSnapshot?,
-        forceProvider: String? = null, // "gemini" | "groq" | "github" | null = auto
+        recentScans: List<ScanRecord> = emptyList(),
+        forceProvider: String? = null,    // "gemini" | "groq" | "github" | null = auto
     ): AiReply = withContext(Dispatchers.IO) {
 
         val conn = (URL(PROXY_URL).openConnection() as HttpURLConnection).apply {
@@ -94,6 +98,21 @@ object GeminiRepository {
                     }
                     putJsonObject("location") {
                         put("city", weather.location)
+                    }
+                }
+                // Recent scan history — lets the AI say "your last scan found X"
+                if (recentScans.isNotEmpty()) {
+                    val fmt = SimpleDateFormat("MMM d", Locale.US)
+                    putJsonArray("recentScans") {
+                        recentScans.take(5).forEach { s ->
+                            addJsonObject {
+                                put("disease",    s.diseaseName)
+                                put("crop",       s.cropType)
+                                put("risk",       s.riskLevel)
+                                put("confidence", s.confidence)
+                                put("date",       fmt.format(Date(s.createdAtMillis)))
+                            }
+                        }
                     }
                 }
             }
