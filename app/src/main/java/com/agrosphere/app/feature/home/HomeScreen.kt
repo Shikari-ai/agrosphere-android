@@ -59,6 +59,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -118,13 +119,15 @@ fun HomeScreen(
 ) {
     val state by vm.state.collectAsState()
     var showNotifications by remember { mutableStateOf(false) }
-    // Once the initial stagger finishes, flip this so items that scroll out
-    // and back in don't re-run the entrance animation.
-    var entranceDone by remember { mutableStateOf(false) }
+    // Visible-flag array lives here at HomeScreen level so it survives LazyColumn
+    // item disposal (scroll off / scroll back on).  animateFloatAsState called on
+    // a fresh item composition with target=1f snaps instantly — no re-animation.
+    val itemVisible = remember { Array(7) { mutableStateOf(false) } }
     LaunchedEffect(Unit) {
-        // 6 items × 55 ms stagger + 430 ms animation = 760 ms; wait a touch longer.
-        kotlinx.coroutines.delay(800L)
-        entranceDone = true
+        for (i in 0..6) {
+            delay(i * 55L)
+            itemVisible[i].value = true
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -138,7 +141,7 @@ fun HomeScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { EntranceItem(0, skip = entranceDone) {
+            item { EntranceItem(itemVisible[0]) {
                 StickyHeader(
                     name = state.displayName,
                     photoUrl = state.photoUrl,
@@ -149,10 +152,10 @@ fun HomeScreen(
                     onBellTap = { showNotifications = true },
                 )
             } }
-            item { EntranceItem(1, skip = entranceDone) {
+            item { EntranceItem(itemVisible[1]) {
                 WeatherHeroCard(snapshot = state.weather, loading = state.weatherLoading, onTap = onOpenWeather)
             } }
-            item { EntranceItem(2, skip = entranceDone) {
+            item { EntranceItem(itemVisible[2]) {
                 QuickActionsRow(
                     onScan = onOpenScanner,
                     onAddField = onOpenFields,
@@ -165,16 +168,16 @@ fun HomeScreen(
             // Field operations → Recent alerts → Crop health → Pest prediction.
             // Every card stays mounted; each shows its own inline empty state
             // when there's no data yet.
-            item { EntranceItem(3, skip = entranceDone) { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) } }
+            item { EntranceItem(itemVisible[3]) { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) } }
 
-            item { EntranceItem(4, skip = entranceDone) { SectionHeader(title = stringResource(R.string.section_recent_alerts), trailing = if (state.alerts.isEmpty()) null else stringResource(R.string.section_see_all)) } }
+            item { EntranceItem(itemVisible[4]) { SectionHeader(title = stringResource(R.string.section_recent_alerts), trailing = if (state.alerts.isEmpty()) null else stringResource(R.string.section_see_all)) } }
             if (state.alerts.isEmpty()) {
-                item { EntranceItem(5, skip = entranceDone) { AlertsEmptyCard(hasFields = state.fieldsCount > 0) } }
+                item { EntranceItem(itemVisible[5]) { AlertsEmptyCard(hasFields = state.fieldsCount > 0) } }
             } else {
-                items(state.alerts.take(3)) { alert -> EntranceItem(5, skip = entranceDone) { AlertCard(alert) } }
+                items(state.alerts.take(3)) { alert -> EntranceItem(itemVisible[5]) { AlertCard(alert) } }
             }
 
-            item { EntranceItem(6, skip = entranceDone) {
+            item { EntranceItem(itemVisible[6]) {
                 CropHealthCard(
                     score = state.cropHealth,
                     verdict = state.cropHealthVerdict,
@@ -213,21 +216,17 @@ fun HomeScreen(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Staggered fade + slide-up entrance for the first screenful of cards.
-// Below-fold items (index >= 7) render normally so scrolling never lags.
+// Staggered fade + slide-up entrance.
+// visibleState lives at HomeScreen level so it is NEVER lost when LazyColumn
+// disposes an off-screen item.  When an item recomposes after scrolling back
+// in, visibleState.value is already true → animateFloatAsState is first called
+// with target=1f → snaps instantly to 1f, no re-animation.
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun EntranceItem(index: Int, skip: Boolean = false, content: @Composable () -> Unit) {
-    // skip = true  → entrance already played (e.g. user scrolled back up); render directly
-    // index >= 7   → below the fold on first load; never animate to avoid scroll lag
-    if (skip || index >= 7) { content(); return }
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(index * 55L)
-        visible = true
-    }
+private fun EntranceItem(visibleState: State<Boolean>, content: @Composable () -> Unit) {
+    val visible by visibleState
     val alpha by animateFloatAsState(if (visible) 1f else 0f, tween(durationMillis = 430), label = "entranceAlpha")
-    val ty by animateFloatAsState(if (visible) 0f else 26f, tween(durationMillis = 430), label = "entranceY")
+    val ty    by animateFloatAsState(if (visible) 0f else 26f, tween(durationMillis = 430), label = "entranceY")
     Box(
         modifier = Modifier.graphicsLayer {
             this.alpha = alpha
