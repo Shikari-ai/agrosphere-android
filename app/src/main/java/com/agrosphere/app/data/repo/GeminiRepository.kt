@@ -1,5 +1,6 @@
 package com.agrosphere.app.data.repo
 
+import com.agrosphere.app.data.i18n.LocaleManager
 import com.agrosphere.app.data.model.ChatMessage
 import com.agrosphere.app.data.model.Field
 import com.agrosphere.app.data.model.WeatherSnapshot
@@ -48,7 +49,14 @@ object GeminiRepository {
         weather: WeatherSnapshot?,
         recentScans: List<ScanRecord> = emptyList(),
         forceProvider: String? = null,    // "gemini" | "groq" | "github" | null = auto
+        replyLanguage: String = "",       // BCP-47 tag e.g. "hi", "mr" — "" = English
     ): AiReply = withContext(Dispatchers.IO) {
+
+        // Prepend a language instruction so the model replies in the user's chosen
+        // language. Injected into the question (not history) so it stays effective
+        // across every message without bloating persisted history.
+        val langPrefix = languageInstruction(replyLanguage)
+        val finalQuestion = if (langPrefix.isEmpty()) question else "$langPrefix\n\n$question"
 
         val conn = (URL(PROXY_URL).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
@@ -63,7 +71,7 @@ object GeminiRepository {
 
         val body = buildJsonObject {
 
-            put("question", question)
+            put("question", finalQuestion)
 
             // Pin a provider when the user picked one (val skips the cascade)
             if (forceProvider != null) put("forceProvider", forceProvider)
@@ -134,5 +142,21 @@ object GeminiRepository {
         val provider = root["provider"]?.jsonPrimitive?.content ?: "ai"
 
         AiReply(text = reply, provider = provider)
+    }
+
+    // ─── Language helpers ─────────────────────────────────────────────────────
+
+    /**
+     * Returns a system-level language instruction to prepend to the question when
+     * the user has chosen a non-English locale.  Empty string for English / unset.
+     */
+    private fun languageInstruction(tag: String): String {
+        val base = tag.substringBefore('-').lowercase()
+        if (base.isEmpty() || base == "en") return ""
+        val name = LocaleManager.supported.firstOrNull { it.tag == base }?.englishName
+            ?: return ""
+        return "SYSTEM: The user's app language is $name. " +
+               "You MUST reply entirely in $name for every response. " +
+               "Do not mix languages. Use $name for all explanations, recommendations, and advice."
     }
 }

@@ -6,6 +6,7 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.agrosphere.app.data.i18n.LocaleManager
 import com.agrosphere.app.data.model.ChatMessage
 import com.agrosphere.app.data.model.WeatherSnapshot
 import com.agrosphere.app.data.repo.FieldRepository
@@ -152,12 +153,13 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 val result = GeminiRepository.chat(
-                    question      = question,
-                    history       = _messages.value,
-                    fields        = FieldRepository.current(),
-                    weather       = weatherCache,
-                    recentScans   = scanCache,
-                    forceProvider = _selectedProvider.value,
+                    question       = question,
+                    history        = _messages.value,
+                    fields         = FieldRepository.current(),
+                    weather        = weatherCache,
+                    recentScans    = scanCache,
+                    forceProvider  = _selectedProvider.value,
+                    replyLanguage  = LocaleManager.activeLanguageTag(),
                 )
                 val aiMsg = ChatMessage(nextId++, false, result.text,
                     createdAtMs = System.currentTimeMillis())
@@ -198,9 +200,10 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 val d = VisionScanRepository.analyze(
-                    bitmap   = bitmap,
-                    cropType = "",
-                    fields   = FieldRepository.current(),
+                    bitmap        = bitmap,
+                    cropType      = "",
+                    fields        = FieldRepository.current(),
+                    replyLanguage = LocaleManager.activeLanguageTag(),
                 )
                 val aiMsg = ChatMessage(nextId++, false, formatDiagnosis(d),
                     createdAtMs = System.currentTimeMillis())

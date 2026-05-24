@@ -2,6 +2,7 @@ package com.agrosphere.app.data.repo
 
 import android.graphics.Bitmap
 import android.util.Base64
+import com.agrosphere.app.data.i18n.LocaleManager
 import com.agrosphere.app.data.model.Field
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -65,12 +66,13 @@ object VisionScanRepository {
         bitmap: Bitmap,
         cropType: String,
         fields: List<Field>,
+        replyLanguage: String = "",   // BCP-47 tag e.g. "hi", "mr" — "" = English
     ): VisionDiagnosis = withContext(Dispatchers.IO) {
 
         val base64 = encode(bitmap)
 
         val body = buildJsonObject {
-            put("question", buildPrompt(cropType))
+            put("question", buildPrompt(cropType, replyLanguage))
             if (fields.isNotEmpty()) {
                 putJsonObject("farmContext") {
                     putJsonArray("fields") {
@@ -190,8 +192,9 @@ object VisionScanRepository {
 
     // ─── prompt (ported from vision-scan.js buildQuestion) ───────────────────────
 
-    private fun buildPrompt(cropType: String): String {
+    private fun buildPrompt(cropType: String, replyLanguage: String = ""): String {
         val contextLine = if (cropType.isNotBlank()) "\nContext — Crop type: $cropType" else ""
+        val langLine    = visionLangInstruction(replyLanguage)
         return """
 You are a senior plant pathologist and agronomist. Examine this crop image precisely.
 
@@ -222,7 +225,22 @@ Rules — ALWAYS give the farmer a clear solution:
 - If riskLevel is NOT "healthy", you MUST fill "treatments" with at least 2-4 specific items: a chemical control (exact fungicide/pesticide name + dose, e.g. "Mancozeb 75% WP — 2.5 g/L"), an organic option (e.g. "Neem oil 1500 ppm — 5 ml/L"), a fertilizer/nutrient if a deficiency is involved, and one cultural practice. Use real product names and dosages, never vague categories.
 - "recommendations" must contain 3-5 concrete, ordered field steps that actually fix or contain the problem (remove affected leaves, spray timing, irrigation/airflow changes, re-scout schedule).
 - Leave "treatments" empty ONLY when the plant is genuinely healthy.
-- Return JSON only.
+- Return JSON only.$langLine
 """.trim()
+    }
+
+    /**
+     * Returns a language instruction appended to the vision prompt when the user
+     * has chosen a non-English locale.  The JSON keys stay in English (required for
+     * parsing), but all human-readable text values are returned in the chosen language.
+     */
+    private fun visionLangInstruction(tag: String): String {
+        val base = tag.substringBefore('-').lowercase()
+        if (base.isEmpty() || base == "en") return ""
+        val name = LocaleManager.supported.firstOrNull { it.tag == base }?.englishName
+            ?: return ""
+        return "\n\nLANGUAGE RULE: Write ALL human-readable string values — " +
+               "summary, narrative, recommendations array items, treatments.name, treatments.usage — " +
+               "in $name. JSON keys and riskLevel / partOfPlant / type enum values must stay in English."
     }
 }

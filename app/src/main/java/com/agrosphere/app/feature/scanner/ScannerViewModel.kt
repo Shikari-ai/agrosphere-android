@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.agrosphere.app.data.i18n.LocaleManager
 import com.agrosphere.app.data.repo.FieldRepository
 import com.agrosphere.app.data.repo.LocalScanStore
 import com.agrosphere.app.data.repo.SavedScan
@@ -38,9 +39,10 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _state.value = try {
                 val d = VisionScanRepository.analyze(
-                    bitmap = bitmap,
-                    cropType = cropType,
-                    fields = FieldRepository.current(),
+                    bitmap        = bitmap,
+                    cropType      = cropType,
+                    fields        = FieldRepository.current(),
+                    replyLanguage = LocaleManager.activeLanguageTag(),
                 )
                 // Save the FULL diagnosis locally and refresh history.
                 LocalScanStore.add(

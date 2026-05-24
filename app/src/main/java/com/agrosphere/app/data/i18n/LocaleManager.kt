@@ -43,6 +43,13 @@ object LocaleManager {
         return supported.firstOrNull { it.tag == tag }?.nativeName ?: "System default"
     }
 
+    /**
+     * Clean BCP-47 base tag for the currently active locale, e.g. "hi", "mr", "en".
+     * Falls back to the device's default language when no per-app locale is set.
+     */
+    fun activeLanguageTag(): String =
+        currentTag().substringBefore('-').ifEmpty { java.util.Locale.getDefault().language }
+
     /** Apply a new locale (or clear back to system default with `null` / ""). */
     fun setLocale(tag: String?) {
         val list = if (tag.isNullOrBlank()) {
