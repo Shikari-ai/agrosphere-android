@@ -118,6 +118,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.agrosphere.app.data.i18n.LocaleManager
 import com.agrosphere.app.data.model.ChatMessage
 import com.agrosphere.app.ui.components.AgroSphereEmblem
 import com.agrosphere.app.ui.theme.AgroPalette
@@ -134,14 +135,80 @@ private val TxtPrimary   = Color(0xFFE8EAED)
 private val TxtMuted     = Color(0xFF9AA0A6)
 private val TxtDim       = Color(0xFF5F6368)
 
-private val farmingPrompts = listOf(
-    "What's on your farm today?",
-    "How are your crops looking?",
-    "Any pest risks nearby?",
-    "Need irrigation advice?",
-    "What should I spray this week?",
-    "How's the weather for farming?",
-    "Any new ideas to explore?",
+/** Rotating welcome prompts translated into every supported app language. */
+private val farmingPromptsByLang: Map<String, List<String>> = mapOf(
+    "en" to listOf(
+        "What's on your farm today?",
+        "How are your crops looking?",
+        "Any pest risks nearby?",
+        "Need irrigation advice?",
+        "What should I spray this week?",
+        "How's the weather for farming?",
+        "Any new ideas to explore?",
+    ),
+    "hi" to listOf(
+        "आज आपके खेत में क्या हो रहा है?",
+        "आपकी फसलें कैसी दिख रही हैं?",
+        "पास में कोई कीट जोखिम है?",
+        "सिंचाई की सलाह चाहिए?",
+        "इस हफ्ते क्या छिड़काव करूं?",
+        "खेती के लिए मौसम कैसा है?",
+        "कोई नए विचार खोजने हैं?",
+    ),
+    "mr" to listOf(
+        "आज तुमच्या शेतात काय चालले आहे?",
+        "तुमच्या पिकांची स्थिती कशी आहे?",
+        "जवळपास कोणता कीड धोका आहे?",
+        "सिंचन सल्ला हवा आहे?",
+        "या आठवड्यात काय फवारणी करावी?",
+        "शेतीसाठी हवामान कसे आहे?",
+        "काही नवीन कल्पना शोधायच्या आहेत?",
+    ),
+    "ta" to listOf(
+        "இன்று உங்கள் பண்ணையில் என்ன நடக்கிறது?",
+        "உங்கள் பயிர்கள் எப்படி இருக்கின்றன?",
+        "அருகில் ஏதேனும் பூச்சி அபாயம் உள்ளதா?",
+        "நீர்ப்பாசன ஆலோசனை தேவையா?",
+        "இந்த வாரம் என்ன தெளிக்க வேண்டும்?",
+        "விவசாயத்திற்கு வானிலை எப்படி உள்ளது?",
+        "புதிய யோசனைகள் ஆராய வேண்டுமா?",
+    ),
+    "te" to listOf(
+        "ఈరోజు మీ పొలంలో ఏమి జరుగుతుందో?",
+        "మీ పంటలు ఎలా ఉన్నాయి?",
+        "దగ్గర్లో ఏమైనా చీడపురుగు ప్రమాదం ఉందా?",
+        "నీటిపారుదల సలహా కావాలా?",
+        "ఈ వారం ఏమి పిచికారీ చేయాలి?",
+        "వ్యవసాయానికి వాతావరణం ఎలా ఉంది?",
+        "ఏదైనా కొత్త ఆలోచనలు అన్వేషించాలా?",
+    ),
+    "bn" to listOf(
+        "আজ আপনার খামারে কী হচ্ছে?",
+        "আপনার ফসল কেমন দেখাচ্ছে?",
+        "কাছাকাছি কি কোনো কীটপতঙ্গের ঝুঁকি আছে?",
+        "সেচের পরামর্শ দরকার?",
+        "এই সপ্তাহে কী স্প্রে করব?",
+        "কৃষির জন্য আবহাওয়া কেমন?",
+        "কোনো নতুন ধারণা খুঁজে দেখতে হবে?",
+    ),
+    "gu" to listOf(
+        "આજે તમારા ખેતરમાં શું ચાલી રહ્યું છે?",
+        "તમારા પાક કેવા દેખાઈ રહ્યા છે?",
+        "નજીકમાં કોઈ જીવાત જોખમ છે?",
+        "સિંચાઈ સલાહ જોઈએ?",
+        "આ અઠવાડિયે શું છાંટવું?",
+        "ખેતી માટે હવામાન કેવું છે?",
+        "કોઈ નવા વિચારો શોધવા છે?",
+    ),
+    "hne" to listOf(
+        "आज तोर खेत मा का होत हे?",
+        "तोर फसल कइसन दिखत हे?",
+        "लगे कोनो कीड़ा खतरा हे का?",
+        "सिंचाई के सलाह चाही?",
+        "ए हफ्ता मा का छिड़काव करंव?",
+        "खेती बर मौसम कइसन हे?",
+        "कोनो नवा बात खोजे हे?",
+    ),
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -563,6 +630,9 @@ private fun ProviderOption(
 
 @Composable
 private fun WelcomeCenter(modifier: Modifier = Modifier) {
+    val prompts = farmingPromptsByLang[LocaleManager.activeLanguageTag()]
+        ?: farmingPromptsByLang["en"]!!
+
     val inf = rememberInfiniteTransition(label = "emblem")
     val ring by inf.animateFloat(
         initialValue  = 0.70f,
@@ -571,7 +641,8 @@ private fun WelcomeCenter(modifier: Modifier = Modifier) {
         label         = "ring",
     )
     var promptIdx by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) { while (true) { delay(3_200); promptIdx = (promptIdx + 1) % farmingPrompts.size } }
+    LaunchedEffect(prompts) { promptIdx = 0 }
+    LaunchedEffect(prompts, promptIdx) { delay(3_200); promptIdx = (promptIdx + 1) % prompts.size }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 32.dp)) {
@@ -583,7 +654,7 @@ private fun WelcomeCenter(modifier: Modifier = Modifier) {
                 label        = "prompt",
             ) { idx ->
                 Text(
-                    farmingPrompts[idx],
+                    prompts[idx],
                     style     = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp, fontWeight = FontWeight.Normal, lineHeight = 36.sp),
                     color     = TxtPrimary,
                     textAlign = TextAlign.Center,
