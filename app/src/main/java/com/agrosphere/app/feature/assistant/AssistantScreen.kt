@@ -99,7 +99,12 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.InfiniteTransition
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -122,6 +127,8 @@ import com.agrosphere.app.data.i18n.LocaleManager
 import com.agrosphere.app.data.model.ChatMessage
 import com.agrosphere.app.ui.components.AgroSphereEmblem
 import com.agrosphere.app.ui.theme.AgroPalette
+import kotlin.math.PI
+import kotlin.math.sin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -713,32 +720,151 @@ private fun MessageRow(msg: ChatMessage) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Thinking dots
+// Thinking — neural pulse
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun ThinkingRow() {
-    Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier          = Modifier.fillMaxWidth().padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Box(
             modifier         = Modifier.size(26.dp).clip(CircleShape).background(AgroPalette.Primary.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
         ) { AgroSphereEmblem(modifier = Modifier.size(20.dp), ringProgress = 1f, leafScale = 1f) }
-        Spacer(Modifier.width(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-            ThinkingDot(0f); ThinkingDot(0.2f); ThinkingDot(0.4f)
+        Spacer(Modifier.width(10.dp))
+        NeuralThinkingBubble()
+    }
+}
+
+@Composable
+private fun NeuralThinkingBubble() {
+    val inf = rememberInfiniteTransition(label = "neural")
+    val waveX by inf.animateFloat(
+        initialValue = -0.25f, targetValue = 1.25f,
+        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)),
+        label = "wave",
+    )
+    val pulse by inf.animateFloat(
+        initialValue = 0f, targetValue = (2 * PI).toFloat(),
+        animationSpec = infiniteRepeatable(tween(2600, easing = LinearEasing)),
+        label = "pulse",
+    )
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomEnd = 20.dp, bottomStart = 20.dp))
+            .drawBehind {
+                // neon hairline along top
+                drawLine(
+                    color       = AgroPalette.Primary.copy(alpha = 0.5f),
+                    start       = Offset(10.dp.toPx(), 0f),
+                    end         = Offset(size.width - 6.dp.toPx(), 0f),
+                    strokeWidth = 1f,
+                )
+            }
+            .background(AgroPalette.SurfaceGlass)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+    ) {
+        // energy wave + connecting arcs underneath dots
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val w  = size.width
+            val h  = size.height
+            val cy = h / 2f
+            // dot x-positions (3 dots, spacedBy 16.dp, size 22.dp each, padded 20.dp each side)
+            val dotW   = 22.dp.toPx()
+            val gap    = 16.dp.toPx()
+            val totalW = dotW * 3 + gap * 2
+            val startX = (w - totalW) / 2f
+            val cx0    = startX + dotW / 2f
+            val cx1    = cx0 + dotW + gap
+            val cx2    = cx1 + dotW + gap
+            // arc connectors
+            for (i in 0..1) {
+                val x1 = if (i == 0) cx0 else cx1
+                val x2 = if (i == 0) cx1 else cx2
+                val a  = (0.10f + 0.06f * sin((pulse + i * PI / 2).toDouble()).toFloat()).coerceIn(0f, 1f)
+                drawLine(
+                    brush       = Brush.horizontalGradient(
+                        listOf(
+                            AgroPalette.Primary.copy(alpha = 0f),
+                            AgroPalette.Primary.copy(alpha = a),
+                            AgroPalette.Primary.copy(alpha = 0f),
+                        ),
+                        startX = x1, endX = x2,
+                    ),
+                    start       = Offset(x1 + dotW / 2f, cy),
+                    end         = Offset(x2 - dotW / 2f, cy),
+                    strokeWidth = 1.2.dp.toPx(),
+                )
+            }
+            // horizontal energy sweep
+            val wx    = waveX * w
+            val bandW = w * 0.28f
+            drawRect(
+                brush    = Brush.horizontalGradient(
+                    listOf(
+                        Color.Transparent,
+                        AgroPalette.Primary.copy(alpha = 0.07f),
+                        AgroPalette.Primary.copy(alpha = 0.13f),
+                        AgroPalette.Primary.copy(alpha = 0.07f),
+                        Color.Transparent,
+                    ),
+                    startX = wx - bandW, endX = wx + bandW,
+                ),
+                topLeft  = Offset.Zero,
+                size     = size,
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment     = Alignment.CenterVertically,
+        ) {
+            NeuralDot(0f,    inf)
+            NeuralDot(0.33f, inf)
+            NeuralDot(0.66f, inf)
         }
     }
 }
 
 @Composable
-private fun ThinkingDot(delayFraction: Float) {
-    val inf   = rememberInfiniteTransition(label = "dot")
+private fun NeuralDot(phase: Float, inf: InfiniteTransition) {
     val scale by inf.animateFloat(
-        0.55f, 1f,
-        infiniteRepeatable(tween(600, delayMillis = (delayFraction * 600).toInt(), easing = LinearEasing), RepeatMode.Reverse),
-        label = "s",
+        initialValue  = 0.5f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            tween(950, delayMillis = (phase * 950).toInt(), easing = FastOutSlowInEasing),
+            RepeatMode.Reverse,
+        ),
+        label = "ns$phase",
     )
-    Box(modifier = Modifier.size((7 * scale).dp).clip(CircleShape).background(AgroPalette.Primary.copy(alpha = 0.5f + 0.5f * scale)))
+    val glowA by inf.animateFloat(
+        initialValue  = 0.10f, targetValue = 0.50f,
+        animationSpec = infiniteRepeatable(
+            tween(950, delayMillis = (phase * 950).toInt(), easing = LinearEasing),
+            RepeatMode.Reverse,
+        ),
+        label = "na$phase",
+    )
+    Box(modifier = Modifier.size(22.dp), contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+            val r  = size.minDimension / 2f * scale
+            drawCircle(
+                brush  = Brush.radialGradient(
+                    listOf(AgroPalette.Primary.copy(alpha = glowA), Color.Transparent),
+                    center = Offset(cx, cy), radius = r * 2.4f,
+                ),
+                radius = r * 2.4f,
+                center = Offset(cx, cy),
+            )
+            drawCircle(
+                color  = AgroPalette.Primary.copy(alpha = 0.55f + 0.45f * scale),
+                radius = r * 0.52f,
+                center = Offset(cx, cy),
+            )
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

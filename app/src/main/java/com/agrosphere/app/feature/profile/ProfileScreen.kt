@@ -1,7 +1,11 @@
 package com.agrosphere.app.feature.profile
 
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -73,6 +77,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
@@ -340,21 +345,48 @@ private fun Hero(state: ProfileUiState, location: String) {
 
 @Composable
 private fun Avatar(photoUrl: String?, displayName: String, isAnonymous: Boolean) {
-    Box(modifier = Modifier.size(80.dp), contentAlignment = Alignment.Center) {
-        // Ring
+    val inf = rememberInfiniteTransition(label = "avatarRing")
+    val rot by inf.animateFloat(
+        0f, 360f,
+        infiniteRepeatable(tween(3200, easing = LinearEasing)),
+        label = "rot",
+    )
+    val glowA by inf.animateFloat(
+        0.25f, 0.70f,
+        infiniteRepeatable(tween(1600, easing = LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "ga",
+    )
+    Box(modifier = Modifier.size(96.dp), contentAlignment = Alignment.Center) {
+        // outer radial glow halo
+        Canvas(modifier = Modifier.size(96.dp)) {
+            drawCircle(
+                brush  = Brush.radialGradient(
+                    listOf(AgroPalette.Primary.copy(alpha = glowA * 0.55f), Color.Transparent),
+                    center = center, radius = size.minDimension / 2f,
+                ),
+                radius = size.minDimension / 2f,
+            )
+        }
+        // rotating plasma ring
         Box(
             modifier = Modifier
                 .size(80.dp)
+                .graphicsLayer { rotationZ = rot }
                 .clip(CircleShape)
                 .background(
                     Brush.sweepGradient(
                         listOf(
                             AgroPalette.Primary, AgroPalette.Sky, AgroPalette.Iris,
+                            AgroPalette.Primary.copy(alpha = 0.2f),
                             AgroPalette.Primary,
                         )
                     )
                 )
-                .padding(2.dp)
+        )
+        // avatar content
+        Box(
+            modifier = Modifier
+                .size(76.dp)
                 .clip(CircleShape)
                 .background(AgroPalette.SurfaceElev),
             contentAlignment = Alignment.Center,
