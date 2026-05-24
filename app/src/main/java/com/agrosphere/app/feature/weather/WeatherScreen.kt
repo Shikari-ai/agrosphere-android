@@ -893,61 +893,26 @@ private fun MetricsGrid(metrics: List<WeatherMetric>) {
 
 @Composable
 private fun MetricCard(metric: WeatherMetric, modifier: Modifier = Modifier) {
-    val inf    = rememberInfiniteTransition(label = "metric")
-    val sweepX by inf.animateFloat(
-        -0.35f, 1.35f,
-        infiniteRepeatable(tween(3800, easing = LinearEasing)),
-        label = "sx",
-    )
-    val liveA  by inf.animateFloat(
-        0.15f, 1f,
-        infiniteRepeatable(tween(950, easing = LinearEasing), RepeatMode.Reverse),
-        label = "la",
-    )
-    GlassCard(modifier = modifier, radius = 18.dp, padding = 0.dp) {
-        Box {
-            Canvas(modifier = Modifier.matchParentSize()) {
-                val wx    = sweepX * size.width
-                val bandW = size.width * 0.30f
-                drawRect(
-                    brush   = Brush.horizontalGradient(
-                        listOf(
-                            Color.Transparent,
-                            metric.tint.copy(alpha = 0.05f),
-                            metric.tint.copy(alpha = 0.09f),
-                            metric.tint.copy(alpha = 0.05f),
-                            Color.Transparent,
-                        ),
-                        startX = wx - bandW, endX = wx + bandW,
-                    ),
-                    topLeft = Offset.Zero,
-                    size    = size,
+    GlassCard(modifier = modifier, radius = 18.dp, padding = 14.dp) {
+        Column {
+            Text(metric.label, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    metric.value,
+                    style = MaterialTheme.typography.displayMedium.copy(fontSize = 28.sp),
+                    color = metric.tint,
+                    fontWeight = FontWeight.ExtraBold,
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    metric.unit,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AgroPalette.InkMuted,
+                    modifier = Modifier.padding(bottom = 6.dp),
                 )
             }
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text(metric.label, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        metric.value,
-                        style = MaterialTheme.typography.displayMedium.copy(fontSize = 28.sp),
-                        color = metric.tint,
-                        fontWeight = FontWeight.ExtraBold,
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        metric.unit,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = AgroPalette.InkMuted,
-                        modifier = Modifier.padding(bottom = 6.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Canvas(modifier = Modifier.size(6.dp).padding(bottom = 4.dp)) {
-                        drawCircle(color = metric.tint.copy(alpha = liveA), radius = size.minDimension / 2f)
-                    }
-                }
-                Text(metric.sublabel, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
-            }
+            Text(metric.sublabel, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
         }
     }
 }

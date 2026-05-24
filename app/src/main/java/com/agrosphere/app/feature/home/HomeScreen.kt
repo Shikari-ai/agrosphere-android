@@ -1320,75 +1320,19 @@ private data class GlanceItem(val label: String, val value: String, val sub: Str
 
 @Composable
 private fun GlanceCard(item: GlanceItem, modifier: Modifier = Modifier) {
-    val inf    = rememberInfiniteTransition(label = "glance")
-    val hairA  by inf.animateFloat(
-        0.20f, 0.70f,
-        infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Reverse),
-        label = "ha",
-    )
-    val liveA  by inf.animateFloat(
-        0.2f, 1f,
-        infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse),
-        label = "la",
-    )
-    val sweepX by inf.animateFloat(
-        -0.3f, 1.3f,
-        infiniteRepeatable(tween(3400, easing = LinearEasing)),
-        label = "sx",
-    )
-    GlassCard(modifier = modifier, radius = 18.dp, padding = 0.dp) {
-        Box {
-            // animated sweep canvas behind content
-            Canvas(modifier = Modifier.matchParentSize()) {
-                val wx    = sweepX * size.width
-                val bandW = size.width * 0.28f
-                drawRect(
-                    brush   = Brush.horizontalGradient(
-                        listOf(
-                            Color.Transparent,
-                            item.tint.copy(alpha = 0.055f),
-                            item.tint.copy(alpha = 0.10f),
-                            item.tint.copy(alpha = 0.055f),
-                            Color.Transparent,
-                        ),
-                        startX = wx - bandW, endX = wx + bandW,
-                    ),
-                    topLeft = Offset.Zero,
-                    size    = size,
-                )
-                // tinted pulsing top hairline (on top of GlassCard's default green hairline)
-                drawLine(
-                    brush       = Brush.horizontalGradient(
-                        listOf(
-                            Color.Transparent,
-                            item.tint.copy(alpha = hairA),
-                            Color.Transparent,
-                        ),
-                    ),
-                    start       = Offset(0f, 1f),
-                    end         = Offset(size.width, 1f),
-                    strokeWidth = 1.2f,
-                )
-            }
-            Column(modifier = Modifier.padding(14.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(item.tint.copy(alpha = 0.16f)),
-                    contentAlignment = Alignment.Center,
-                ) { Icon(item.icon, null, tint = item.tint, modifier = Modifier.size(18.dp)) }
-                Spacer(Modifier.height(10.dp))
-                Text(item.label, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(item.value, style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Ink, fontWeight = FontWeight.ExtraBold)
-                    Spacer(Modifier.width(5.dp))
-                    Canvas(modifier = Modifier.size(6.dp)) {
-                        drawCircle(color = item.tint.copy(alpha = liveA), radius = size.minDimension / 2f)
-                    }
-                }
-                Text(item.sub, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
-            }
+    GlassCard(modifier = modifier, radius = 18.dp, padding = 14.dp) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(item.tint.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center,
+            ) { Icon(item.icon, null, tint = item.tint, modifier = Modifier.size(18.dp)) }
+            Spacer(Modifier.height(10.dp))
+            Text(item.label, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+            Text(item.value, style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Ink, fontWeight = FontWeight.ExtraBold)
+            Text(item.sub, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
         }
     }
 }
