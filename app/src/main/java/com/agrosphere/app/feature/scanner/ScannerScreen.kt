@@ -198,7 +198,7 @@ fun ScannerScreen(padding: PaddingValues, onOpenHistory: () -> Unit = {}) {
                     )
                     CornerBrackets(tint = mode.tint)
 
-                    if (!scan.scanning && scan.diagnosis == null) {
+                    if (!scan.scanning && !hasResult) {
                         ScanSweep(mode.tint)
                         // Flip camera button
                         Box(
