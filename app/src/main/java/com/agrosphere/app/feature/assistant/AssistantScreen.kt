@@ -209,12 +209,15 @@ fun AssistantScreen(padding: PaddingValues) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(Brush.verticalGradient(0f to BgBlack, 0.6f to BgBlack, 1f to BgTealTint))
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(bottom = padding.calculateBottomPadding())
-                .imePadding(),
+                .windowInsetsPadding(WindowInsets.statusBars),
         ) {
             // ── Main chat column ──────────────────────────────────────────────
-            Column(modifier = Modifier.fillMaxSize()) {
+            // imePadding on the Column so it shrinks in place when the keyboard
+            // opens — the InputBar stays glued to the keyboard top.
+            Column(modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = padding.calculateBottomPadding())
+                .imePadding()) {
                 TopBar(
                     selectedProvider = selProvider,
                     answeredProvider = provider,
