@@ -179,7 +179,7 @@ fun AssistantScreen(padding: PaddingValues) {
                 selectedProvider = selProvider,
                 answeredProvider = provider,
                 onSelectProvider = { vm.selectProvider(it) },
-                onNewChat        = { /* TODO: clear chat */ },
+                onNewChat        = { vm.clearChat() },
             )
 
             // ── Body ──────────────────────────────────────────────────────────

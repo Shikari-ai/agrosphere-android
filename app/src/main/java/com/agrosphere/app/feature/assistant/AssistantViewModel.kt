@@ -54,6 +54,26 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectProvider(provider: String?) { _selectedProvider.value = provider }
 
+    /**
+     * Reset chat to the welcome greeting.  Writes a clearedAt marker to
+     * app_settings so history won't reload on next app start.
+     */
+    fun clearChat() {
+        _messages.value = initialMessages()
+        // Use time-based ID floor so new message IDs never collide with old ones
+        nextId = System.currentTimeMillis() / 1000L + 1L
+        val userId = uid ?: return
+        viewModelScope.launch {
+            runCatching {
+                db.collection("app_settings").document(userId)
+                    .set(
+                        mapOf("chatClearedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()),
+                        com.google.firebase.firestore.SetOptions.merge(),
+                    ).await()
+            }
+        }
+    }
+
     fun send(text: String) {
         val question = text.trim()
         if (question.isEmpty()) return
@@ -140,12 +160,20 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * Load the last 30 messages for the signed-in user from Firestore.
-     * Replaces the starter greeting only if actual history exists.
+     * Respects the chatClearedAt marker — messages before that time are skipped.
+     * Replaces the starter greeting only if actual post-clear history exists.
      */
     private fun loadHistory() {
         val userId = uid ?: return
         viewModelScope.launch {
             try {
+                // 1. Fetch the cleared-at timestamp (millis), default 0 = keep all
+                val clearedAtMillis: Long = runCatching {
+                    db.collection("app_settings").document(userId).get().await()
+                        .getTimestamp("chatClearedAt")?.toDate()?.time ?: 0L
+                }.getOrDefault(0L)
+
+                // 2. Fetch last 30 messages
                 val snap = db.collection("assistant_messages")
                     .whereEqualTo("userId", userId)
                     .limit(30)
@@ -158,6 +186,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                     val text     = doc.getString("text")      ?: return@mapNotNull null
                     val imgUri   = doc.getString("imageUri")
                     val ts       = doc.getTimestamp("createdAt")?.toDate()?.time ?: 0L
+                    if (ts <= clearedAtMillis) return@mapNotNull null  // skip pre-clear messages
                     Pair(ts, ChatMessage(id, fromUser, text, imgUri))
                 }.sortedBy { it.first }.map { it.second }
 
