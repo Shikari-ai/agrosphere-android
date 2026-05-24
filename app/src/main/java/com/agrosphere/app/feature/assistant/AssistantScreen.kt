@@ -12,6 +12,9 @@ import android.provider.MediaStore
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.view.ViewTreeObserver
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -44,7 +47,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -84,6 +86,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -103,6 +106,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -140,6 +145,30 @@ private val farmingPrompts = listOf(
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Keyboard height — reads directly from the View tree, bypassing Compose's
+// inset-consumption chain (which blocks imePadding() inside ModalNavigationDrawer
+// when the parent Scaffold has already consumed the IME insets).
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun rememberImeHeightDp(): androidx.compose.runtime.State<androidx.compose.ui.unit.Dp> {
+    val view    = LocalView.current
+    val density = LocalDensity.current
+    val state   = remember { mutableStateOf(0.dp) }
+    DisposableEffect(view) {
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
+            val rawInsets = ViewCompat.getRootWindowInsets(view)
+            val imeBottom: Int = rawInsets
+                ?.getInsets(WindowInsetsCompat.Type.ime())?.bottom ?: 0
+            state.value = with(density) { imeBottom.toDp() }
+        }
+        view.viewTreeObserver.addOnGlobalLayoutListener(listener)
+        onDispose { view.viewTreeObserver.removeOnGlobalLayoutListener(listener) }
+    }
+    return state
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 fun AssistantScreen(padding: PaddingValues) {
@@ -153,6 +182,10 @@ fun AssistantScreen(padding: PaddingValues) {
     val callMode      by vm.callMode.collectAsState()
     val callStatus    by vm.callStatus.collectAsState()
     var draft         by remember { mutableStateOf("") }
+    // Raw IME height read directly from the view tree — works inside ModalNavigationDrawer
+    val imeHeightDp   by rememberImeHeightDp()
+    // Use the larger of scaffold bottom padding (nav bar) and actual keyboard height
+    val bottomPadding = maxOf(padding.calculateBottomPadding(), imeHeightDp)
     val listState     = rememberLazyListState()
     val drawerState   = rememberDrawerState(DrawerValue.Closed)
     val scope         = rememberCoroutineScope()
@@ -212,12 +245,11 @@ fun AssistantScreen(padding: PaddingValues) {
                 .windowInsetsPadding(WindowInsets.statusBars),
         ) {
             // ── Main chat column ──────────────────────────────────────────────
-            // imePadding on the Column so it shrinks in place when the keyboard
-            // opens — the InputBar stays glued to the keyboard top.
+            // bottomPadding = max(navBar, actual keyboard height) — read directly
+            // from the view tree so it works even inside ModalNavigationDrawer.
             Column(modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = padding.calculateBottomPadding())
-                .imePadding()) {
+                .padding(bottom = bottomPadding)) {
                 TopBar(
                     selectedProvider = selProvider,
                     answeredProvider = provider,
