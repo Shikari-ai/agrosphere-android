@@ -118,6 +118,14 @@ fun HomeScreen(
 ) {
     val state by vm.state.collectAsState()
     var showNotifications by remember { mutableStateOf(false) }
+    // Once the initial stagger finishes, flip this so items that scroll out
+    // and back in don't re-run the entrance animation.
+    var entranceDone by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        // 6 items × 55 ms stagger + 430 ms animation = 760 ms; wait a touch longer.
+        kotlinx.coroutines.delay(800L)
+        entranceDone = true
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         HomeBackdrop(isDay = state.timeOfDay.isDay)
@@ -130,7 +138,7 @@ fun HomeScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { EntranceItem(0) {
+            item { EntranceItem(0, skip = entranceDone) {
                 StickyHeader(
                     name = state.displayName,
                     photoUrl = state.photoUrl,
@@ -141,10 +149,10 @@ fun HomeScreen(
                     onBellTap = { showNotifications = true },
                 )
             } }
-            item { EntranceItem(1) {
+            item { EntranceItem(1, skip = entranceDone) {
                 WeatherHeroCard(snapshot = state.weather, loading = state.weatherLoading, onTap = onOpenWeather)
             } }
-            item { EntranceItem(2) {
+            item { EntranceItem(2, skip = entranceDone) {
                 QuickActionsRow(
                     onScan = onOpenScanner,
                     onAddField = onOpenFields,
@@ -157,16 +165,16 @@ fun HomeScreen(
             // Field operations → Recent alerts → Crop health → Pest prediction.
             // Every card stays mounted; each shows its own inline empty state
             // when there's no data yet.
-            item { EntranceItem(3) { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) } }
+            item { EntranceItem(3, skip = entranceDone) { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) } }
 
-            item { EntranceItem(4) { SectionHeader(title = stringResource(R.string.section_recent_alerts), trailing = if (state.alerts.isEmpty()) null else stringResource(R.string.section_see_all)) } }
+            item { EntranceItem(4, skip = entranceDone) { SectionHeader(title = stringResource(R.string.section_recent_alerts), trailing = if (state.alerts.isEmpty()) null else stringResource(R.string.section_see_all)) } }
             if (state.alerts.isEmpty()) {
-                item { EntranceItem(5) { AlertsEmptyCard(hasFields = state.fieldsCount > 0) } }
+                item { EntranceItem(5, skip = entranceDone) { AlertsEmptyCard(hasFields = state.fieldsCount > 0) } }
             } else {
-                items(state.alerts.take(3)) { alert -> EntranceItem(5) { AlertCard(alert) } }
+                items(state.alerts.take(3)) { alert -> EntranceItem(5, skip = entranceDone) { AlertCard(alert) } }
             }
 
-            item { EntranceItem(6) {
+            item { EntranceItem(6, skip = entranceDone) {
                 CropHealthCard(
                     score = state.cropHealth,
                     verdict = state.cropHealthVerdict,
@@ -209,8 +217,10 @@ fun HomeScreen(
 // Below-fold items (index >= 7) render normally so scrolling never lags.
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun EntranceItem(index: Int, content: @Composable () -> Unit) {
-    if (index >= 7) { content(); return }
+private fun EntranceItem(index: Int, skip: Boolean = false, content: @Composable () -> Unit) {
+    // skip = true  → entrance already played (e.g. user scrolled back up); render directly
+    // index >= 7   → below the fold on first load; never animate to avoid scroll lag
+    if (skip || index >= 7) { content(); return }
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(index * 55L)
