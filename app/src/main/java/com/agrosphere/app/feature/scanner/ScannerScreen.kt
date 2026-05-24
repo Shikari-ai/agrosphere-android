@@ -17,7 +17,6 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.view.LifecycleCameraController
-import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -95,7 +94,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agrosphere.app.R
@@ -191,11 +189,9 @@ fun ScannerScreen(padding: PaddingValues, onOpenHistory: () -> Unit = {}) {
                     cameraPermission.launchPermissionRequest()
                 }
                 else -> {
-                    CameraPreview(
-                        lensFacing = lensFacing,
-                        onControllerReady = { controller = it },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    // Camera controller is initialised in the background for capture;
+                    // no live preview surface is bound — keeps the frame clean.
+                    CameraReady(lensFacing = lensFacing, onControllerReady = { controller = it })
                     CornerBrackets(tint = mode.tint)
 
                     if (!scan.scanning && !hasResult) {
@@ -274,33 +270,24 @@ fun ScannerScreen(padding: PaddingValues, onOpenHistory: () -> Unit = {}) {
     }
 }
 
-// ─── CameraX preview ─────────────────────────────────────────────────────────
+// ─── CameraX — headless controller (no preview surface) ──────────────────────
+// Binds the camera for still capture only; no PreviewView so no live feed
+// leaks into the viewfinder.
 
 @Composable
-private fun CameraPreview(
+private fun CameraReady(
     lensFacing: Int,
     onControllerReady: (LifecycleCameraController) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    // LifecycleCameraController manages the camera provider internally — no
-    // ProcessCameraProvider / Guava ListenableFuture to wrangle.
     val controller = remember { LifecycleCameraController(context) }
-    val previewView = remember {
-        PreviewView(context).apply {
-            this.controller = controller
-            scaleType = PreviewView.ScaleType.FILL_CENTER
-        }
-    }
 
     LaunchedEffect(lensFacing) {
         controller.cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
         controller.bindToLifecycle(lifecycleOwner)
         onControllerReady(controller)
     }
-
-    AndroidView(factory = { previewView }, modifier = modifier)
 }
 
 private fun capturePhoto(controller: LifecycleCameraController, context: Context, onResult: (Bitmap?) -> Unit) {
