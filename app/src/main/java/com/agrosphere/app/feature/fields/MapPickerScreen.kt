@@ -61,6 +61,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -377,11 +378,25 @@ fun MapPickerScreen(
                     )
                 }
                 Spacer(Modifier.width(12.dp))
-                PrimaryButton(
-                    text = "Next",
-                    icon = Icons.Rounded.Check,
-                    onClick = { showDetailsSheet = true },
-                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(AgroPalette.Primary, AgroPalette.Sky),
+                            )
+                        )
+                        .clickable { showDetailsSheet = true }
+                        .padding(horizontal = 22.dp, vertical = 13.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "Next →",
+                        color = AgroPalette.BgDeep,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
             }
         }
 

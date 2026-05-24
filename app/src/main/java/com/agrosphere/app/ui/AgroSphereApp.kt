@@ -89,7 +89,9 @@ fun AgroSphereApp() {
     val currentRoute = backStackEntry?.destination?.route
     // Show the bottom nav on every logged-in screen (not just the 5 tab routes)
     // so the user can jump to any section from a detail/sub-page too.
-    val showBottomBar = loggedIn && currentRoute != null && currentRoute != Dest.Auth.route
+    val showBottomBar = loggedIn && currentRoute != null &&
+        currentRoute != Dest.Auth.route &&
+        currentRoute != Dest.MapPicker.route
 
     // Branded launch experience: splash every launch, intro on first launch.
     val context = LocalContext.current
