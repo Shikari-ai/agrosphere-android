@@ -27,11 +27,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
@@ -73,7 +71,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.agrosphere.app.data.crops.CropData
 import com.agrosphere.app.data.geocoding.GeocodingApi
 import com.agrosphere.app.data.geocoding.NominatimPlace
 import com.agrosphere.app.data.weather.LocationProvider
@@ -124,18 +121,15 @@ fun MapPickerScreen(
     var searching by remember { mutableStateOf(false) }
     var resultsExpanded by remember { mutableStateOf(false) }
 
-    // Form state
-    var name by remember { mutableStateOf("") }
-    var crop by remember { mutableStateOf(CropData.categories.first().crops.first().cropName) }
-    var showCropPicker by remember { mutableStateOf(false) }
-    var stage by remember { mutableStateOf(vm.stagePresets.first()) }
-
     // Live area (square metres → hectares) via spherical-excess formula.
     val areaHa by remember {
         derivedStateOf {
             if (vertices.size < 3) 0.0 else sphericalAreaSquareMetres(vertices) / 10_000.0
         }
     }
+
+    // Show AddFieldSheet details form after the user has set up the map.
+    var showDetailsSheet by remember { mutableStateOf(false) }
 
     // We hold a reference to the MapView so right-side controls can pan/zoom it,
     // plus a typed handle to the overlays we mutate from update().
@@ -351,108 +345,43 @@ fun MapPickerScreen(
             }
         }
 
-        // ─── Bottom form ───
-        Column(
+        // ─── Bottom bar: area summary + Next button ───
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.systemBars)
-                .imePadding()
                 .padding(horizontal = 12.dp, vertical = 12.dp),
         ) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF0A1118))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
-                    .padding(16.dp),
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xF00A1118))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            if (vertices.size >= 3) "%.2f".format(areaHa) else "—",
-                            style = MaterialTheme.typography.displaySmall.copy(fontSize = 30.sp),
-                            color = AgroPalette.Primary,
-                            fontWeight = FontWeight.Black,
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            "ha",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = AgroPalette.InkMuted,
-                            modifier = Modifier.padding(bottom = 6.dp),
-                        )
-                        Spacer(Modifier.weight(1f))
-                        Text(
-                            if (vertices.size >= 3) "spherical · live" else "draw 3+ corners",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = AgroPalette.InkDim,
-                            modifier = Modifier.padding(bottom = 6.dp),
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Field name") },
-                        placeholder = { Text("e.g. North paddock", color = AgroPalette.InkDim) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AgroPalette.Primary,
-                            unfocusedBorderColor = Color(0x33FFFFFF),
-                            focusedTextColor = AgroPalette.Ink,
-                            unfocusedTextColor = AgroPalette.Ink,
-                            cursorColor = AgroPalette.Primary,
-                            focusedLabelColor = AgroPalette.Primary,
-                            unfocusedLabelColor = AgroPalette.InkMuted,
-                            focusedContainerColor = Color(0xFF0E1A14),
-                            unfocusedContainerColor = Color(0xFF0E1A14),
-                        ),
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (vertices.size >= 3) "${"%.2f".format(areaHa)} ha" else "No area drawn yet",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (vertices.size >= 3) AgroPalette.Primary else AgroPalette.InkMuted,
+                        fontWeight = FontWeight.Black,
                     )
-
-                    Spacer(Modifier.height(10.dp))
-                    PickerLabel("CROP")
-                    Spacer(Modifier.height(4.dp))
-                    MapCropSelectorTile(value = crop, onClick = { showCropPicker = true })
-
-                    Spacer(Modifier.height(10.dp))
-                    PickerLabel("STAGE")
-                    Spacer(Modifier.height(4.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(vm.stagePresets) { s -> PickerChip(s, s == stage) { stage = s } }
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-                    val canSave = vertices.size >= 3 && name.isNotBlank() && areaHa > 0.0
-                    PrimaryButton(
-                        text = if (canSave) "Save ${"%.2f".format(areaHa)} ha field" else "Add ≥3 vertices + a name",
-                        icon = Icons.Rounded.Check,
-                        enabled = canSave,
-                        onClick = {
-                            vm.addField(
-                                name = name,
-                                crop = crop,
-                                areaHa = areaHa,
-                                stage = stage,
-                                moisturePct = 60,
-                                accent = AgroPalette.Primary,
-                            )
-                            scope.launch { snackbar.showSnackbar("$name saved · ${"%.2f".format(areaHa)} ha") }
-                            onBack()
-                        },
+                    Text(
+                        if (vertices.size >= 3) "${vertices.size} vertices · tap Next to continue"
+                        else "Tap map to draw polygon, or tap Next to skip",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AgroPalette.InkDim,
                     )
-                    AnimatedVisibility(visible = vertices.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
-                        Column {
-                            Spacer(Modifier.height(8.dp))
-                            GhostButton(text = "Clear and start over", onClick = { vertices.clear() })
-                        }
-                    }
                 }
+                Spacer(Modifier.width(12.dp))
+                PrimaryButton(
+                    text = "Next",
+                    icon = Icons.Rounded.Check,
+                    onClick = { showDetailsSheet = true },
+                )
             }
         }
 
@@ -465,11 +394,16 @@ fun MapPickerScreen(
         )
     }
 
-    if (showCropPicker) {
-        CropPickerSheet(
-            currentValue = crop,
-            onDismiss = { showCropPicker = false },
-            onSelect = { crop = it },
+    if (showDetailsSheet) {
+        AddFieldSheet(
+            stages = vm.stagePresets,
+            accents = vm.accentPresets,
+            prefilledArea = areaHa,
+            onDismiss = { showDetailsSheet = false },
+            onSubmit = { name, crop, area, stage, accent ->
+                vm.addField(name, crop, area, stage, 60, accent)
+                onBack()
+            },
         )
     }
 }

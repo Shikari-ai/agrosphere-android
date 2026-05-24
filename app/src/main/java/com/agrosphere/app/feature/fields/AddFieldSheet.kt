@@ -29,8 +29,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -56,17 +54,17 @@ fun AddFieldSheet(
     crops: List<String> = emptyList(),   // kept for API compat but unused — CropData is the source
     stages: List<String>,
     accents: List<Color>,
+    prefilledArea: Double = 0.0,
     onDismiss: () -> Unit,
-    onSubmit: (name: String, crop: String, areaHa: Double, stage: String, moisture: Int, accent: Color) -> Unit,
+    onSubmit: (name: String, crop: String, areaHa: Double, stage: String, accent: Color) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var name by remember { mutableStateOf("") }
     var crop by remember { mutableStateOf(CropData.categories.first().crops.first().cropName) }
     var showCropPicker by remember { mutableStateOf(false) }
-    var areaStr by remember { mutableStateOf("") }
+    var areaStr by remember { mutableStateOf(if (prefilledArea > 0.0) "%.2f".format(prefilledArea) else "") }
     var stage by remember { mutableStateOf(stages.first()) }
-    var moisture by remember { mutableStateOf(60f) }
     var accent by remember { mutableStateOf(accents.first()) }
 
     val areaHa = areaStr.toDoubleOrNull()
@@ -107,31 +105,14 @@ fun AddFieldSheet(
             FormLabel("Crop")
             CropSelectorTile(value = crop, onClick = { showCropPicker = true })
 
-            // Area + moisture row
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Column(modifier = Modifier.weight(1f)) {
-                    FormField(
-                        label = "Area (ha)",
-                        value = areaStr,
-                        onChange = { v -> areaStr = v.filter { it.isDigit() || it == '.' }.take(6) },
-                        placeholder = "0.0",
-                        keyboard = KeyboardType.Decimal,
-                    )
-                }
-                Column(modifier = Modifier.weight(1.2f)) {
-                    FormLabel("Soil moisture · ${moisture.toInt()}%")
-                    Slider(
-                        value = moisture,
-                        onValueChange = { moisture = it },
-                        valueRange = 10f..100f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = AgroPalette.Sky,
-                            activeTrackColor = AgroPalette.Sky,
-                            inactiveTrackColor = AgroPalette.SurfaceGlassBorder,
-                        ),
-                    )
-                }
-            }
+            // Area
+            FormField(
+                label = "Area (ha)",
+                value = areaStr,
+                onChange = { v -> areaStr = v.filter { it.isDigit() || it == '.' }.take(6) },
+                placeholder = "0.0",
+                keyboard = KeyboardType.Decimal,
+            )
 
             // Stage chips
             FormLabel("Stage")
@@ -153,7 +134,7 @@ fun AddFieldSheet(
                 icon = Icons.Rounded.Check,
                 enabled = canSubmit,
                 onClick = {
-                    onSubmit(name, crop, areaHa ?: 0.0, stage, moisture.toInt(), accent)
+                    onSubmit(name, crop, areaHa ?: 0.0, stage, accent)
                     onDismiss()
                 },
             )

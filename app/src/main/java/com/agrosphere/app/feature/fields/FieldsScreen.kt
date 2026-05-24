@@ -34,7 +34,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Grass
-import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material3.AlertDialog
@@ -106,7 +105,6 @@ fun FieldsScreen(
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(FilterChip.All) }
     var sort by remember { mutableStateOf(SortOrder.Health) }
-    var showAddSheet by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -148,26 +146,7 @@ fun FieldsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        TopBlock(allCount = all.size, allArea = all.sumOf { it.areaHa }, avgHealth = all.map { it.healthScore }.average().toInt())
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(AgroPalette.SurfaceGlass)
-                            .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
-                            .clickable(onClick = onOpenMap)
-                            .padding(start = 12.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Rounded.Map, null, tint = AgroPalette.Sky, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.fields_map_chip), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
+                TopBlock(allCount = all.size, allArea = all.sumOf { it.areaHa }, avgHealth = all.map { it.healthScore }.average().toInt())
             }
             item {
                 SearchBar(value = query, onChange = { query = it })
@@ -196,42 +175,24 @@ fun FieldsScreen(
                 )
             }
             if (all.isEmpty()) {
-                item { FirstFieldHero(onAdd = { showAddSheet = true }, onDrawOnMap = onOpenMapPicker) }
+                item { FirstFieldHero(onAdd = onOpenMapPicker) }
             } else if (filtered.isEmpty()) {
                 item { FilteredEmptyState() }
             }
             item { Spacer(Modifier.height(72.dp)) }
         }
 
-        // Dual FAB cluster — small "Draw on map" chip + primary "Add field" plus.
-        Column(
+        // FAB — goes directly to the map-first add-field flow.
+        FloatingActionButton(
+            onClick = onOpenMapPicker,
+            containerColor = AgroPalette.Primary,
+            contentColor = AgroPalette.BgDeep,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(end = 20.dp, bottom = padding.calculateBottomPadding() + 20.dp),
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(AgroPalette.SurfaceGlass)
-                    .border(1.dp, AgroPalette.SurfaceGlassBorder, RoundedCornerShape(50))
-                    .clickable(onClick = onOpenMapPicker)
-                    .padding(start = 12.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Rounded.Map, null, tint = AgroPalette.Primary, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.fields_draw_on_map_chip), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
-            }
-            FloatingActionButton(
-                onClick = { showAddSheet = true },
-                containerColor = AgroPalette.Primary,
-                contentColor = AgroPalette.BgDeep,
-            ) {
-                Icon(Icons.Rounded.Add, contentDescription = "Add field")
-            }
+            Icon(Icons.Rounded.Add, contentDescription = "Add field")
         }
 
         SnackbarHost(
@@ -244,18 +205,6 @@ fun FieldsScreen(
         )
     }
 
-    if (showAddSheet) {
-        AddFieldSheet(
-            crops = vm.cropPresets,
-            stages = vm.stagePresets,
-            accents = vm.accentPresets,
-            onDismiss = { showAddSheet = false },
-            onSubmit = { name, crop, area, stage, moisture, accent ->
-                vm.addField(name, crop, area, stage, moisture, accent)
-                scope.launch { snackbar.showSnackbar("$name added.") }
-            },
-        )
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -509,7 +458,7 @@ private fun FilteredEmptyState() {
 }
 
 @Composable
-private fun FirstFieldHero(onAdd: () -> Unit, onDrawOnMap: () -> Unit = {}) {
+private fun FirstFieldHero(onAdd: () -> Unit) {
     GlassCard(
         background = com.agrosphere.app.ui.theme.AgroBrushes.leafCard,
         radius = 26.dp,
@@ -537,11 +486,6 @@ private fun FirstFieldHero(onAdd: () -> Unit, onDrawOnMap: () -> Unit = {}) {
                 text = stringResource(R.string.action_add_field),
                 icon = Icons.Rounded.Add,
                 onClick = onAdd,
-            )
-            Spacer(Modifier.height(8.dp))
-            com.agrosphere.app.ui.components.GhostButton(
-                text = stringResource(R.string.fields_first_or_draw),
-                onClick = onDrawOnMap,
             )
         }
     }
