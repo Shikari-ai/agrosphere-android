@@ -3,6 +3,7 @@ package com.agrosphere.app.feature.assistant
 import android.app.Application
 import android.graphics.Bitmap
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.agrosphere.app.data.model.ChatMessage
@@ -18,8 +19,11 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -66,6 +70,17 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private val _callMode = MutableStateFlow(CallMode.NONE)
     val callMode: StateFlow<CallMode> = _callMode.asStateFlow()
 
+    /** Human-readable status shown in the call overlay. */
+    private val _callStatus = MutableStateFlow("Tap mic to start")
+    val callStatus: StateFlow<String> = _callStatus.asStateFlow()
+
+    /**
+     * Fires once every time TTS finishes speaking an AI reply.
+     * The call overlay collects this to restart the speech recognizer automatically.
+     */
+    private val _ttsFinished = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val ttsFinished: SharedFlow<Unit> = _ttsFinished.asSharedFlow()
+
     private var nextId        = 2L
     private var weatherCache: WeatherSnapshot? = null
     private var scanCache:    List<ScanRecord>  = emptyList()
@@ -85,9 +100,15 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectProvider(provider: String?) { _selectedProvider.value = provider }
 
-    fun startVoiceCall() { _callMode.value = CallMode.VOICE }
-    fun startVideoCall() { _callMode.value = CallMode.VIDEO }
-    fun endCall()        { _callMode.value = CallMode.NONE; tts?.stop() }
+    fun startVoiceCall() { _callMode.value = CallMode.VOICE;  _callStatus.value = "Listening…" }
+    fun startVideoCall() { _callMode.value = CallMode.VIDEO;  _callStatus.value = "Listening…" }
+    fun endCall()        { _callMode.value = CallMode.NONE;   _callStatus.value = "Tap mic to start"; tts?.stop() }
+
+    /** Called by the overlay when the recognizer starts so status stays in sync. */
+    fun onListeningStarted() { _callStatus.value = "Listening…" }
+
+    /** Called by the overlay when the recognizer fails before any result. */
+    fun onListeningError()   { if (_callMode.value != CallMode.NONE) _callStatus.value = "Listening…" }
 
     /** Load a past session into the active chat. */
     fun loadSession(session: ChatSession) {
@@ -120,6 +141,8 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val question = text.trim()
         if (question.isEmpty()) return
 
+        if (_callMode.value != CallMode.NONE) _callStatus.value = "Thinking…"
+
         val userMsg = ChatMessage(nextId++, true, question,
             createdAtMs = System.currentTimeMillis())
         _messages.value = _messages.value + userMsg
@@ -142,7 +165,10 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 _provider.value = result.provider
                 persistMessage(aiMsg)
                 // Speak aloud during voice / video call
-                if (_callMode.value != CallMode.NONE) speakReply(result.text)
+                if (_callMode.value != CallMode.NONE) {
+                    _callStatus.value = "Speaking…"
+                    speakReply(result.text)
+                }
             } catch (e: Exception) {
                 val err = ChatMessage(
                     nextId++, false,
@@ -151,6 +177,10 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 _messages.value = _messages.value + err
                 persistMessage(err)
+                if (_callMode.value != CallMode.NONE) {
+                    _callStatus.value = "Listening…"
+                    _ttsFinished.tryEmit(Unit) // re-trigger listen loop even on error
+                }
             } finally {
                 _isTyping.value = false
             }
@@ -198,6 +228,23 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 tts?.language    = Locale.US
                 tts?.setSpeechRate(0.95f)
                 tts?.setPitch(1.0f)
+                // Fire ttsFinished when reply utterance ends → overlay restarts recognizer
+                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {}
+                    override fun onDone(utteranceId: String?) {
+                        if (utteranceId == "reply" && _callMode.value != CallMode.NONE) {
+                            _callStatus.value = "Listening…"
+                            viewModelScope.launch { _ttsFinished.emit(Unit) }
+                        }
+                    }
+                    @Deprecated("Deprecated in Java")
+                    override fun onError(utteranceId: String?) {
+                        if (_callMode.value != CallMode.NONE) {
+                            _callStatus.value = "Listening…"
+                            viewModelScope.launch { _ttsFinished.emit(Unit) }
+                        }
+                    }
+                })
             }
         }
     }

@@ -1,13 +1,17 @@
 package com.agrosphere.app.feature.assistant
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.MediaStore
+import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -78,6 +82,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -86,6 +91,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -143,6 +151,7 @@ fun AssistantScreen(padding: PaddingValues) {
     val selProvider   by vm.selectedProvider.collectAsState()
     val sessions      by vm.sessions.collectAsState()
     val callMode      by vm.callMode.collectAsState()
+    val callStatus    by vm.callStatus.collectAsState()
     var draft         by remember { mutableStateOf("") }
     val listState     = rememberLazyListState()
     val drawerState   = rememberDrawerState(DrawerValue.Closed)
@@ -255,11 +264,14 @@ fun AssistantScreen(padding: PaddingValues) {
                 exit    = fadeOut() + slideOutVertically { it },
             ) {
                 VoiceCallOverlay(
-                    messages     = messages,
-                    isTyping     = typing,
-                    modelLabel   = modelLabel(selProvider, provider),
-                    onMic        = { startVoice() },
-                    onEndCall    = { vm.endCall() },
+                    messages    = messages,
+                    callStatus  = callStatus,
+                    modelLabel  = modelLabel(selProvider, provider),
+                    ttsFinished = vm.ttsFinished,
+                    onSend      = { vm.send(it) },
+                    onListenStart = { vm.onListeningStarted() },
+                    onListenError = { vm.onListeningError() },
+                    onEndCall   = { vm.endCall() },
                 )
             }
 
@@ -270,11 +282,14 @@ fun AssistantScreen(padding: PaddingValues) {
                 exit    = fadeOut() + slideOutVertically { it },
             ) {
                 VideoCallOverlay(
-                    messages     = messages,
-                    isTyping     = typing,
-                    modelLabel   = modelLabel(selProvider, provider),
-                    onMic        = { startVoice() },
-                    onEndCall    = { vm.endCall() },
+                    messages    = messages,
+                    callStatus  = callStatus,
+                    modelLabel  = modelLabel(selProvider, provider),
+                    ttsFinished = vm.ttsFinished,
+                    onSend      = { vm.send(it) },
+                    onListenStart = { vm.onListeningStarted() },
+                    onListenError = { vm.onListeningError() },
+                    onEndCall   = { vm.endCall() },
                 )
             }
         }
@@ -721,78 +736,147 @@ private fun PlusOption(icon: ImageVector, label: String, accent: Color, onClick:
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Shared call recognizer logic
+// Auto-loop: listen → user speaks → send → TTS speaks → ttsFinished → listen
+// ─────────────────────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+private fun rememberCallRecognizer(
+    onSend:       (String) -> Unit,
+    onListenStart: () -> Unit,
+    onListenError: () -> Unit,
+): Pair<SpeechRecognizer, () -> Unit> {
+    val context    = LocalContext.current
+    val micPerm    = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
+    val recognizer = remember { SpeechRecognizer.createSpeechRecognizer(context) }
+
+    val startListening: () -> Unit = remember {
+        {
+            if (!micPerm.status.isGranted) {
+                micPerm.launchPermissionRequest()
+            } else {
+                runCatching {
+                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                        putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+                    }
+                    recognizer.setRecognitionListener(object : RecognitionListener {
+                        override fun onReadyForSpeech(params: Bundle?) { onListenStart() }
+                        override fun onBeginningOfSpeech()             {}
+                        override fun onRmsChanged(rmsdB: Float)        {}
+                        override fun onBufferReceived(buffer: ByteArray?) {}
+                        override fun onEndOfSpeech()                   {}
+                        override fun onPartialResults(partial: Bundle?) {}
+                        override fun onEvent(eventType: Int, params: Bundle?) {}
+                        override fun onResults(results: Bundle?) {
+                            val text = results
+                                ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                                ?.firstOrNull()
+                            if (!text.isNullOrBlank()) onSend(text)
+                            // NOTE: next listen cycle is triggered by ttsFinished in the overlay
+                        }
+                        override fun onError(error: Int) { onListenError() }
+                    })
+                    recognizer.startListening(intent)
+                }
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { runCatching { recognizer.cancel(); recognizer.destroy() } }
+    }
+
+    return Pair(recognizer, startListening)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Voice call overlay
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun VoiceCallOverlay(
-    messages: List<ChatMessage>,
-    isTyping: Boolean,
-    modelLabel: String,
-    onMic: () -> Unit,
-    onEndCall: () -> Unit,
+    messages:     List<ChatMessage>,
+    callStatus:   String,
+    modelLabel:   String,
+    ttsFinished:  kotlinx.coroutines.flow.SharedFlow<Unit>,
+    onSend:       (String) -> Unit,
+    onListenStart: () -> Unit,
+    onListenError: () -> Unit,
+    onEndCall:    () -> Unit,
 ) {
-    val inf = rememberInfiniteTransition(label = "vcall")
+    val (_, startListening) = rememberCallRecognizer(onSend, onListenStart, onListenError)
+
+    // Start listening immediately when overlay appears
+    LaunchedEffect(Unit) { startListening() }
+
+    // Auto-loop: restart listening every time TTS finishes
+    LaunchedEffect(ttsFinished) { ttsFinished.collect { startListening() } }
+
+    val inf  = rememberInfiniteTransition(label = "vcall")
     val ring by inf.animateFloat(
         0.6f, 1f,
         infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Reverse),
         label = "r",
     )
+    val isSpeaking = callStatus.startsWith("Speaking")
     val lastAi = messages.lastOrNull { !it.fromUser }
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(Color(0xFF050505)),
-        contentAlignment = Alignment.Center,
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF050505)), contentAlignment = Alignment.Center) {
         Column(
-            modifier            = Modifier.fillMaxSize().padding(32.dp),
+            modifier            = Modifier.fillMaxSize().padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            // Top: model name
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(48.dp))
                 Text(modelLabel, style = MaterialTheme.typography.titleMedium, color = TxtMuted)
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    if (isTyping) "Thinking…" else "Listening…",
+                    callStatus,
                     style = MaterialTheme.typography.bodySmall,
-                    color = AgroPalette.Primary.copy(alpha = 0.8f),
+                    color = if (isSpeaking) AgroPalette.Sky.copy(alpha = 0.9f) else AgroPalette.Primary.copy(alpha = 0.9f),
                 )
             }
 
-            // Centre: animated emblem
             AgroSphereEmblem(modifier = Modifier.size(120.dp), ringProgress = ring, leafScale = 1f)
 
-            // Last AI reply snippet
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f, fill = false).padding(top = 32.dp)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.weight(1f, fill = false).padding(top = 32.dp, bottom = 16.dp),
+            ) {
                 if (lastAi != null) {
                     Text(
-                        lastAi.text.take(200),
+                        lastAi.text.take(220),
                         style     = MaterialTheme.typography.bodyMedium.copy(lineHeight = 24.sp, fontSize = 15.sp),
                         color     = TxtPrimary.copy(alpha = 0.85f),
                         textAlign = TextAlign.Center,
-                        maxLines  = 6,
+                        maxLines  = 7,
                         overflow  = TextOverflow.Ellipsis,
                     )
                 }
             }
 
-            // Bottom controls
             Row(
-                modifier              = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+                modifier              = Modifier.fillMaxWidth().padding(bottom = 48.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment     = Alignment.CenterVertically,
             ) {
-                // Mic
+                // Manual mic tap (re-triggers if user wants to speak while AI is talking)
                 Box(
-                    modifier         = Modifier.size(64.dp).clip(CircleShape).background(AgroPalette.Primary.copy(alpha = 0.15f)).border(2.dp, AgroPalette.Primary.copy(alpha = 0.4f), CircleShape).clickable(onClick = onMic),
+                    modifier         = Modifier.size(64.dp).clip(CircleShape)
+                        .background(AgroPalette.Primary.copy(alpha = 0.15f))
+                        .border(2.dp, AgroPalette.Primary.copy(alpha = 0.4f), CircleShape)
+                        .clickable { startListening() },
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.Mic, null, tint = AgroPalette.Primary, modifier = Modifier.size(28.dp)) }
 
-                // End call
                 Box(
-                    modifier         = Modifier.size(64.dp).clip(CircleShape).background(Color(0xFFB00020)).clickable(onClick = onEndCall),
+                    modifier         = Modifier.size(64.dp).clip(CircleShape)
+                        .background(Color(0xFFB00020))
+                        .clickable(onClick = onEndCall),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.CallEnd, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
             }
@@ -801,16 +885,19 @@ private fun VoiceCallOverlay(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Video call overlay  (camera background + voice UI on top)
+// Video call overlay  (front camera background + auto-loop voice)
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun VideoCallOverlay(
-    messages: List<ChatMessage>,
-    isTyping: Boolean,
-    modelLabel: String,
-    onMic: () -> Unit,
-    onEndCall: () -> Unit,
+    messages:     List<ChatMessage>,
+    callStatus:   String,
+    modelLabel:   String,
+    ttsFinished:  kotlinx.coroutines.flow.SharedFlow<Unit>,
+    onSend:       (String) -> Unit,
+    onListenStart: () -> Unit,
+    onListenError: () -> Unit,
+    onEndCall:    () -> Unit,
 ) {
     val context        = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -826,65 +913,75 @@ private fun VideoCallOverlay(
         controller.bindToLifecycle(lifecycleOwner)
     }
 
-    val inf = rememberInfiniteTransition(label = "video")
+    val (_, startListening) = rememberCallRecognizer(onSend, onListenStart, onListenError)
+
+    LaunchedEffect(Unit)         { startListening() }
+    LaunchedEffect(ttsFinished)  { ttsFinished.collect { startListening() } }
+
+    val inf  = rememberInfiniteTransition(label = "video")
     val ring by inf.animateFloat(
         0.6f, 1f,
         infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Reverse),
         label = "r",
     )
+    val isSpeaking = callStatus.startsWith("Speaking")
     val lastAi = messages.lastOrNull { !it.fromUser }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Camera feed
         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
-
-        // Dark scrim
         Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
 
-        // UI identical to voice call
         Column(
-            modifier            = Modifier.fillMaxSize().padding(32.dp),
+            modifier            = Modifier.fillMaxSize().padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(48.dp))
                 Text(modelLabel, style = MaterialTheme.typography.titleMedium, color = TxtMuted)
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    if (isTyping) "Thinking…" else "Listening…",
+                    callStatus,
                     style = MaterialTheme.typography.bodySmall,
-                    color = AgroPalette.Primary.copy(alpha = 0.9f),
+                    color = if (isSpeaking) AgroPalette.Sky.copy(alpha = 0.9f) else AgroPalette.Primary.copy(alpha = 0.9f),
                 )
             }
 
             AgroSphereEmblem(modifier = Modifier.size(110.dp), ringProgress = ring, leafScale = 1f)
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f, fill = false).padding(top = 28.dp)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.weight(1f, fill = false).padding(top = 28.dp, bottom = 16.dp),
+            ) {
                 if (lastAi != null) {
                     Text(
-                        lastAi.text.take(200),
+                        lastAi.text.take(220),
                         style     = MaterialTheme.typography.bodyMedium.copy(lineHeight = 24.sp, fontSize = 15.sp),
                         color     = TxtPrimary,
                         textAlign = TextAlign.Center,
-                        maxLines  = 6,
+                        maxLines  = 7,
                         overflow  = TextOverflow.Ellipsis,
                     )
                 }
             }
 
             Row(
-                modifier              = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+                modifier              = Modifier.fillMaxWidth().padding(bottom = 48.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment     = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier         = Modifier.size(64.dp).clip(CircleShape).background(AgroPalette.Primary.copy(alpha = 0.15f)).border(2.dp, AgroPalette.Primary.copy(alpha = 0.4f), CircleShape).clickable(onClick = onMic),
+                    modifier         = Modifier.size(64.dp).clip(CircleShape)
+                        .background(AgroPalette.Primary.copy(alpha = 0.15f))
+                        .border(2.dp, AgroPalette.Primary.copy(alpha = 0.4f), CircleShape)
+                        .clickable { startListening() },
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.Mic, null, tint = AgroPalette.Primary, modifier = Modifier.size(28.dp)) }
 
                 Box(
-                    modifier         = Modifier.size(64.dp).clip(CircleShape).background(Color(0xFFB00020)).clickable(onClick = onEndCall),
+                    modifier         = Modifier.size(64.dp).clip(CircleShape)
+                        .background(Color(0xFFB00020))
+                        .clickable(onClick = onEndCall),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.CallEnd, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
             }
