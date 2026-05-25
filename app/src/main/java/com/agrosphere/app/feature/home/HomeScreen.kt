@@ -97,6 +97,7 @@ import com.agrosphere.app.ui.theme.AgroPalette
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import androidx.compose.ui.graphics.Path
 
 // ═════════════════════════════════════════════════════════════════════════════
 // HomeScreen — the AgroSphere dashboard.
@@ -472,11 +473,15 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
             .border(1.dp, AgroPalette.SurfaceGlassBorder, shape)
             .clickable(onClick = onTap),
     ) {
-        // Live atmospheric overlay tied to the current condition + wind speed.
+        // Live atmospheric overlay — all data params wired to WeatherSnapshot.
         WeatherAtmosphere(
-            kind = kind,
-            windKph = snapshot?.windKph ?: 0,
-            modifier = Modifier.matchParentSize().clip(shape),
+            kind       = kind,
+            windKph    = snapshot?.windKph    ?: 0,
+            tempC      = temp,
+            rainMm     = snapshot?.rainMm     ?: 0,
+            humidityPct= snapshot?.humidityPct ?: 60,
+            uvIndex    = snapshot?.uvIndex    ?: 5,
+            modifier   = Modifier.matchParentSize().clip(shape),
         )
 
         Column(modifier = Modifier.padding(18.dp)) {
@@ -559,39 +564,33 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
     }
 }
 
-/** Backgrounds per condition; rotated through a warm/cold lerp by temperature. */
+/** Cinematic per-condition backgrounds. Clear shifts warmer with temperature. */
 private fun weatherCardBrush(kind: ConditionKind, tempC: Int): Brush {
-    // 0..1 hotness — 0°C = cold, 40°C = scorching.
     val heat = ((tempC + 5) / 45f).coerceIn(0f, 1f)
-    val warmTint = androidx.compose.ui.graphics.lerp(
-        Color(0x111E40AF), // cool steel-blue tint
-        Color(0x22F59E0B), // warm amber tint
-        heat,
-    )
     return when (kind) {
-        ConditionKind.Clear -> Brush.linearGradient(
-            listOf(Color(0xFF1F2937).blendOver(warmTint), Color(0xFF0F172A))
+        ConditionKind.Clear -> {
+            val top = androidx.compose.ui.graphics.lerp(Color(0xFF0F1A0A), Color(0xFF1C0900), heat)
+            Brush.verticalGradient(listOf(top, Color(0xFF071209)))
+        }
+        ConditionKind.PartlyCloudy -> Brush.verticalGradient(
+            0f to Color(0xFF1A0805),
+            0.55f to Color(0xFF0D0618),
+            1f to Color(0xFF05060F),
         )
-        ConditionKind.PartlyCloudy -> Brush.linearGradient(
-            listOf(Color(0xFF1E293B).blendOver(warmTint), Color(0xFF0B1220))
+        ConditionKind.Cloudy -> Brush.verticalGradient(
+            listOf(Color(0xFF0A0D10), Color(0xFF040608))
         )
-        ConditionKind.Cloudy -> Brush.linearGradient(
-            listOf(Color(0xFF1F2937), Color(0xFF111827))
+        ConditionKind.Rain -> Brush.verticalGradient(
+            listOf(Color(0xFF021528), Color(0xFF010609))
         )
-        ConditionKind.Rain -> Brush.linearGradient(
-            listOf(Color(0xFF0F2A3F), Color(0xFF06121C))
+        ConditionKind.Storm -> Brush.verticalGradient(
+            listOf(Color(0xFF0B0220), Color(0xFF030009))
         )
-        ConditionKind.Storm -> Brush.linearGradient(
-            listOf(Color(0xFF1A1335), Color(0xFF06030F))
-        )
-        ConditionKind.Night -> Brush.linearGradient(
-            listOf(Color(0xFF050B18), Color(0xFF02040A))
+        ConditionKind.Night -> Brush.verticalGradient(
+            listOf(Color(0xFF01020F), Color(0xFF000005))
         )
     }
 }
-
-private fun Color.blendOver(other: Color): Color =
-    androidx.compose.ui.graphics.lerp(this, other.copy(alpha = 1f), other.alpha)
 
 /** Temperature colours the temp number itself — cold = blue, hot = orange/red. */
 private fun colorForTemp(tempC: Int, hasData: Boolean): Color {
@@ -607,189 +606,419 @@ private fun colorForTemp(tempC: Int, hasData: Boolean): Color {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Atmospheric overlay — picks a Canvas animation by condition.
+// Cinematic atmospheric overlay — 6 immersive themes wired to live weather data.
+// tempC, rainMm, humidityPct, uvIndex all drive per-condition visual intensity.
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun WeatherAtmosphere(kind: ConditionKind, windKph: Int, modifier: Modifier = Modifier) {
+private fun WeatherAtmosphere(
+    kind: ConditionKind,
+    windKph: Int,
+    tempC: Int = 0,
+    rainMm: Int = 0,
+    humidityPct: Int = 60,
+    uvIndex: Int = 5,
+    modifier: Modifier = Modifier,
+) {
     val tr = rememberInfiniteTransition(label = "weather-fx")
-    val t by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(4_000, easing = LinearEasing)), label = "t")
-
-    // Wind-derived speed scalar — slower scalar = clouds linger longer.
-    // 0 km/h ≈ 0.10x (almost still), 15 km/h ≈ 1x (baseline), 40+ km/h ≈ 2.5x (zippy).
+    val t  by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(4_000,  easing = LinearEasing)), label = "t")
+    val t2 by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(2_000,  easing = LinearEasing)), label = "t2")
+    val t3 by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(14_000, easing = LinearEasing)), label = "t3")
     val windScalar = (windKph / 15f).coerceIn(0.10f, 2.5f)
 
     Canvas(modifier = modifier) {
         when (kind) {
-            ConditionKind.Clear -> drawSunHalo()
-            ConditionKind.PartlyCloudy -> { drawSunHalo(); drawDriftingClouds(t, windScalar) }
-            ConditionKind.Cloudy -> drawDriftingClouds(t, windScalar)
-            ConditionKind.Rain -> { drawCloudWash(); drawRainStreaks(t) }
-            ConditionKind.Storm -> { drawStormPulse(t); drawRainStreaks(t) }
-            ConditionKind.Night -> drawStarfield(t)
+            ConditionKind.Clear        -> drawSunScene(t, t3, tempC, uvIndex)
+            ConditionKind.PartlyCloudy -> drawSunsetScene(t, t3, windScalar)
+            ConditionKind.Cloudy       -> drawFogScene(t, t3, humidityPct)
+            ConditionKind.Rain         -> drawRainScene(t, t2, rainMm)
+            ConditionKind.Storm        -> drawStormScene(t, t2, windKph)
+            ConditionKind.Night        -> drawNightScene(t, t2, t3)
         }
     }
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunHalo() {
+// ── ☀️ Clear / Summer ─────────────────────────────────────────────────────────
+// Light rays count = 4 + (uvIndex/3). Dust motes drift upward.
+// Heat shimmer drawn at tempC > 32°C.
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunScene(
+    t: Float, t3: Float, tempC: Int, uvIndex: Int,
+) {
+    val w = size.width; val h = size.height
+    val cx = w * 0.82f; val cy = h * 0.13f
+
+    // Sun corona
     drawCircle(
         brush = Brush.radialGradient(
-            0f to Color(0xFFFCD34D).copy(alpha = 0.30f),
-            0.55f to Color(0xFFF59E0B).copy(alpha = 0.06f),
+            0f to Color(0xFFFCD34D).copy(alpha = 0.55f),
+            0.35f to Color(0xFFF59E0B).copy(alpha = 0.18f),
             1f to Color.Transparent,
-            center = Offset(size.width * 0.85f, size.height * 0.15f),
-            radius = size.width * 0.7f,
+            center = Offset(cx, cy), radius = w * 0.52f,
         ),
-        radius = size.width * 0.7f,
-        center = Offset(size.width * 0.85f, size.height * 0.15f),
-    )
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCloudWash() {
-    drawCircle(
-        brush = Brush.radialGradient(
-            0f to Color(0xFFCBD5E1).copy(alpha = 0.12f),
-            1f to Color.Transparent,
-            center = Offset(size.width * 0.25f, size.height * 0.3f),
-            radius = size.width * 0.6f,
-        ),
-        radius = size.width * 0.6f,
-        center = Offset(size.width * 0.25f, size.height * 0.3f),
-    )
-}
-
-/**
- * Hovering puffy clouds. Each one is a cluster of soft radial circles that
- * fades into view, drifts gently along a sinusoidal path with vertical wobble,
- * then dissolves back out. No conveyor belt — every cloud has its own period,
- * direction, and lifecycle phase, so the card breathes naturally.
- */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDriftingClouds(t: Float, windScalar: Float = 1f) {
-    val w = size.width
-    val h = size.height
-
-    // Cumulus silhouette — offsets relative to cloud centre.
-    val puffs = listOf(
-        Triple( 0.00f,  0.05f, 1.00f),
-        Triple(-0.55f,  0.15f, 0.70f),
-        Triple( 0.55f,  0.15f, 0.70f),
-        Triple(-0.30f, -0.25f, 0.80f),
-        Triple( 0.30f, -0.30f, 0.75f),
-        Triple( 0.00f, -0.45f, 0.55f),
-        Triple(-0.85f,  0.20f, 0.45f),
-        Triple( 0.85f,  0.25f, 0.50f),
+        radius = w * 0.52f, center = Offset(cx, cy),
     )
 
-    fun puffCloud(cx: Float, cy: Float, scale: Float, alpha: Float) {
-        if (alpha < 0.01f) return // entirely faded — skip the whole draw
-        puffs.forEach { (dx, dy, sizeFraction) ->
-            val radius = scale * sizeFraction
-            val px = cx + dx * scale
-            val py = cy + dy * scale
-            drawCircle(
-                brush = Brush.radialGradient(
-                    0f to Color(0xFFE5E7EB).copy(alpha = alpha),
-                    0.55f to Color(0xFFE5E7EB).copy(alpha = alpha * 0.5f),
-                    1f to Color.Transparent,
-                    center = Offset(px, py),
-                    radius = radius,
-                ),
-                radius = radius,
-                center = Offset(px, py),
+    // Crepuscular light rays — count wired to UV index
+    val rayCount = 4 + (uvIndex / 3).coerceAtMost(4)
+    val rayAlpha = 0.08f + 0.07f * (sin(t3 * PI.toFloat() * 2f) * 0.5f + 0.5f)
+    val spreadTotal = 1.10f; val midAngle = 2.30f
+    repeat(rayCount) { i ->
+        val angle = midAngle + (i - rayCount / 2f) * (spreadTotal / rayCount)
+        val rayLen = w * (0.85f + (i % 3) * 0.18f)
+        val ex = cx + cos(angle) * rayLen
+        val ey = cy + sin(angle) * rayLen
+        drawLine(
+            brush = Brush.linearGradient(
+                0f to Color(0xFFFCD34D).copy(alpha = rayAlpha),
+                1f to Color.Transparent,
+                start = Offset(cx, cy), end = Offset(ex, ey),
+            ),
+            start = Offset(cx, cy), end = Offset(ex, ey),
+            strokeWidth = 20f - i * 1.5f, cap = StrokeCap.Round,
+        )
+    }
+
+    // Golden dust motes drifting upward
+    repeat(40) { i ->
+        val seed = (i * 73 + 17) % 1000 / 1000f
+        val anchorX = w * (((i * 47) % 100) / 100f)
+        val startY  = h * (0.10f + ((i * 31) % 90) / 100f)
+        val speed   = 0.18f + seed * 0.28f
+        val y = ((startY - t * speed * h + h * 2f) % h)
+        val x = anchorX + sin(t * (1.5f + seed) * PI.toFloat() * 2f + seed * 6.28f) * w * 0.03f
+        drawCircle(
+            color  = Color(0xFFFCD34D).copy(alpha = (0.12f + 0.18f * seed) * (1f - y / h * 0.5f).coerceIn(0f, 1f)),
+            radius = 0.8f + seed * 1.4f, center = Offset(x, y),
+        )
+    }
+
+    // Heat shimmer lines at very high temperatures
+    if (tempC > 32) {
+        repeat(7) { i ->
+            val phase = i * (PI.toFloat() / 3.5f)
+            val yOff = sin(t * PI.toFloat() * 6f + phase) * 3f
+            drawLine(
+                color = Color(0xFFFCD34D).copy(alpha = 0.04f),
+                start = Offset(w * (i / 7f), h * 0.84f + yOff),
+                end   = Offset(w * ((i + 1) / 7f), h * 0.84f - yOff),
+                strokeWidth = 1.5f,
             )
         }
     }
-
-    // Each cloud has a unique base anchor + drift radius + period + phase.
-    // localPhase ∈ 0..1 cycles independently per cloud.
-    data class CloudSpec(
-        val anchorX: Float, val anchorY: Float,
-        val driftX: Float, val wobbleY: Float,
-        val periodFactor: Float, val phaseOffset: Float,
-        val baseScale: Float, val maxAlpha: Float,
-        val driftDirection: Float,
-    )
-
-    val baseScale = h * 0.22f
-    // Halve the base period factors so clouds linger longer; we re-scale by
-    // the live wind so calm days look almost still and breezy days animate.
-    val clouds = listOf(
-        // (anchor, drift, period, phase, scale, alpha, dir)
-        CloudSpec(0.30f, 0.40f, 0.20f, 0.06f, 0.22f, 0.00f, baseScale,        0.22f,  1f),
-        CloudSpec(0.70f, 0.25f, 0.16f, 0.05f, 0.16f, 0.42f, baseScale * 0.80f, 0.18f, -1f),
-        CloudSpec(0.50f, 0.55f, 0.22f, 0.04f, 0.12f, 0.78f, baseScale * 0.65f, 0.14f,  1f),
-    )
-
-    clouds.forEach { c ->
-        // Each cloud's own clock — independent period gives organic feel.
-        // Multiply by windScalar so 0 km/h = barely-moving, 40+ km/h = brisk.
-        val localPhase = ((t * c.periodFactor * windScalar + c.phaseOffset) % 1f)
-        val angle = localPhase * 2f * PI.toFloat()
-
-        // Drift along a horizontal sine wave (direction signed), plus a small
-        // vertical wobble at a different rate so the path doesn't loop visibly.
-        val cx = w * c.anchorX + sin(angle) * w * c.driftX * c.driftDirection
-        val cy = h * c.anchorY + sin(angle * 1.7f + 0.6f) * h * c.wobbleY
-
-        // Alpha bell-curve over the cycle: invisible → visible → invisible.
-        // sin(angle) maps to 0..1 alpha when squared.
-        val fade = (sin(angle).let { it * it }) // 0..1 with bell shape
-        val alpha = c.maxAlpha * fade
-
-        // Subtle scale pulse so the cloud breathes while it hovers.
-        val scale = c.baseScale * (0.92f + 0.16f * sin(angle * 0.5f + 1.2f))
-
-        puffCloud(cx, cy, scale, alpha)
-    }
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainStreaks(t: Float) {
-    val w = size.width
-    val h = size.height
-    val count = 36
-    for (i in 0 until count) {
-        val seed = (i * 73 + 11) % 100 / 100f
-        val x = w * (((i * 47) % 100) / 100f)
-        val travel = h + 60f
-        val y = ((t + seed) % 1f) * travel - 30f
-        val len = 12f + (i % 4) * 4f
-        drawLine(
-            color = Color(0xFF93C5FD).copy(alpha = 0.55f),
-            start = Offset(x, y),
-            end = Offset(x + 1.5f, y + len),
-            strokeWidth = 1.2f,
-            cap = StrokeCap.Round,
-        )
-    }
-}
+// ── 🌅 PartlyCloudy / Sunset ──────────────────────────────────────────────────
+// Orange horizon glow, warm amber clouds, lens flare, silhouette hills.
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunsetScene(
+    t: Float, t3: Float, windScalar: Float,
+) {
+    val w = size.width; val h = size.height
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStormPulse(t: Float) {
-    val pulse = sin(t * PI.toFloat() * 2f) * 0.5f + 0.5f
-    val flash = if (((t * 8f) % 1f) > 0.92f) 0.25f else 0f
+    // Orange horizon glow band
+    drawRect(
+        brush = Brush.verticalGradient(
+            0f to Color.Transparent,
+            0.55f to Color(0xFFFF7B00).copy(alpha = 0.20f),
+            0.75f to Color(0xFFFF4500).copy(alpha = 0.14f),
+            1f to Color.Transparent,
+        ),
+        size = androidx.compose.ui.geometry.Size(w, h),
+    )
+
+    // Sunset-tinted warm clouds
+    drawSunsetClouds(t, windScalar)
+
+    // Lens flare from top-right
+    val flareAlpha = 0.45f + 0.30f * (sin(t3 * PI.toFloat() * 2f) * 0.5f + 0.5f)
+    val fx = w * 0.82f; val fy = h * 0.12f
     drawCircle(
         brush = Brush.radialGradient(
-            0f to Color(0xFFA78BFA).copy(alpha = 0.20f * (0.4f + pulse * 0.6f) + flash),
+            0f to Color(0xFFFCD34D).copy(alpha = 0.65f * flareAlpha),
+            0.4f to Color(0xFFFB923C).copy(alpha = 0.20f * flareAlpha),
             1f to Color.Transparent,
-            center = Offset(size.width * 0.5f, size.height * 0.20f),
-            radius = size.width * 0.9f,
+            center = Offset(fx, fy), radius = 32f,
         ),
-        radius = size.width * 0.9f,
-        center = Offset(size.width * 0.5f, size.height * 0.20f),
+        radius = 32f, center = Offset(fx, fy),
     )
+    // Secondary flare glints along a line toward centre
+    listOf(0.22f, 0.42f, 0.62f).forEachIndexed { i, dist ->
+        drawCircle(
+            color  = Color(0xFFFF7B00).copy(alpha = (0.25f - i * 0.07f) * flareAlpha),
+            radius = 7f - i * 2f,
+            center = Offset(fx + (w * 0.5f - fx) * dist, fy + (h * 0.5f - fy) * dist),
+        )
+    }
+
+    // Dark silhouette hill ridge at bottom
+    val hill = Path()
+    hill.moveTo(0f, h); hill.lineTo(0f, h * 0.84f)
+    hill.quadraticTo(w * 0.12f, h * 0.77f, w * 0.22f, h * 0.82f)
+    hill.quadraticTo(w * 0.33f, h * 0.87f, w * 0.44f, h * 0.76f)
+    hill.quadraticTo(w * 0.56f, h * 0.68f, w * 0.66f, h * 0.79f)
+    hill.quadraticTo(w * 0.76f, h * 0.84f, w * 0.86f, h * 0.74f)
+    hill.quadraticTo(w * 0.93f, h * 0.69f, w, h * 0.78f)
+    hill.lineTo(w, h); hill.close()
+    drawPath(hill, Color(0xFF020001).copy(alpha = 0.70f))
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStarfield(t: Float) {
-    val w = size.width
-    val h = size.height
-    repeat(28) { i ->
-        val seed = (i * 137 + 7) % 1000 / 1000f
-        val sx = w * (((i * 53) % 100) / 100f)
-        val sy = h * (((i * 31) % 95) / 100f)
-        val twinkle = 0.45f + 0.55f * (sin(t * 1.6f + seed * 6.28f) * 0.5f + 0.5f)
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunsetClouds(t: Float, windScalar: Float) {
+    val w = size.width; val h = size.height
+    val puffs = listOf(
+        Triple( 0.00f, 0.05f, 1.00f), Triple(-0.55f, 0.15f, 0.70f),
+        Triple( 0.55f, 0.15f, 0.70f), Triple(-0.30f,-0.25f, 0.80f),
+        Triple( 0.30f,-0.30f, 0.75f),
+    )
+    data class SC(val ax: Float, val ay: Float, val dX: Float, val wY: Float, val per: Float, val ph: Float, val sc: Float, val ma: Float, val d: Float)
+    val baseS = h * 0.16f
+    listOf(
+        SC(0.25f, 0.30f, 0.18f, 0.06f, 0.20f, 0.00f, baseS,         0.16f,  1f),
+        SC(0.65f, 0.20f, 0.14f, 0.05f, 0.16f, 0.42f, baseS * 0.80f, 0.12f, -1f),
+    ).forEach { c ->
+        val ang = ((t * c.per * windScalar + c.ph) % 1f) * 2f * PI.toFloat()
+        val cx = w * c.ax + sin(ang) * w * c.dX * c.d
+        val cy = h * c.ay + sin(ang * 1.7f + 0.6f) * h * c.wY
+        val alpha = c.ma * sin(ang).let { it * it }
+        val scale = c.sc * (0.92f + 0.16f * sin(ang * 0.5f + 1.2f))
+        if (alpha < 0.01f) return@forEach
+        puffs.forEach { (dx, dy, sf) ->
+            val r = scale * sf; val px = cx + dx * scale; val py = cy + dy * scale
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to Color(0xFFFFB347).copy(alpha = alpha),
+                    0.5f to Color(0xFFFF7B00).copy(alpha = alpha * 0.35f),
+                    1f to Color.Transparent,
+                    center = Offset(px, py), radius = r,
+                ),
+                radius = r, center = Offset(px, py),
+            )
+        }
+    }
+}
+
+// ── 🌧️ Rain ───────────────────────────────────────────────────────────────────
+// Streak count = 30 + rainMm*2 (max 70). Angled streaks, splash rings, neon fog.
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainScene(
+    t: Float, t2: Float, rainMm: Int,
+) {
+    val w = size.width; val h = size.height
+
+    // Neon teal fog orbs drifting horizontally
+    val fogDrift = sin(t2 * PI.toFloat() * 2f) * w * 0.08f
+    listOf(
+        Offset(w * 0.25f + fogDrift, h * 0.42f) to w * 0.60f,
+        Offset(w * 0.75f - fogDrift * 0.7f, h * 0.62f) to w * 0.50f,
+    ).forEach { (pos, r) ->
         drawCircle(
-            color = Color(0xFFF8FAFC).copy(alpha = 0.10f + 0.35f * twinkle),
-            radius = 1.0f + (i % 3) * 0.4f,
+            brush = Brush.radialGradient(0f to Color(0xFF22D3EE).copy(alpha = 0.08f), 1f to Color.Transparent, center = pos, radius = r),
+            radius = r, center = pos,
+        )
+    }
+    // Rising mist from bottom
+    drawRect(
+        brush = Brush.verticalGradient(0.60f to Color.Transparent, 1f to Color(0xFF93C5FD).copy(alpha = 0.09f)),
+        size  = androidx.compose.ui.geometry.Size(w, h),
+    )
+    // Angled rain streaks — density driven by rainMm
+    val count = (30 + rainMm * 2).coerceIn(30, 70)
+    repeat(count) { i ->
+        val seed = (i * 73 + 11) % 100 / 100f
+        val x = w * (((i * 47) % 100) / 100f)
+        val y = ((t + seed) % 1f) * (h + 60f) - 30f
+        val len = 10f + (i % 5) * 5f
+        drawLine(
+            color = Color(0xFF93C5FD).copy(alpha = 0.40f + (i % 3) * 0.08f),
+            start = Offset(x, y), end = Offset(x + len * 0.07f, y + len),
+            strokeWidth = 0.7f + (i % 3) * 0.4f, cap = StrokeCap.Round,
+        )
+    }
+    // Raindrop splash rings at bottom edge
+    repeat(10) { i ->
+        val r = ((t2 + i / 10f) % 1f) * 10f
+        val alpha = (1f - r / 10f) * 0.40f
+        if (alpha > 0.02f) {
+            drawCircle(
+                color  = Color(0xFF93C5FD).copy(alpha = alpha),
+                radius = r + 1f,
+                center = Offset(w * (((i * 83) % 100) / 100f), h * (0.89f + (i % 3) * 0.035f)),
+                style  = Stroke(width = 0.8f),
+            )
+        }
+    }
+}
+
+// ── ⛈️ Storm ──────────────────────────────────────────────────────────────────
+// Violet storm mass, 65 fast streaks, jagged zig-zag lightning with glow aura.
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStormScene(
+    t: Float, t2: Float, windKph: Int,
+) {
+    val w = size.width; val h = size.height
+    val pulse = sin(t * PI.toFloat() * 2f) * 0.5f + 0.5f
+
+    // Rolling dark storm masses
+    drawCircle(
+        brush = Brush.radialGradient(0f to Color(0xFF7C3AED).copy(alpha = 0.24f * (0.4f + pulse * 0.6f)), 1f to Color.Transparent, center = Offset(w * 0.50f, h * 0.16f), radius = w * 0.95f),
+        radius = w * 0.95f, center = Offset(w * 0.50f, h * 0.16f),
+    )
+    drawCircle(
+        brush = Brush.radialGradient(0f to Color(0xFF4C1D95).copy(alpha = 0.32f), 1f to Color.Transparent, center = Offset(w * 0.18f, h * 0.08f), radius = w * 0.52f),
+        radius = w * 0.52f, center = Offset(w * 0.18f, h * 0.08f),
+    )
+
+    // Heavy fast rain
+    repeat(65) { i ->
+        val seed = (i * 73 + 11) % 100 / 100f
+        val y = ((t * 1.65f + seed) % 1f) * (h + 60f) - 30f
+        val len = 12f + (i % 4) * 5f
+        drawLine(
+            color = Color(0xFF93C5FD).copy(alpha = 0.30f),
+            start = Offset(w * (((i * 47) % 100) / 100f), y),
+            end   = Offset(w * (((i * 47) % 100) / 100f) + len * 0.10f, y + len),
+            strokeWidth = 0.9f, cap = StrokeCap.Round,
+        )
+    }
+
+    // Lightning bolt flash triggered at t2 phase > 0.88
+    val lp = (t2 * 3f) % 1f
+    if (lp > 0.88f) {
+        val raw = (lp - 0.88f) / 0.12f
+        val fa = (raw * 2f).coerceAtMost(1f) * ((1f - raw) * 2f).coerceAtMost(1f)
+        drawRect(Color.White.copy(alpha = 0.10f * fa)) // full-card electric flash
+
+        repeat(2) { bolt ->
+            val startX = w * (0.38f + bolt * 0.32f)
+            val boltPath = Path().also { p ->
+                p.moveTo(startX, 0f)
+                var cx = startX; var cy = 0f
+                val segH = h * 0.55f / 5f
+                repeat(5) { seg ->
+                    cx += ((bolt * 137 + seg * 53) % 50 - 25).toFloat()
+                    cy += segH
+                    p.lineTo(cx, cy)
+                }
+            }
+            drawPath(boltPath, Color(0xFF7C3AED).copy(alpha = 0.45f * fa), style = Stroke(width = 10f, cap = StrokeCap.Round))
+            drawPath(boltPath, Color.White.copy(alpha = 0.92f * fa),        style = Stroke(width = 2f,  cap = StrokeCap.Round))
+        }
+    }
+}
+
+// ── 🌫️ Cloudy / Fog ───────────────────────────────────────────────────────────
+// 4 drifting fog layers (opacity ∝ humidityPct), cold vignette, frost specks.
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawFogScene(
+    t: Float, t3: Float, humidityPct: Int,
+) {
+    val w = size.width; val h = size.height
+    val fogDensity = 0.06f + humidityPct * 0.00028f
+
+    // 4 extremely slow drifting fog layers at different heights
+    listOf(
+        Triple(h * 0.20f, 0.00f,  1f),
+        Triple(h * 0.38f, 0.25f, -1f),
+        Triple(h * 0.55f, 0.55f,  1f),
+        Triple(h * 0.72f, 0.75f, -1f),
+    ).forEach { (y, phase, dir) ->
+        val drift = sin((t3 + phase) * PI.toFloat() * 2f) * w * 0.10f * dir
+        drawRect(
+            brush = Brush.horizontalGradient(
+                0f to Color.Transparent,
+                0.20f to Color(0xFFCBD5E1).copy(alpha = fogDensity),
+                0.50f to Color(0xFFE2E8F0).copy(alpha = fogDensity * 1.4f),
+                0.80f to Color(0xFFCBD5E1).copy(alpha = fogDensity),
+                1f to Color.Transparent,
+                startX = drift, endX = w + drift,
+            ),
+            topLeft = Offset(0f, y - 18f),
+            size    = androidx.compose.ui.geometry.Size(w, 55f),
+        )
+    }
+
+    // Cold vignette — dark at edges, lighter in centre
+    drawCircle(
+        brush = Brush.radialGradient(
+            0f to Color.Transparent,
+            0.60f to Color(0xFF0D0F13).copy(alpha = 0.18f),
+            1f to Color(0xFF0D0F13).copy(alpha = 0.52f),
+            center = Offset(w / 2f, h / 2f), radius = w * 0.96f,
+        ),
+        radius = w * 0.96f, center = Offset(w / 2f, h / 2f),
+    )
+
+    // Frost specks falling very slowly
+    repeat(25) { i ->
+        val seed = (i * 137 + 7) % 1000 / 1000f
+        val y = (h * (((i * 31) % 90) / 100f) + t3 * h * 0.42f) % h
+        drawCircle(
+            color  = Color.White.copy(alpha = 0.07f + 0.13f * seed),
+            radius = 0.5f + seed * 0.7f,
+            center = Offset(w * (((i * 53) % 100) / 100f), y),
+        )
+    }
+}
+
+// ── 🌌 Night ──────────────────────────────────────────────────────────────────
+// 55 twinkling stars (10 with halo), periodic shooting star, 4 neon nodes,
+// 3 horizontal neon particle trails (cyan + iris).
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawNightScene(
+    t: Float, t2: Float, t3: Float,
+) {
+    val w = size.width; val h = size.height
+
+    // Rich starfield — 55 stars, every 10th gets a glow halo
+    repeat(55) { i ->
+        val seed    = (i * 137 + 7) % 1000 / 1000f
+        val sx      = w * (((i * 53) % 100) / 100f)
+        val sy      = h * (((i * 31) % 95) / 100f)
+        val twinkle = 0.45f + 0.55f * (sin(t * PI.toFloat() * 3.2f + seed * 6.28f) * 0.5f + 0.5f)
+        val bright  = i % 10 == 0
+        if (bright) {
+            drawCircle(
+                brush = Brush.radialGradient(0f to Color(0xFFF8FAFC).copy(alpha = 0.38f * twinkle), 1f to Color.Transparent, center = Offset(sx, sy), radius = 6f + (i % 3) * 2f),
+                radius = 6f + (i % 3) * 2f, center = Offset(sx, sy),
+            )
+        }
+        drawCircle(
+            color  = Color(0xFFF8FAFC).copy(alpha = (if (bright) 0.18f else 0.08f) + 0.32f * twinkle),
+            radius = if (bright) 1.5f + (i % 3) * 0.3f else 0.7f + (i % 3) * 0.35f,
             center = Offset(sx, sy),
         )
+    }
+
+    // Shooting star — appears when t3 phase > 0.90
+    val sp = (t3 * 2f) % 1f
+    if (sp > 0.90f) {
+        val raw = (sp - 0.90f) / 0.10f
+        val sa  = (raw * 2.5f).coerceAtMost(1f) * ((1f - raw) * 2.5f).coerceAtMost(1f)
+        drawLine(
+            brush = Brush.linearGradient(0f to Color.Transparent, 0.35f to Color.White.copy(alpha = 0.85f * sa), 1f to Color.Transparent, start = Offset(w * 0.08f, h * 0.07f), end = Offset(w * 0.50f, h * 0.26f)),
+            start = Offset(w * 0.08f, h * 0.07f), end = Offset(w * 0.50f, h * 0.26f),
+            strokeWidth = 1.8f,
+        )
+    }
+
+    // Neon glow nodes — 2 cyan + 2 iris, pulsing at independent rates
+    listOf(
+        Offset(w * 0.14f, h * 0.24f) to Color(0xFF22D3EE),
+        Offset(w * 0.76f, h * 0.44f) to Color(0xFF22D3EE),
+        Offset(w * 0.42f, h * 0.14f) to Color(0xFFA78BFA),
+        Offset(w * 0.88f, h * 0.19f) to Color(0xFFA78BFA),
+    ).forEachIndexed { i, (pos, tint) ->
+        val pulse = 0.5f + 0.5f * sin((t + i * 0.25f) * PI.toFloat() * 2f)
+        val r = 4f + 2.5f * pulse
+        drawCircle(brush = Brush.radialGradient(0f to tint.copy(alpha = 0.55f + 0.30f * pulse), 1f to Color.Transparent, center = pos, radius = r), radius = r, center = pos)
+        drawCircle(tint.copy(alpha = 0.85f), radius = 1.4f, center = pos)
+    }
+
+    // Neon particle trails drifting across (cyan alternating with iris)
+    repeat(3) { i ->
+        val tint   = if (i % 2 == 0) Color(0xFF22D3EE) else Color(0xFFA78BFA)
+        val ancY   = h * (0.28f + i * 0.20f)
+        val xBase  = ((t * (0.12f + i * 0.07f) * (w + 100f) + i.toFloat() * (w / 3f)) % (w + 80f)) - 40f
+        val trailL = w * 0.09f
+        drawLine(
+            brush = Brush.linearGradient(0f to Color.Transparent, 1f to tint.copy(alpha = 0.50f), start = Offset(xBase, ancY), end = Offset(xBase + trailL, ancY)),
+            start = Offset(xBase, ancY), end = Offset(xBase + trailL, ancY),
+            strokeWidth = 1.5f,
+        )
+        drawCircle(tint.copy(alpha = 0.75f), radius = 1.8f, center = Offset(xBase + trailL, ancY))
     }
 }
 
@@ -875,9 +1104,13 @@ private fun HeroBand(
     ) {
         // Condition atmosphere (rain streaks, drifting clouds, starfield, etc.)
         WeatherAtmosphere(
-            kind = kind,
-            windKph = snapshot?.windKph ?: 0,
-            modifier = Modifier.matchParentSize().clip(shape),
+            kind        = kind,
+            windKph     = snapshot?.windKph    ?: 0,
+            tempC       = snapshot?.tempC      ?: 0,
+            rainMm      = snapshot?.rainMm     ?: 0,
+            humidityPct = snapshot?.humidityPct ?: 60,
+            uvIndex     = snapshot?.uvIndex    ?: 5,
+            modifier    = Modifier.matchParentSize().clip(shape),
         )
 
         // ── Premium Canvas layer ──────────────────────────────────────────────
@@ -1007,41 +1240,43 @@ private fun HeroBand(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            if (cropHealth > 0) {
+                Spacer(Modifier.height(16.dp))
 
-            // Farm health bar
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Farm Health",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = AgroPalette.InkMuted,
-                    modifier = Modifier.width(82.dp),
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(AgroPalette.SurfaceGlass),
-                ) {
+                // Farm health bar — only shown when real data is available
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Farm Health",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AgroPalette.InkMuted,
+                        modifier = Modifier.width(82.dp),
+                    )
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(healthProgress)
+                            .weight(1f)
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp))
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(healthTint.copy(alpha = 0.7f), healthTint)
-                                )
-                            ),
+                            .background(AgroPalette.SurfaceGlass),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(healthProgress)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(healthTint.copy(alpha = 0.7f), healthTint)
+                                    )
+                                ),
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "$cropHealth%",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = healthTint, fontWeight = FontWeight.Bold,
                     )
                 }
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "$cropHealth%",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = healthTint, fontWeight = FontWeight.Bold,
-                )
             }
 
             Spacer(Modifier.height(14.dp))
