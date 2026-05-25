@@ -826,15 +826,18 @@ private fun QuickActionsRow(
         QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_add_field), Icons.Rounded.Grass, AgroPalette.Sky, onAddField),
         QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_ai_assistant), Icons.Rounded.AutoAwesome, AgroPalette.Iris, onAssistant),
     )
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(actions) { a -> QuickActionPill(a) }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        actions.forEach { a -> QuickActionPill(a, modifier = Modifier.weight(1f)) }
     }
 }
 
 private data class QuickActionData(val label: String, val icon: ImageVector, val tint: Color, val onClick: () -> Unit)
 
 @Composable
-private fun QuickActionPill(action: QuickActionData) {
+private fun QuickActionPill(action: QuickActionData, modifier: Modifier = Modifier) {
     val inf  = rememberInfiniteTransition(label = "pill-${action.label}")
     val glow by inf.animateFloat(
         0.35f, 1f,
@@ -843,7 +846,7 @@ private fun QuickActionPill(action: QuickActionData) {
     )
     val shape = RoundedCornerShape(18.dp)
     Column(
-        modifier = Modifier
+        modifier = modifier
             .clip(shape)
             .drawBehind {
                 // Tinted top plasma hairline (unique color per action)
