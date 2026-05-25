@@ -147,40 +147,42 @@ fun HomeScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            // ── [0] Immersive hero — greeting + live weather + farm health ────
             item { EntranceItem(itemVisible[0]) {
-                StickyHeader(
+                HeroBand(
                     name = state.displayName,
                     photoUrl = state.photoUrl,
                     timeOfDay = state.timeOfDay,
+                    snapshot = state.weather,
+                    loading = state.weatherLoading,
+                    cropHealth = state.cropHealth,
                     systemHealthy = state.systemHealthy,
                     notifCount = state.notificationCount,
                     onAvatarTap = onOpenProfile,
                     onBellTap = { showNotifications = true },
+                    onWeatherTap = onOpenWeather,
                 )
             } }
+            // ── [1] Quick actions ─────────────────────────────────────────────
             item { EntranceItem(itemVisible[1]) {
-                WeatherHeroCard(snapshot = state.weather, loading = state.weatherLoading, onTap = onOpenWeather)
-            } }
-            item { EntranceItem(itemVisible[2]) {
                 QuickActionsRow(
                     onScan = onOpenScanner,
                     onAddField = onOpenFields,
                     onAssistant = onOpenAssistant,
                 )
             } }
-            // Section order mirrors the web home (index.html):
-            // Field operations → Recent alerts → Crop health → Pest prediction.
-            // Every card stays mounted; each shows its own inline empty state
-            // when there's no data yet.
+            // ── [2] Live data ribbon — glowing scrolling metrics ──────────────
+            item { EntranceItem(itemVisible[2]) { LiveDataRibbon(state = state) } }
+            // ── [3] Field operations ──────────────────────────────────────────
             item { EntranceItem(itemVisible[3]) { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) } }
-
+            // ── Alerts ────────────────────────────────────────────────────────
             item { EntranceItem(itemVisible[4]) { SectionHeader(title = stringResource(R.string.section_recent_alerts), trailing = if (state.alerts.isEmpty()) null else stringResource(R.string.section_see_all)) } }
             if (state.alerts.isEmpty()) {
                 item { EntranceItem(itemVisible[5]) { AlertsEmptyCard(hasFields = state.fieldsCount > 0) } }
             } else {
                 items(state.alerts.take(3)) { alert -> EntranceItem(itemVisible[5]) { AlertCard(alert) } }
             }
-
+            // ── [6] Crop health + pest prediction ─────────────────────────────
             item { EntranceItem(itemVisible[6]) {
                 CropHealthCard(
                     score = state.cropHealth,
@@ -197,13 +199,13 @@ fun HomeScreen(
                     onTap = onOpenPestPrediction,
                 )
             }
-
+            // ── At a glance grid ──────────────────────────────────────────────
             item { SectionHeader(title = stringResource(R.string.section_at_a_glance)) }
             item { AtAGlanceGrid(state = state) }
-
+            // ── My fields carousel ────────────────────────────────────────────
             item { SectionHeader(title = stringResource(R.string.section_my_fields), trailing = stringResource(R.string.section_manage_all)) }
             item { MyFieldsCarousel(onOpenField = onOpenField, onAddField = onOpenFields) }
-
+            // ── Insights ──────────────────────────────────────────────────────
             item { SectionHeader(title = stringResource(R.string.section_insights)) }
             item { InsightsCarousel(weather = state.weather) }
 
@@ -810,6 +812,323 @@ private fun iconAndTintFor(kind: ConditionKind): Pair<ImageVector, Color> = when
     ConditionKind.Rain -> Icons.Rounded.WaterDrop to AgroPalette.Sky
     ConditionKind.Storm -> Icons.Rounded.Bolt to AgroPalette.Iris
     ConditionKind.Night -> Icons.Rounded.NightlightRound to AgroPalette.Iris
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HeroBand — immersive merged header + weather + farm-health card.
+// Replaces the separate StickyHeader + WeatherHeroCard with a single premium
+// full-width panel: greeting, time-of-day name, live weather, animated Canvas
+// overlays (orbiting particle, neon hairline, ambient glow), and a health bar.
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun HeroBand(
+    name: String,
+    photoUrl: String?,
+    timeOfDay: TimeOfDay,
+    snapshot: WeatherSnapshot?,
+    loading: Boolean,
+    cropHealth: Int,
+    systemHealthy: Boolean,
+    notifCount: Int,
+    onAvatarTap: () -> Unit,
+    onBellTap: () -> Unit,
+    onWeatherTap: () -> Unit,
+) {
+    val kind        = snapshot?.kind ?: ConditionKind.Cloudy
+    val temp        = snapshot?.tempC ?: 0
+    val (wIcon, wTint) = if (snapshot != null) iconAndTintFor(snapshot.kind) else Icons.Rounded.Cloud to AgroPalette.InkMuted
+    val tempColor   = colorForTemp(temp, snapshot != null)
+
+    // Animated health bar
+    val healthProgress by animateFloatAsState(
+        targetValue  = (cropHealth / 100f).coerceIn(0f, 1f),
+        animationSpec = tween(1600, easing = LinearOutSlowInEasing),
+        label = "hero-health",
+    )
+    val healthTint = when {
+        cropHealth >= 80 -> AgroPalette.Primary
+        cropHealth >= 60 -> AgroPalette.Amber
+        else -> AgroPalette.Rose
+    }
+
+    // Shared infinite transition for all canvas effects
+    val inf = rememberInfiniteTransition(label = "hero")
+    val orbAngle by inf.animateFloat(
+        0f, (PI * 2).toFloat(),
+        infiniteRepeatable(tween(18_000, easing = LinearEasing)), label = "orb",
+    )
+    val glowPulse by inf.animateFloat(
+        0.5f, 1f, infiniteRepeatable(tween(2400), RepeatMode.Reverse), label = "glow",
+    )
+    val iconPulse by inf.animateFloat(
+        0.55f, 1f, infiniteRepeatable(tween(2200), RepeatMode.Reverse), label = "ip",
+    )
+
+    val shape = RoundedCornerShape(28.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(weatherCardBrush(kind, temp), shape)
+            .border(1.dp, AgroPalette.SurfaceGlassBorder, shape)
+            .clickable(onClick = onWeatherTap),
+    ) {
+        // Condition atmosphere (rain streaks, drifting clouds, starfield, etc.)
+        WeatherAtmosphere(
+            kind = kind,
+            windKph = snapshot?.windKph ?: 0,
+            modifier = Modifier.matchParentSize().clip(shape),
+        )
+
+        // ── Premium Canvas layer ──────────────────────────────────────────────
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val w = size.width; val h = size.height
+
+            // Neon top hairline — pulses with the condition tint
+            val mid = w / 2f; val halfLen = w * 0.46f
+            drawLine(
+                brush = Brush.horizontalGradient(
+                    listOf(
+                        Color.Transparent,
+                        wTint.copy(alpha = 0.35f),
+                        wTint.copy(alpha = 0.70f * glowPulse),
+                        wTint.copy(alpha = 0.35f),
+                        Color.Transparent,
+                    ),
+                    startX = mid - halfLen, endX = mid + halfLen,
+                ),
+                start = Offset(mid - halfLen, 1f), end = Offset(mid + halfLen, 1f),
+                strokeWidth = 1.5f,
+            )
+
+            // Orbiting particle cluster in top-right (near weather icon)
+            val orbCx = w * 0.80f; val orbCy = h * 0.26f; val orbR = w * 0.14f
+            repeat(7) { i ->
+                val trailAng = orbAngle - i * 0.30f
+                val tr = (0.70f - i * 0.10f).coerceAtLeast(0f) * glowPulse
+                val r  = (5.5f - i * 0.7f).coerceAtLeast(1f)
+                drawCircle(
+                    color  = wTint.copy(alpha = tr),
+                    radius = r,
+                    center = Offset(orbCx + cos(trailAng) * orbR, orbCy + sin(trailAng) * orbR),
+                )
+            }
+            val px = orbCx + cos(orbAngle) * orbR
+            val py = orbCy + sin(orbAngle) * orbR
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to wTint.copy(alpha = 0.95f), 1f to Color.Transparent,
+                    center = Offset(px, py), radius = 8f,
+                ),
+                radius = 8f, center = Offset(px, py),
+            )
+
+            // Ambient radial glow behind the weather icon
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to wTint.copy(alpha = 0.20f * glowPulse), 1f to Color.Transparent,
+                    center = Offset(w * 0.78f, h * 0.36f), radius = w * 0.46f,
+                ),
+                radius = w * 0.46f, center = Offset(w * 0.78f, h * 0.36f),
+            )
+
+            // Subtle emerald glow bottom-left (farm energy feel)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to AgroPalette.Primary.copy(alpha = 0.12f * glowPulse), 1f to Color.Transparent,
+                    center = Offset(w * 0.08f, h * 0.85f), radius = w * 0.55f,
+                ),
+                radius = w * 0.55f, center = Offset(w * 0.08f, h * 0.85f),
+            )
+        }
+
+        // ── Content ───────────────────────────────────────────────────────────
+        Column(modifier = Modifier.padding(18.dp)) {
+
+            // Row 1: location | bell | avatar
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.LocationOn, null, tint = AgroPalette.Sky, modifier = Modifier.size(13.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        snapshot?.location ?: if (loading) "Detecting…" else "—",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AgroPalette.InkMuted, maxLines = 1,
+                    )
+                }
+                NotificationBell(count = notifCount, onClick = onBellTap)
+                Spacer(Modifier.width(8.dp))
+                AvatarChip(photoUrl = photoUrl, name = name, onTap = onAvatarTap)
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            // Row 2: greeting + name (left)  |  weather icon + temp (right)
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(timeOfDay.greetingRes),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = AgroPalette.InkMuted,
+                    )
+                    Text(
+                        "$name ${timeOfDay.emoji}",
+                        style = MaterialTheme.typography.headlineMedium.copy(fontSize = 27.sp),
+                        color = AgroPalette.Ink,
+                        fontWeight = FontWeight.ExtraBold,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    SystemBadge(healthy = systemHealthy)
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.radialGradient(
+                                    0f to wTint.copy(alpha = 0.38f * iconPulse),
+                                    0.6f to wTint.copy(alpha = 0.08f * iconPulse),
+                                    1f to Color.Transparent,
+                                )
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(wIcon, null, tint = wTint, modifier = Modifier.size(38.dp)) }
+                    Text(
+                        snapshot?.let { "${it.tempC}°" } ?: "—",
+                        style = MaterialTheme.typography.displayLarge.copy(fontSize = 52.sp),
+                        color = tempColor, fontWeight = FontWeight.Black,
+                    )
+                    Text(
+                        snapshot?.let { localizedConditionLabel(it.kind) } ?: if (loading) "…" else "—",
+                        style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Farm health bar
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Farm Health",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AgroPalette.InkMuted,
+                    modifier = Modifier.width(82.dp),
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(AgroPalette.SurfaceGlass),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(healthProgress)
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(healthTint.copy(alpha = 0.7f), healthTint)
+                                )
+                            ),
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "$cropHealth%",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = healthTint, fontWeight = FontWeight.Bold,
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // Bottom metrics row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                WeatherMetric(stringResource(R.string.weather_humidity), snapshot?.humidityPct?.let { "$it%" } ?: "—", Icons.Rounded.WaterDrop, AgroPalette.Sky)
+                WeatherMetric(stringResource(R.string.weather_wind), snapshot?.windKph?.let { "$it km/h" } ?: "—", Icons.Rounded.Air, AgroPalette.Primary)
+                WeatherMetric(stringResource(R.string.weather_rain), snapshot?.rainMm?.let { "$it mm" } ?: "—", Icons.Rounded.Cloud, AgroPalette.InkMuted)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.weather_view_forecast), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary, fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.Primary, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LiveDataRibbon — horizontally scrolling live-stat chips with blinking dots.
+// Pulls from WeatherSnapshot + HomeUiState field metrics so every chip shows
+// real data.  Empty states are skipped, so the ribbon only renders if there
+// is at least one live value to show.
+// ─────────────────────────────────────────────────────────────────────────────
+private data class RibbonChip(val value: String, val icon: ImageVector, val tint: Color)
+
+@Composable
+private fun LiveDataRibbon(state: HomeUiState) {
+    val inf   = rememberInfiniteTransition(label = "ribbon")
+    val blink by inf.animateFloat(
+        0f, 1f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "b",
+    )
+
+    val chips = buildList {
+        state.weather?.let { w ->
+            add(RibbonChip("${w.tempC}°C", Icons.Rounded.WbSunny, AgroPalette.Amber))
+            add(RibbonChip("${w.humidityPct}%", Icons.Rounded.WaterDrop, AgroPalette.Sky))
+            add(RibbonChip("${w.windKph} km/h", Icons.Rounded.Air, AgroPalette.Primary))
+            if (w.rainMm > 0) add(RibbonChip("${w.rainMm}mm rain", Icons.Rounded.Cloud, AgroPalette.Sky))
+        }
+        if (state.fieldsCount > 0) {
+            val hTint = when {
+                state.cropHealth >= 80 -> AgroPalette.Primary
+                state.cropHealth >= 60 -> AgroPalette.Amber
+                else -> AgroPalette.Rose
+            }
+            add(RibbonChip("Health ${state.cropHealth}", Icons.Rounded.Eco, hTint))
+            if (state.avgMoisture > 0) add(RibbonChip("${state.avgMoisture}% soil", Icons.Rounded.WaterDrop, AgroPalette.Sky))
+            add(RibbonChip("${state.fieldsCount} field${if (state.fieldsCount == 1) "" else "s"}", Icons.Rounded.Grass, AgroPalette.Primary))
+        }
+    }
+
+    if (chips.isEmpty()) return
+
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(chips) { chip ->
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(chip.tint.copy(alpha = 0.10f))
+                    .border(1.dp, chip.tint.copy(alpha = 0.22f), RoundedCornerShape(50))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Blinking live indicator dot
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(chip.tint.copy(alpha = 0.40f + 0.60f * blink)),
+                )
+                Spacer(Modifier.width(6.dp))
+                Icon(chip.icon, null, tint = chip.tint, modifier = Modifier.size(12.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    chip.value,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AgroPalette.Ink,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
