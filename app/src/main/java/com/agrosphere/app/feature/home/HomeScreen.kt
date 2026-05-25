@@ -115,7 +115,6 @@ fun HomeScreen(
     onOpenAssistant: () -> Unit,
     onOpenWeather: () -> Unit = {},
     onOpenFields: () -> Unit = {},
-    onOpenCopilot: () -> Unit = {},
     vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
@@ -166,8 +165,6 @@ fun HomeScreen(
                 QuickActionsRow(
                     onScan = onOpenScanner,
                     onAddField = onOpenFields,
-                    onIrrigation = onOpenWeather,
-                    onCopilot = onOpenCopilot,
                     onAssistant = onOpenAssistant,
                 )
             } }
@@ -822,15 +819,11 @@ private fun iconAndTintFor(kind: ConditionKind): Pair<ImageVector, Color> = when
 private fun QuickActionsRow(
     onScan: () -> Unit,
     onAddField: () -> Unit,
-    onIrrigation: () -> Unit,
-    onCopilot: () -> Unit,
     onAssistant: () -> Unit,
 ) {
     val actions = listOf(
         QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_scan_crop), Icons.Rounded.CameraAlt, AgroPalette.Primary, onScan),
         QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_add_field), Icons.Rounded.Grass, AgroPalette.Sky, onAddField),
-        QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_irrigation), Icons.Rounded.WaterDrop, AgroPalette.Sky, onIrrigation),
-        QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_ai_copilot), Icons.Rounded.Bolt, Color(0xFF67D4F0), onCopilot),
         QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_ai_assistant), Icons.Rounded.AutoAwesome, AgroPalette.Iris, onAssistant),
     )
     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

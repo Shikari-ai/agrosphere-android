@@ -173,7 +173,6 @@ fun AgroSphereApp() {
                     onOpenAssistant = { navController.navigate(Dest.Assistant.route) },
                     onOpenWeather = { navController.navigate(Dest.Weather.route) },
                     onOpenFields = { navController.navigate(Dest.Fields.route) },
-                    onOpenCopilot = { navController.navigate(Dest.Copilot.route) },
                 )
             }
             composable(Dest.Fields.route) {
