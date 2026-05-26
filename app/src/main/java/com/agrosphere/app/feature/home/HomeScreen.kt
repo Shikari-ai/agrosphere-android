@@ -196,14 +196,25 @@ fun HomeScreen(
                     onAssistant = onOpenAssistant,
                 )
             } }
-            // ── [3] Field operations ──────────────────────────────────────────
-            item { EntranceItem(itemVisible[3]) {
-                OperationsPager(
-                    hasFields    = state.fieldsCount > 0,
-                    onOpenFields = onOpenFields,
-                    onOpenPlants = onOpenPlants,
-                )
-            } }
+            // ── [3] Operations / Analytics — only when there's real content to show.
+            //        An empty 'Add a field' card on a fresh install ruined the
+            //        aesthetic, so we gate on actually having fields or plants. ──
+            val plantsForOps by PlantRepository.plants.collectAsState()
+            val hasFieldsForOps = state.fieldsCount > 0
+            val hasPlantsForOps = plantsForOps.isNotEmpty()
+            val showOpsForFarmer = userMode == "farmer" && hasFieldsForOps
+            val showOpsForPlant  = userMode == "plant"  && hasPlantsForOps
+            val showOpsForBoth   = userMode == "both"   && (hasFieldsForOps || hasPlantsForOps)
+            if (showOpsForFarmer || showOpsForPlant || showOpsForBoth) {
+                item { EntranceItem(itemVisible[3]) {
+                    OperationsPager(
+                        hasFields    = hasFieldsForOps,
+                        hasPlants    = hasPlantsForOps,
+                        onOpenFields = onOpenFields,
+                        onOpenPlants = onOpenPlants,
+                    )
+                } }
+            }
             // ── Alerts ────────────────────────────────────────────────────────
             item { EntranceItem(itemVisible[4]) { SectionHeader(title = stringResource(R.string.section_recent_alerts), trailing = if (state.alerts.isEmpty()) null else stringResource(R.string.section_see_all)) } }
             if (state.alerts.isEmpty()) {
@@ -1765,14 +1776,18 @@ private fun QuickActionPill(action: QuickActionData, modifier: Modifier = Modifi
 @Composable
 private fun OperationsPager(
     hasFields: Boolean,
+    hasPlants: Boolean,
     onOpenFields: () -> Unit,
     onOpenPlants: () -> Unit,
 ) {
     val mode by AppPreferences.userMode.collectAsState()
-    when (mode) {
-        "farmer" -> FieldOperationsCard(onOpenFields = onOpenFields, hasFields = hasFields)
-        "plant"  -> PlantAnalyticsCard(onOpenPlants = onOpenPlants)
-        else -> {
+    // The call site already guarantees we have at least one populated side, so
+    // here we only decide between 'pager' (both populated in 'both' mode) and
+    // 'show only the populated one'.
+    val showField = (mode == "farmer" || mode == "both") && hasFields
+    val showPlant = (mode == "plant"  || mode == "both") && hasPlants
+    when {
+        showField && showPlant -> {
             val pagerState = rememberPagerState(pageCount = { 2 })
             LaunchedEffect(pagerState.isScrollInProgress, pagerState.currentPage) {
                 if (!pagerState.isScrollInProgress) {
@@ -1786,7 +1801,7 @@ private fun OperationsPager(
             Column {
                 HorizontalPager(state = pagerState) { page ->
                     when (page) {
-                        0    -> FieldOperationsCard(onOpenFields = onOpenFields, hasFields = hasFields)
+                        0    -> FieldOperationsCard(onOpenFields = onOpenFields, hasFields = true)
                         else -> PlantAnalyticsCard(onOpenPlants = onOpenPlants)
                     }
                 }
@@ -1808,6 +1823,8 @@ private fun OperationsPager(
                 }
             }
         }
+        showField -> FieldOperationsCard(onOpenFields = onOpenFields, hasFields = true)
+        showPlant -> PlantAnalyticsCard(onOpenPlants = onOpenPlants)
     }
 }
 
