@@ -139,6 +139,7 @@ fun HomeScreen(
     // Live-collected once at the HomeScreen scope (LazyListScope isn't @Composable
     // so we can't collect inside the LazyColumn lambda).
     val userMode by AppPreferences.userMode.collectAsState()
+    val plantsForOps by PlantRepository.plants.collectAsState()
     var showNotifications by remember { mutableStateOf(false) }
     // rememberSaveable survives NavHost destination disposal (tab switches, back-stack
     // recreation).  Once true, every future HomeScreen composition seeds itemVisible
@@ -199,7 +200,6 @@ fun HomeScreen(
             // ── [3] Operations / Analytics — only when there's real content to show.
             //        An empty 'Add a field' card on a fresh install ruined the
             //        aesthetic, so we gate on actually having fields or plants. ──
-            val plantsForOps by PlantRepository.plants.collectAsState()
             val hasFieldsForOps = state.fieldsCount > 0
             val hasPlantsForOps = plantsForOps.isNotEmpty()
             val showOpsForFarmer = userMode == "farmer" && hasFieldsForOps
