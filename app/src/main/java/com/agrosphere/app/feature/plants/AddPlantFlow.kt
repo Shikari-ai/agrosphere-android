@@ -54,6 +54,8 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.FlashOff
+import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Refresh
@@ -310,6 +312,7 @@ private fun CameraStage(
     val context  = LocalContext.current
     val perm     = rememberPermissionState(android.Manifest.permission.CAMERA)
     var controller by remember { mutableStateOf<LifecycleCameraController?>(null) }
+    var flashOn   by remember { mutableStateOf(false) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -320,6 +323,11 @@ private fun CameraStage(
     }
 
     LaunchedEffect(Unit) { if (!perm.status.isGranted) perm.launchPermissionRequest() }
+    // Drive the device torch whenever the user toggles flash or the controller
+    // becomes ready (e.g. right after camera permission is granted).
+    LaunchedEffect(controller, flashOn) {
+        controller?.enableTorch(flashOn)
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (perm.status.isGranted) {
@@ -374,52 +382,95 @@ private fun CameraStage(
                 .border(2.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(20.dp)),
         )
 
-        // Bottom controls
+        // Bottom controls — Gallery + Shutter + Flash, all labelled so users
+        // see exactly what each button does (especially important when light is poor).
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.systemBars)
-                .padding(horizontal = 24.dp, vertical = 28.dp),
+                .padding(horizontal = 24.dp, vertical = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Gallery picker
-            IconButton(
-                onClick = {
-                    galleryLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.15f)),
-            ) {
-                Icon(Icons.Rounded.PhotoLibrary, null, tint = Color.White)
+            // Gallery → upload an existing photo (useful for already-perfect plant pics)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.18f))
+                        .clickable {
+                            galleryLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Rounded.PhotoLibrary, "Upload from gallery", tint = Color.White, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Upload",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
 
             // Shutter
-            Box(
-                modifier = Modifier
-                    .size(76.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
-                    .border(4.dp, AgroPalette.Primary, CircleShape)
-                    .clickable {
-                        controller?.let { c ->
-                            capturePhoto(c, context) { bmp ->
-                                bmp?.let(onCaptured)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .border(4.dp, AgroPalette.Primary, CircleShape)
+                        .clickable {
+                            controller?.let { c ->
+                                capturePhoto(c, context) { bmp ->
+                                    bmp?.let(onCaptured)
+                                }
                             }
-                        }
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Rounded.LocalFlorist, null, tint = AgroPalette.Primary, modifier = Modifier.size(32.dp))
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Rounded.LocalFlorist, null, tint = AgroPalette.Primary, modifier = Modifier.size(32.dp))
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Capture",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
 
-            // Spacer to balance row
-            Box(modifier = Modifier.size(52.dp))
+            // Flash — torch toggle, helps when ambient light is too dim for the AI.
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(if (flashOn) Color.White else Color.White.copy(alpha = 0.18f))
+                        .clickable { flashOn = !flashOn },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        if (flashOn) Icons.Rounded.FlashOn else Icons.Rounded.FlashOff,
+                        if (flashOn) "Flash on" else "Flash off",
+                        tint = if (flashOn) AgroPalette.BgDeep else Color.White,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (flashOn) "Flash on" else "Flash",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (flashOn) Color.White else Color.White.copy(alpha = 0.85f),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
     }
 }
