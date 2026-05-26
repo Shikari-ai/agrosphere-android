@@ -123,7 +123,7 @@
     <string name="crop_overall_health">Overall crop health</string>
     <string name="crop_avg_summary">Average across %1$d field%2$s. Run a scan to refresh.</string>
     <string name="pest_risk_level">Risk level</string>
-    <string name="pest_no_data_body">Add a field to enable predictions based on weather + crop.</string>
+    <string name="pest_no_data_body">Add a field or plant to enable predictions based on weather conditions.</string>
     <string name="pest_risk_low">Low</string>
     <string name="pest_risk_moderate">Moderate</string>
     <string name="pest_risk_high">High</string>

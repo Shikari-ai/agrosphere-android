@@ -234,7 +234,10 @@ fun HomeScreen(
                 PestPredictionCard(
                     riskLevel = state.pestRiskLevel,
                     blipRadiusFraction = state.pestRiskBlip,
-                    hasFields = state.fieldsCount > 0,
+                    // 'Green space' = fields OR plants. Pest pressure depends on the
+                    // same warm-humid climate drivers either way, so the card lights
+                    // up the moment the user has anything growing.
+                    hasFields = state.fieldsCount > 0 || state.plantsCount > 0,
                     onTap = onOpenPestPrediction,
                 )
             }
@@ -2870,7 +2873,16 @@ private fun HealthMonitorPager(
         )
         "plant" -> PlantHealthCard(onTap = onOpenPlants)
         else -> {
-            // Both mode — auto-swiping pager
+            // Both mode — auto-swiping pager. Page order is dynamic: whichever
+            // surface the user has actually populated leads. If no fields are
+            // added but plants are, Plant Health sits at page 0 so the user
+            // sees their real data first, with Crop Health one swipe to the
+            // right. Vice-versa when only fields exist.
+            val plantsForOrder by PlantRepository.plants.collectAsState()
+            val hasFields = state.fieldsCount > 0
+            val hasPlants = plantsForOrder.isNotEmpty()
+            // plantFirst = plants populated AND fields empty → plant leads.
+            val plantFirst = hasPlants && !hasFields
             val pagerState = rememberPagerState(pageCount = { 2 })
             // Auto-advance every 7s — restart timer whenever the user finishes scrolling.
             LaunchedEffect(pagerState.isScrollInProgress, pagerState.currentPage) {
@@ -2884,15 +2896,17 @@ private fun HealthMonitorPager(
             }
             Column {
                 HorizontalPager(state = pagerState) { page ->
-                    when (page) {
-                        0 -> CropHealthCard(
+                    val showPlantOnThisPage = if (plantFirst) page == 0 else page == 1
+                    if (showPlantOnThisPage) {
+                        PlantHealthCard(onTap = onOpenPlants)
+                    } else {
+                        CropHealthCard(
                             score     = state.cropHealth,
                             verdict   = state.cropHealthVerdict,
-                            hasFields = state.fieldsCount > 0,
+                            hasFields = hasFields,
                             hasScan   = state.hasScan,
                             onTap     = onOpenScanner,
                         )
-                        else -> PlantHealthCard(onTap = onOpenPlants)
                     }
                 }
                 Spacer(Modifier.height(8.dp))

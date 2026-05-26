@@ -13,6 +13,7 @@ import com.agrosphere.app.data.model.Field
 import com.agrosphere.app.data.model.WeatherSnapshot
 import com.agrosphere.app.data.repo.FieldRepository
 import com.agrosphere.app.data.repo.LocalScanStore
+import com.agrosphere.app.data.repo.PlantRepository
 import com.agrosphere.app.data.weather.WeatherRepository
 import com.agrosphere.app.ui.theme.AgroPalette
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +47,7 @@ data class HomeUiState(
     val pestRiskLevel: String = "—",
     val pestRiskBlip: Float = 0f,
     val fieldsCount: Int = 0,
+    val plantsCount: Int = 0,
     val totalAreaHa: Double = 0.0,
     val cropsCount: Int = 0,
     val avgMoisture: Int = 0,
@@ -73,7 +75,21 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             FieldRepository.fields.collect { fields ->
-                recompute(fields = fields, weather = _state.value.weather)
+                recompute(
+                    fields = fields,
+                    weather = _state.value.weather,
+                    plantsCount = PlantRepository.current().size,
+                )
+            }
+        }
+        // Plants — pest pressure and alerts should react to plants too.
+        viewModelScope.launch {
+            PlantRepository.plants.collect { plants ->
+                recompute(
+                    fields = FieldRepository.current(),
+                    weather = _state.value.weather,
+                    plantsCount = plants.size,
+                )
             }
         }
         // Stay in sync with whatever screen last loaded weather (e.g. the Weather
@@ -82,7 +98,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             WeatherRepository.bundleFlow.collect { bundle ->
                 if (bundle != null) {
                     _state.update { it.copy(weather = bundle.snapshot, weatherLoading = false) }
-                    recompute(fields = FieldRepository.current(), weather = bundle.snapshot)
+                    recompute(
+                        fields = FieldRepository.current(),
+                        weather = bundle.snapshot,
+                        plantsCount = PlantRepository.current().size,
+                    )
                 }
             }
         }
@@ -128,23 +148,31 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val bundle = WeatherRepository.load(getApplication())
                 _state.update { it.copy(weather = bundle.snapshot, weatherLoading = false) }
-                recompute(fields = FieldRepository.current(), weather = bundle.snapshot)
+                recompute(
+                    fields = FieldRepository.current(),
+                    weather = bundle.snapshot,
+                    plantsCount = PlantRepository.current().size,
+                )
             } catch (_: Throwable) {
                 _state.update { it.copy(weatherLoading = false) }
             }
         }
     }
 
-    /** Recomputes everything that depends on (fields, weather). */
-    private fun recompute(fields: List<Field>, weather: WeatherSnapshot?) {
+    /** Recomputes everything that depends on (fields, weather, plants count). */
+    private fun recompute(fields: List<Field>, weather: WeatherSnapshot?, plantsCount: Int = _state.value.plantsCount) {
         val hasFields = fields.isNotEmpty()
+        val hasPlants = plantsCount > 0
         val avgHealth = if (hasFields) fields.map { it.healthScore }.average().toInt() else 0
-        val pest = derivePestRisk(weather, hasFields)
+        // Pest pressure now activates as soon as you have ANY green space — fields
+        // or plants — because warm-humid conditions threaten both.
+        val pest = derivePestRisk(weather, hasFields || hasPlants)
         val alerts = if (hasFields) deriveAlerts(fields, weather) else emptyList()
 
         _state.update {
             it.copy(
                 fieldsCount = fields.size,
+                plantsCount = plantsCount,
                 totalAreaHa = fields.sumOf { f -> f.areaHa },
                 cropsCount = fields.map { f -> f.crop }.distinct().size,
                 avgMoisture = if (hasFields) fields.map { f -> f.moisturePct }.average().toInt() else 0,
@@ -197,9 +225,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         return (100.0 - vpdLoss - windLoss - solarLoss - rainLoss).coerceIn(45.0, 97.0).toInt()
     }
 
-    /** Derives pest pressure from current humidity + temperature (warm + humid = higher). */
-    private fun derivePestRisk(weather: WeatherSnapshot?, hasFields: Boolean): Pair<String, Float> {
-        if (!hasFields || weather == null) return "—" to 0f
+    /** Derives pest pressure from current humidity + temperature (warm + humid = higher).
+     *  Active when the user has any green space — fields or home plants — since both
+     *  face pressure from the same climatic drivers. */
+    private fun derivePestRisk(weather: WeatherSnapshot?, hasGreenSpace: Boolean): Pair<String, Float> {
+        if (!hasGreenSpace || weather == null) return "—" to 0f
         val score = (weather.humidityPct / 2 + (weather.tempC - 20).coerceAtLeast(0)).coerceIn(0, 100)
         return when {
             score < 30 -> "Low" to 0.20f
