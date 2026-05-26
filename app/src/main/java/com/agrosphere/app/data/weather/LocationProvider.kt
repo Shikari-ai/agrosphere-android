@@ -18,11 +18,15 @@ import kotlin.coroutines.resume
 
 data class Place(val latitude: Double, val longitude: Double, val label: String)
 
-/** Default fallback if permission is denied or no location is available yet. */
+/** Fallback used when location permission is denied or no fix is available.
+ *  Coordinates anchor an arbitrary inland point so weather still resolves to
+ *  *something*, but the label is left blank so the UI never falsely advertises
+ *  a specific city to a user who hasn't actually opted in. Callers that show
+ *  the label should treat empty as "location pending". */
 private val DefaultPlace = Place(
     latitude = 19.9975,
     longitude = 73.7898,
-    label = "Nashik, Maharashtra",
+    label = "",
 )
 
 object LocationProvider {

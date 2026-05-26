@@ -103,6 +103,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.agrosphere.app.R
 import com.agrosphere.app.data.weather.WeatherRepository
+import com.agrosphere.app.data.model.PlantEntry
+import com.agrosphere.app.data.repo.AppPreferences
+import com.agrosphere.app.data.repo.PlantRepository
+import com.agrosphere.app.data.repo.WateringStatus
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import kotlinx.coroutines.delay
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.navigation.ProfileSections
@@ -172,11 +179,11 @@ fun ProfileScreen(
                 )
             }
 
-            // ── Farm Intelligence Score with breakdown bars ────────────────────
-            item { ScoreCard(state = state) }
+            // ── Intelligence score — mode-aware, slidable between farm + plant ─
+            item { IntelligenceScorePager(state = state) }
 
-            // ── Stats 2×2 with animated counters ─────────────────────────────
-            item { StatsGrid(onOpen = { onOpenSection(ProfileSections.FARM_OVERVIEW) }) }
+            // ── Stats 2×2 — slidable pager between farm stats and plant stats ─
+            item { StatsGridPager(onOpen = { onOpenSection(ProfileSections.FARM_OVERVIEW) }) }
 
             // ── Activity summary ──────────────────────────────────────────────
             item { ActivitySummaryCard(fieldCount = com.agrosphere.app.data.repo.FieldRepository.fields.collectAsState().value.size) }
@@ -747,6 +754,216 @@ private fun StatsGrid(onOpen: () -> Unit) {
         Triple(stringResource(R.string.profile_stats_avg_health),  if (fields.isEmpty()) 0 else fields.map { it.healthScore }.average().toInt(), AgroPalette.Iris),
     )
     val suffixes = listOf("", " ha", "", "")
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        stats.chunked(2).forEachIndexed { rowIdx, row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEachIndexed { colIdx, (label, value, tint) ->
+                    val globalIdx = rowIdx * 2 + colIdx
+                    AnimatedStatTile(
+                        label = label,
+                        targetValue = value,
+                        suffix = suffixes[globalIdx],
+                        tint = tint,
+                        modifier = Modifier.weight(1f),
+                        onClick = onOpen,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Intelligence Score pager — Farm / Garden / Both, auto-swipes every 7 s.
+// Pages share the same gauge visual; only the title and breakdown bars vary.
+// "Populated side leads" rule (matches the home Health Monitor / At a Glance).
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun IntelligenceScorePager(state: ProfileUiState) {
+    val mode by AppPreferences.userMode.collectAsState()
+    val plants by PlantRepository.plants.collectAsState()
+    val fields by com.agrosphere.app.data.repo.FieldRepository.fields.collectAsState()
+    val isBoth   = mode == "both"
+    val hasFields = fields.isNotEmpty()
+    val hasPlants = plants.isNotEmpty()
+    // Single modes always show their own card; both-mode only shows a side once it's populated.
+    val showFarm  = mode == "farmer" || (isBoth && hasFields)
+    val showPlant = mode == "plant"  || (isBoth && hasPlants)
+
+    when {
+        showFarm && showPlant -> {
+            val plantFirst = plants.isNotEmpty() && fields.isEmpty()
+            val pagerState = rememberPagerState(pageCount = { 2 })
+            LaunchedEffect(pagerState.isScrollInProgress, pagerState.currentPage) {
+                if (!pagerState.isScrollInProgress) {
+                    delay(7000)
+                    if (!pagerState.isScrollInProgress) {
+                        pagerState.animateScrollToPage((pagerState.currentPage + 1) % 2)
+                    }
+                }
+            }
+            Column {
+                HorizontalPager(state = pagerState) { page ->
+                    val showPlantOnThisPage = if (plantFirst) page == 0 else page == 1
+                    if (showPlantOnThisPage) PlantIntelligenceScoreCard(plants = plants)
+                    else                    ScoreCard(state = state)
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    repeat(2) { idx ->
+                        val selected = pagerState.currentPage == idx
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(width = if (selected) 18.dp else 6.dp, height = 6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(if (selected) AgroPalette.Primary else AgroPalette.SurfaceGlassBorder),
+                        )
+                    }
+                }
+            }
+        }
+        showPlant -> PlantIntelligenceScoreCard(plants = plants)
+        else      -> ScoreCard(state = state)
+    }
+}
+
+/** Plant Intelligence equivalent of ScoreCard — same gauge styling, plant-relevant
+ *  breakdown bars (Plant health / Care consistency / Variety). The 0..100 score
+ *  is a weighted blend, so users in plant-only mode get a meaningful headline
+ *  number instead of the empty farm score. */
+@Composable
+private fun PlantIntelligenceScoreCard(plants: List<PlantEntry>) {
+    // Compute components once per state change.
+    val avgHealth   = if (plants.isEmpty()) 0 else plants.map { it.healthScore }.average().toInt()
+    val onSchedule  = remember(plants) {
+        if (plants.isEmpty()) 0 else {
+            val ok = plants.count { PlantRepository.wateringStatus(it).let { s ->
+                s is WateringStatus.DueIn || s == WateringStatus.NeverLogged || s == WateringStatus.DueToday
+            } }
+            ((ok * 100f) / plants.size).toInt()
+        }
+    }
+    val variety = remember(plants) {
+        // Distinct species count, normalised against a target of 5 varieties = 100%.
+        ((plants.map { it.species }.distinct().size * 100f) / 5f).coerceAtMost(100f).toInt()
+    }
+    // 0..100 score blends: health 50% + care 30% + variety 20%.
+    val score = ((avgHealth * 0.50f) + (onSchedule * 0.30f) + (variety * 0.20f)).toInt().coerceIn(0, 100)
+    val verdict = when {
+        plants.isEmpty()  -> ""
+        score >= 90       -> "Outstanding"
+        score >= 75       -> "Thriving garden"
+        score >= 60       -> "Good standing"
+        score >= 40       -> "Developing"
+        else              -> "Needs attention"
+    }
+
+    val animated      by animateFloatAsState(score / 100f, tween(1400, easing = LinearOutSlowInEasing), label = "p-score")
+    val healthAnim    by animateFloatAsState(avgHealth / 100f, tween(1200, easing = LinearOutSlowInEasing), label = "p-h")
+    val careAnim      by animateFloatAsState(onSchedule / 100f, tween(1300, easing = LinearOutSlowInEasing), label = "p-c")
+    val varietyAnim   by animateFloatAsState(variety / 100f, tween(1400, easing = LinearOutSlowInEasing), label = "p-v")
+
+    GlassCard(background = AgroBrushes.leafCard, radius = 24.dp, padding = 20.dp) {
+        Row(verticalAlignment = Alignment.Top) {
+            ScoreGauge(progress = animated, score = score, modifier = Modifier.size(100.dp))
+            Spacer(Modifier.width(18.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.AutoAwesome, null, tint = AgroPalette.Primary, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        "PLANT INTELLIGENCE",
+                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.sp),
+                        color = AgroPalette.Primary,
+                    )
+                }
+                Spacer(Modifier.height(3.dp))
+                Text("Garden Intelligence Score", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+                if (verdict.isNotBlank()) {
+                    Text(verdict, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                }
+                Spacer(Modifier.height(6.dp))
+                StarsRow(rating = score / 20f)
+                Spacer(Modifier.height(10.dp))
+
+                BreakdownBar("Plant health",      healthAnim,  "${(healthAnim * 100).toInt()}%",  AgroPalette.Primary)
+                Spacer(Modifier.height(6.dp))
+                BreakdownBar("Care consistency",  careAnim,    "${(careAnim * 100).toInt()}%",    AgroPalette.Sky)
+                Spacer(Modifier.height(6.dp))
+                BreakdownBar("Variety",           varietyAnim, "${(varietyAnim * 100).toInt()}%", AgroPalette.Amber)
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stats grid pager — Farm grid / Plant grid, mode-aware with 7s auto-swipe.
+// Same "populated side leads" rule as the score pager.
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun StatsGridPager(onOpen: () -> Unit) {
+    val mode by AppPreferences.userMode.collectAsState()
+    val plants by PlantRepository.plants.collectAsState()
+    val fields by com.agrosphere.app.data.repo.FieldRepository.fields.collectAsState()
+    val isBoth = mode == "both"
+    val showFarm  = mode == "farmer" || (isBoth && fields.isNotEmpty())
+    val showPlant = mode == "plant"  || (isBoth && plants.isNotEmpty())
+
+    when {
+        showFarm && showPlant -> {
+            val plantFirst = plants.isNotEmpty() && fields.isEmpty()
+            val pagerState = rememberPagerState(pageCount = { 2 })
+            LaunchedEffect(pagerState.isScrollInProgress, pagerState.currentPage) {
+                if (!pagerState.isScrollInProgress) {
+                    delay(7000)
+                    if (!pagerState.isScrollInProgress) {
+                        pagerState.animateScrollToPage((pagerState.currentPage + 1) % 2)
+                    }
+                }
+            }
+            Column {
+                HorizontalPager(state = pagerState) { page ->
+                    val showPlantOnThisPage = if (plantFirst) page == 0 else page == 1
+                    if (showPlantOnThisPage) PlantStatsGrid(plants = plants, onOpen = onOpen)
+                    else                    StatsGrid(onOpen = onOpen)
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    repeat(2) { idx ->
+                        val selected = pagerState.currentPage == idx
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(width = if (selected) 18.dp else 6.dp, height = 6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(if (selected) AgroPalette.Primary else AgroPalette.SurfaceGlassBorder),
+                        )
+                    }
+                }
+            }
+        }
+        showPlant -> PlantStatsGrid(plants = plants, onOpen = onOpen)
+        else      -> StatsGrid(onOpen = onOpen)
+    }
+}
+
+@Composable
+private fun PlantStatsGrid(plants: List<PlantEntry>, onOpen: () -> Unit) {
+    val species  = plants.map { it.species }.distinct().size
+    val dueToday = plants.count {
+        val s = PlantRepository.wateringStatus(it)
+        s is WateringStatus.DueToday || s is WateringStatus.Overdue
+    }
+    val avgHealth = if (plants.isEmpty()) 0 else plants.map { it.healthScore }.average().toInt()
+
+    val stats = listOf(
+        Triple("Plants",  plants.size, AgroPalette.Primary),
+        Triple("Species", species,     AgroPalette.Iris),
+        Triple("Water",   dueToday,    if (dueToday == 0) AgroPalette.Sky else AgroPalette.Rose),
+        Triple("Avg health", avgHealth, AgroPalette.Amber),
+    )
+    val suffixes = listOf("", "", "", "")
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         stats.chunked(2).forEachIndexed { rowIdx, row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
