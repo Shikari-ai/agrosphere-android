@@ -7,6 +7,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import java.io.File
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -185,16 +189,48 @@ private fun PlantHeroBar(plant: PlantEntry, onBack: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(10.dp))
+            // Mood is derived live from the plant's current state and reused by
+            // both the emoji badge on the avatar and the caption next to the name.
+            val mood = remember(plant) { plantMood(plant) }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(58.dp)
-                        .clip(CircleShape)
-                        .background(plant.accent.copy(alpha = 0.28f))
-                        .border(1.5.dp, plant.accent.copy(alpha = 0.55f), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Rounded.LocalFlorist, null, tint = plant.accent, modifier = Modifier.size(30.dp))
+                // Profile avatar — uses the most recent scan photo for this plant
+                // when available, otherwise falls back to the LocalFlorist glyph
+                // tinted by the plant's accent colour. The mood emoji rides the
+                // top-right corner as a constant indicator of how it's doing.
+                Box(modifier = Modifier.size(64.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(plant.accent.copy(alpha = 0.28f))
+                            .border(1.5.dp, plant.accent.copy(alpha = 0.55f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val photo = plant.photoPath?.takeIf { File(it).exists() }
+                        if (photo != null) {
+                            AsyncImage(
+                                model = File(photo),
+                                contentDescription = "${plant.name} photo",
+                                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                contentScale = ContentScale.Crop,
+                            )
+                        } else {
+                            Icon(Icons.Rounded.LocalFlorist, null, tint = plant.accent, modifier = Modifier.size(30.dp))
+                        }
+                    }
+                    // Mood emoji badge — small circle hugging the top-right of the photo.
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 4.dp, y = (-4).dp)
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(AgroPalette.BgDeep)
+                            .border(2.dp, mood.tint.copy(alpha = 0.70f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(mood.emoji, fontSize = 14.sp)
+                    }
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -218,6 +254,14 @@ private fun PlantHeroBar(plant: PlantEntry, onBack: () -> Unit) {
                         Spacer(Modifier.width(8.dp))
                         Text(plant.location, style = MaterialTheme.typography.bodyMedium, color = AgroPalette.InkMuted, maxLines = 1)
                     }
+                    // Live mood caption — reads out the same feeling the emoji shows.
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "${mood.emoji} ${mood.caption}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = mood.tint,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
             }
         }
@@ -911,6 +955,51 @@ private fun relativeDays(ms: Long): String {
         days < 7  -> "${days}d ago"
         days < 30 -> "${days / 7}w ago"
         else      -> "${days / 30}mo ago"
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Live plant "mood" — derived from water status + health + stage. Drives both
+// the emoji badge on the hero avatar and the caption next to it.
+// ─────────────────────────────────────────────────────────────────────────────
+private data class PlantMood(val emoji: String, val caption: String, val tint: Color)
+
+private fun plantMood(plant: PlantEntry): PlantMood {
+    val water  = PlantRepository.wateringStatus(plant)
+    val h      = plant.healthScore
+    val stage  = plant.stage
+
+    // ── Critical states first — these override the stage-based moods ────────
+    if (water is WateringStatus.Overdue && water.days >= 3) {
+        return PlantMood("😵", "Severely thirsty", AgroPalette.Rose)
+    }
+    if (h < 25) {
+        return PlantMood("🤒", "Needs urgent care", AgroPalette.Rose)
+    }
+    if (water is WateringStatus.Overdue) {
+        return PlantMood("🥺", "Thirsty", AgroPalette.Rose)
+    }
+
+    // ── Stage-specific cheerful states ──────────────────────────────────────
+    when (stage) {
+        "Dormant"    -> return PlantMood("😴", "Resting", AgroPalette.InkMuted)
+        "Recovering" -> return PlantMood("🤕", "Recovering", AgroPalette.Orange)
+        "Flowering"  -> if (h >= 65) return PlantMood("🌸", "Blooming!",  AgroPalette.Rose)
+        "Fruiting"   -> if (h >= 65) return PlantMood("🍅", "Fruiting!",  AgroPalette.Amber)
+        "Seedling"   -> return PlantMood("🌱", "Growing up", AgroPalette.Primary)
+    }
+
+    // ── Water-due-today nudge before falling through to general mood ───────
+    if (water is WateringStatus.DueToday) {
+        return PlantMood("💧", "Could use water", AgroPalette.Sky)
+    }
+
+    // ── General mood, driven by health score ───────────────────────────────
+    return when {
+        h >= 90 -> PlantMood("🌟", "Thriving!",       AgroPalette.Primary)
+        h >= 75 -> PlantMood("😊", "Happy",           AgroPalette.Primary)
+        h >= 55 -> PlantMood("🙂", "Doing okay",      AgroPalette.Sky)
+        else    -> PlantMood("😟", "Could be better", AgroPalette.Amber)
     }
 }
 
