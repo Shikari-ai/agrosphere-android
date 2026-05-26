@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,7 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Size as GeomSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -288,10 +289,13 @@ private fun CareTab(
                         Text(plant.stage, style = MaterialTheme.typography.labelMedium, color = AgroPalette.Iris, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(Modifier.height(10.dp))
-                    androidx.compose.foundation.lazy.LazyRow(
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(androidx.compose.foundation.rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        androidx.compose.foundation.lazy.items(PlantRepository.stagePresets) { st ->
+                        PlantRepository.stagePresets.forEach { st ->
                             StageChip(label = st, selected = st == plant.stage, onClick = { onSetStage(st) })
                         }
                     }
@@ -560,9 +564,9 @@ private fun HealthTab(plant: PlantEntry) {
                     val stroke = Stroke(14.dp.toPx(), cap = StrokeCap.Round)
                     val inset  = 8.dp.toPx()
                     drawArc(AgroPalette.SurfaceGlass, -90f, 360f, false, stroke = stroke,
-                        topLeft = Offset(inset, inset), size = Size(size.width - inset * 2, size.height - inset * 2))
+                        topLeft = Offset(inset, inset), size = GeomSize(size.width - inset * 2, size.height - inset * 2))
                     drawArc(ringColor, -90f, 360f * target, false, stroke = stroke,
-                        topLeft = Offset(inset, inset), size = Size(size.width - inset * 2, size.height - inset * 2))
+                        topLeft = Offset(inset, inset), size = GeomSize(size.width - inset * 2, size.height - inset * 2))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("$score", style = MaterialTheme.typography.displaySmall, color = ringColor, fontWeight = FontWeight.ExtraBold)

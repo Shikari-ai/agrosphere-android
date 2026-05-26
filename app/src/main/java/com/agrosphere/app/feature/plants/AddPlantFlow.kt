@@ -101,6 +101,7 @@ import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.theme.AgroPalette
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.launch
 
