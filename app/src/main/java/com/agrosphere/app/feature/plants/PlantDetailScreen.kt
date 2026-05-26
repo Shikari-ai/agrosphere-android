@@ -370,24 +370,23 @@ private fun CareTab(
                         }
                     }
 
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(statusColor.copy(alpha = 0.10f))
                             .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             statusText,
                             style = MaterialTheme.typography.bodyMedium,
                             color = statusColor,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.weight(1f),
                         )
                         if (plant.lastWateredMs > 0L) {
+                            Spacer(Modifier.height(2.dp))
                             Text(
-                                "Last: ${formatDate(plant.lastWateredMs)}",
+                                "Last watered: ${formatDateTime(plant.lastWateredMs)}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = AgroPalette.InkMuted,
                             )
@@ -395,7 +394,28 @@ private fun CareTab(
                     }
 
                     Spacer(Modifier.height(10.dp))
-                    CareInfoRow(label = stringResource(R.string.plant_care_interval), value = stringResource(R.string.plant_care_days, plant.wateringIntervalDays))
+                    // Interval row — show the AI/species rationale so the cadence
+                    // isn't read as an arbitrary default.
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.plant_care_interval),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AgroPalette.InkMuted,
+                            )
+                            Text(
+                                "Recommended for ${plant.species}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AgroPalette.InkDim,
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.plant_care_days, plant.wateringIntervalDays),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AgroPalette.Sky,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                     Spacer(Modifier.height(12.dp))
 
                     Box(
@@ -837,10 +857,8 @@ private fun buildImprovementTips(plant: PlantEntry, grade: String, latestScan: P
 // Date helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-private val dateFormat = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
 private val dateTimeFormat = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault())
 
-private fun formatDate(ms: Long): String = dateFormat.format(Date(ms))
 private fun formatDateTime(ms: Long): String = dateTimeFormat.format(Date(ms))
 
 private fun relativeDays(ms: Long): String {

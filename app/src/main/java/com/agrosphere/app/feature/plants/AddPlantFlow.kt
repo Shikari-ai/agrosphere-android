@@ -644,7 +644,8 @@ private fun ReviewStage(
                     }
                 }
             }
-            // For unidentified plants, let user pick sunlight + interval
+            // Sunlight picker — only shown when the AI couldn't ID, otherwise the
+            // species-specific value from the model is trusted.
             if (unidentified) {
                 item {
                     SectionLabel("Sunlight need")
@@ -655,22 +656,35 @@ private fun ReviewStage(
                         }
                     }
                 }
-                item {
-                    val suffix = if (interval == 1) "" else "s"
-                    SectionLabel("Water every $interval day$suffix")
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        StepBtn("-") { if (interval > 1) interval-- }
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(AgroPalette.SurfaceGlass)
-                                .padding(horizontal = 20.dp, vertical = 10.dp),
-                        ) {
-                            Text("$interval", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Primary, fontWeight = FontWeight.Bold)
-                        }
-                        StepBtn("+") { if (interval < 30) interval++ }
+            }
+            // Watering interval — ALWAYS adjustable. The AI's recommendation is a
+            // species-appropriate baseline, but real conditions (your climate,
+            // light, pot drainage) vary, so the user gets the final word.
+            item {
+                val suffix = if (interval == 1) "" else "s"
+                SectionLabel("Water every $interval day$suffix")
+                Spacer(Modifier.height(4.dp))
+                if (!unidentified && identification != null) {
+                    Text(
+                        "AI recommends ${identification.wateringIntervalDays} for ${identification.commonName}. Tweak if your conditions differ — overwatering kills more houseplants than under-watering.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AgroPalette.InkDim,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                } else {
+                    Spacer(Modifier.height(4.dp))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    StepBtn("-") { if (interval > 1) interval-- }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(AgroPalette.SurfaceGlass)
+                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                    ) {
+                        Text("$interval", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Primary, fontWeight = FontWeight.Bold)
                     }
+                    StepBtn("+") { if (interval < 30) interval++ }
                 }
             }
             item {
