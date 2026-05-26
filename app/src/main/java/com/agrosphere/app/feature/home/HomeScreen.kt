@@ -40,6 +40,12 @@ import com.agrosphere.app.data.plants.PlantData
 import com.agrosphere.app.data.repo.PlantRepository
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Spa
+import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size as GeomSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -1765,7 +1771,7 @@ private fun OperationsPager(
     val mode by AppPreferences.userMode.collectAsState()
     when (mode) {
         "farmer" -> FieldOperationsCard(onOpenFields = onOpenFields, hasFields = hasFields)
-        "plant"  -> PlantOperationsCard(onOpenPlants = onOpenPlants)
+        "plant"  -> PlantAnalyticsCard(onOpenPlants = onOpenPlants)
         else -> {
             val pagerState = rememberPagerState(pageCount = { 2 })
             LaunchedEffect(pagerState.isScrollInProgress, pagerState.currentPage) {
@@ -1781,7 +1787,7 @@ private fun OperationsPager(
                 HorizontalPager(state = pagerState) { page ->
                     when (page) {
                         0    -> FieldOperationsCard(onOpenFields = onOpenFields, hasFields = hasFields)
-                        else -> PlantOperationsCard(onOpenPlants = onOpenPlants)
+                        else -> PlantAnalyticsCard(onOpenPlants = onOpenPlants)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -1805,48 +1811,399 @@ private fun OperationsPager(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Plant operations — today's care tasks derived from real plant state
-// ─────────────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Plant Analytics — live stats card + tap-to-expand sheet with full charts
+// Replaces the old Plant Operations list. Watering, scanning, streaks all
+// surface here so daily care is visible and rewarding.
+// ═════════════════════════════════════════════════════════════════════════════
+
+private const val MS_PER_DAY = 86_400_000L
+
+data class PlantAnalytics(
+    val totalPlants: Int,
+    val avgHealth: Int,
+    val careStreak: Int,           // consecutive days of any care activity
+    val watersMonth: Int,          // total waterings in last 30 days
+    val scansMonth: Int,           // total scans in last 30 days
+    val watersByDay14: List<Int>,  // last 14 days, oldest first
+    val scansByDay14: List<Int>,
+    val watersByDay30: List<Int>,
+    val scansByDay30: List<Int>,
+    val perPlant: List<PerPlantStats>,
+)
+
+data class PerPlantStats(
+    val plant: PlantEntry,
+    val watersMonth: Int,
+    val scansMonth: Int,
+    val plantStreak: Int,          // consecutive days this plant was watered
+)
+
+private fun computePlantAnalytics(plants: List<PlantEntry>): PlantAnalytics {
+    val now      = System.currentTimeMillis()
+    val today    = now / MS_PER_DAY
+    val cutoff30 = now - 30 * MS_PER_DAY
+
+    // Aggregate per-day buckets for last 30 days (index 0 = 30 days ago, 29 = today).
+    val watersByDay30 = IntArray(30)
+    val scansByDay30  = IntArray(30)
+    plants.forEach { p ->
+        p.wateringLog.filter { it >= cutoff30 }.forEach {
+            val idx = (29 - (today - it / MS_PER_DAY).toInt()).coerceIn(0, 29)
+            watersByDay30[idx]++
+        }
+        p.scanHistory.filter { it.timestamp >= cutoff30 }.forEach {
+            val idx = (29 - (today - it.timestamp / MS_PER_DAY).toInt()).coerceIn(0, 29)
+            scansByDay30[idx]++
+        }
+    }
+
+    // Global care streak — consecutive days with ANY activity ending today (or yesterday as grace).
+    val activeDays = mutableSetOf<Long>()
+    plants.forEach { p ->
+        p.wateringLog.forEach { activeDays += it / MS_PER_DAY }
+        p.scanHistory.forEach { activeDays += it.timestamp / MS_PER_DAY }
+    }
+    var streak = 0
+    var day = today
+    if (!activeDays.contains(day) && activeDays.contains(day - 1)) day = day - 1
+    while (activeDays.contains(day)) { streak++; day-- }
+
+    // Per-plant breakdown.
+    val perPlant = plants.map { p ->
+        val pWaters = p.wateringLog.count { it >= cutoff30 }
+        val pScans  = p.scanHistory.count { it.timestamp >= cutoff30 }
+        val pDays   = p.wateringLog.map { it / MS_PER_DAY }.toSet()
+        var pStreak = 0
+        var d = today
+        if (!pDays.contains(d) && pDays.contains(d - 1)) d = d - 1
+        while (pDays.contains(d)) { pStreak++; d-- }
+        PerPlantStats(p, pWaters, pScans, pStreak)
+    }.sortedByDescending { it.watersMonth + it.scansMonth }
+
+    return PlantAnalytics(
+        totalPlants  = plants.size,
+        avgHealth    = if (plants.isEmpty()) 0 else plants.map { it.healthScore }.average().toInt(),
+        careStreak   = streak,
+        watersMonth  = watersByDay30.sum(),
+        scansMonth   = scansByDay30.sum(),
+        watersByDay14 = watersByDay30.takeLast(14),
+        scansByDay14  = scansByDay30.takeLast(14),
+        watersByDay30 = watersByDay30.toList(),
+        scansByDay30  = scansByDay30.toList(),
+        perPlant     = perPlant,
+    )
+}
+
 @Composable
-private fun PlantOperationsCard(onOpenPlants: () -> Unit) {
+private fun PlantAnalyticsCard(onOpenPlants: () -> Unit) {
     val plants by PlantRepository.plants.collectAsState()
-    val ops = remember(plants) { derivePlantOps(plants) }
-    val hasPlants = plants.isNotEmpty()
+    val analytics = remember(plants) { computePlantAnalytics(plants) }
+    var showSheet by remember { mutableStateOf(false) }
 
     GlassCard(radius = 22.dp, padding = 18.dp, onClick = onOpenPlants) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Spa, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.section_plant_operations), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
-                Text(stringResource(R.string.nav_plants), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
+                Text("Plant Analytics", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
+                // Clickable chart icon → full analytics sheet
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(AgroPalette.Primary.copy(alpha = 0.16f))
+                        .border(1.dp, AgroPalette.Primary.copy(alpha = 0.35f), CircleShape)
+                        .clickable { showSheet = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Rounded.BarChart, "Open analytics", tint = AgroPalette.Primary, modifier = Modifier.size(18.dp))
+                }
             }
-            Spacer(Modifier.height(4.dp))
-            if (!hasPlants) {
-                Text(
-                    stringResource(R.string.plant_ops_no_plants_body),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = AgroPalette.InkMuted,
+
+            if (analytics.totalPlants == 0) {
+                Spacer(Modifier.height(6.dp))
+                Text("Add a plant to start tracking analytics.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                return@Column
+            }
+
+            Spacer(Modifier.height(12.dp))
+            // Stats strip
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                AnalyticsStatChip("${analytics.careStreak}", "day streak", AgroPalette.Rose, isStreak = true, modifier = Modifier.weight(1f))
+                AnalyticsStatChip("${analytics.watersMonth}", "waterings", AgroPalette.Sky, modifier = Modifier.weight(1f))
+                AnalyticsStatChip("${analytics.scansMonth}", "scans", AgroPalette.Amber, modifier = Modifier.weight(1f))
+                AnalyticsStatChip("${analytics.avgHealth}", "avg health", AgroPalette.Primary, modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(14.dp))
+            // 14-day mini chart: waterings (sky) stacked under scans (amber)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Last 14 days", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted, modifier = Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    LegendDot(AgroPalette.Sky, "water")
+                    LegendDot(AgroPalette.Amber, "scan")
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            StackedBarChart(
+                waters = analytics.watersByDay14,
+                scans  = analytics.scansByDay14,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+            )
+        }
+    }
+
+    if (showSheet) {
+        PlantAnalyticsSheet(analytics = analytics, onDismiss = { showSheet = false })
+    }
+}
+
+@Composable
+private fun AnalyticsStatChip(
+    value: String,
+    label: String,
+    tint: Color,
+    isStreak: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(tint.copy(alpha = 0.08f))
+            .border(1.dp, tint.copy(alpha = 0.22f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (isStreak) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.LocalFireDepartment, null, tint = tint, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(3.dp))
+                Text(value, style = MaterialTheme.typography.titleMedium, color = tint, fontWeight = FontWeight.ExtraBold)
+            }
+        } else {
+            Text(value, style = MaterialTheme.typography.titleMedium, color = tint, fontWeight = FontWeight.ExtraBold)
+        }
+        Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = AgroPalette.InkMuted, maxLines = 1)
+    }
+}
+
+@Composable
+private fun LegendDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = AgroPalette.InkDim)
+    }
+}
+
+/** Bars are stacked: waters on the bottom (sky), scans on top (amber). */
+@Composable
+private fun StackedBarChart(
+    waters: List<Int>,
+    scans: List<Int>,
+    modifier: Modifier = Modifier,
+) {
+    val n = waters.size
+    val pairs = (0 until n).map { (waters.getOrNull(it) ?: 0) + (scans.getOrNull(it) ?: 0) }
+    val maxVal = (pairs.maxOrNull() ?: 0).coerceAtLeast(1)
+    Canvas(modifier = modifier) {
+        if (n == 0) return@Canvas
+        val totalGap = (n - 1) * 4.dp.toPx()
+        val barW = (size.width - totalGap) / n
+        val cornerRadius = CornerRadius(barW / 3f, barW / 3f)
+        for (i in 0 until n) {
+            val w  = waters[i]
+            val s  = scans[i]
+            val tot = w + s
+            val x = i * (barW + 4.dp.toPx())
+            // Background track
+            drawRoundRect(
+                color = AgroPalette.SurfaceGlassBorder.copy(alpha = 0.5f),
+                topLeft = Offset(x, 0f),
+                size = GeomSize(barW, size.height),
+                cornerRadius = cornerRadius,
+            )
+            if (tot == 0) continue
+            val totH = size.height * (tot.toFloat() / maxVal)
+            val waterH = if (tot == 0) 0f else totH * (w.toFloat() / tot)
+            val scanH  = totH - waterH
+            // Waters (bottom, sky)
+            if (waterH > 0f) {
+                drawRoundRect(
+                    color = AgroPalette.Sky,
+                    topLeft = Offset(x, size.height - waterH),
+                    size = GeomSize(barW, waterH),
+                    cornerRadius = cornerRadius,
                 )
-            } else if (ops.isEmpty()) {
-                Text(
-                    stringResource(R.string.plant_ops_all_clear),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = AgroPalette.InkMuted,
+            }
+            // Scans (above, amber)
+            if (scanH > 0f) {
+                drawRoundRect(
+                    color = AgroPalette.Amber,
+                    topLeft = Offset(x, size.height - totH),
+                    size = GeomSize(barW, scanH),
+                    cornerRadius = cornerRadius,
                 )
-            } else {
-                Text(stringResource(R.string.plant_ops_tasks_suggested, ops.size, if (ops.size == 1) "" else "s"), style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
-                Spacer(Modifier.height(12.dp))
-                ops.forEach { op ->
-                    Row(modifier = Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(op.tint))
-                        Spacer(Modifier.width(10.dp))
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Detailed analytics sheet — full 30-day chart, milestones, per-plant breakdown
+// ─────────────────────────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlantAnalyticsSheet(analytics: PlantAnalytics, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = AgroPalette.BgDeep,
+    ) {
+        androidx.compose.foundation.lazy.LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(bottom = 32.dp),
+        ) {
+            // Header
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(AgroPalette.Primary.copy(alpha = 0.14f)),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Rounded.BarChart, null, tint = AgroPalette.Primary) }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Plant Analytics", style = MaterialTheme.typography.titleLarge, color = AgroPalette.Ink, fontWeight = FontWeight.ExtraBold)
+                        Text("Live stats — last 30 days", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Rounded.Close, "Close", tint = AgroPalette.InkMuted)
+                    }
+                }
+            }
+
+            // Streak banner
+            item {
+                GlassCard(
+                    radius = 18.dp,
+                    padding = 16.dp,
+                    background = androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(AgroPalette.Rose.copy(alpha = 0.20f), AgroPalette.Orange.copy(alpha = 0.10f))
+                    ),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.size(54.dp).clip(CircleShape).background(AgroPalette.Rose.copy(alpha = 0.22f)),
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Rounded.LocalFireDepartment, null, tint = AgroPalette.Rose, modifier = Modifier.size(28.dp)) }
+                        Spacer(Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(op.title, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
-                            Text(op.detail, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                            Text("${analytics.careStreak} day streak", style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Ink, fontWeight = FontWeight.ExtraBold)
+                            Text(
+                                when {
+                                    analytics.careStreak == 0 -> "Log a watering or scan today to start a streak."
+                                    analytics.careStreak < 3  -> "Off to a good start — keep it going daily for best growth."
+                                    analytics.careStreak < 7  -> "Nice rhythm! 7 days unlocks your first milestone."
+                                    analytics.careStreak < 30 -> "Strong consistency — your plants are reaping the benefits."
+                                    else                     -> "Magnificent. You're a true plant parent."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AgroPalette.InkMuted,
+                            )
                         }
-                        Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.InkMuted)
+                    }
+                }
+            }
+
+            // 30-day full chart
+            item {
+                GlassCard(radius = 16.dp, padding = 16.dp) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Activity — 30 days", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                LegendDot(AgroPalette.Sky, "water")
+                                LegendDot(AgroPalette.Amber, "scan")
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        StackedBarChart(
+                            waters = analytics.watersByDay30,
+                            scans  = analytics.scansByDay30,
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text("30d ago", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim, modifier = Modifier.weight(1f))
+                            Text("today", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
+                        }
+                    }
+                }
+            }
+
+            // Totals strip
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AnalyticsStatChip("${analytics.watersMonth}", "waterings",  AgroPalette.Sky,     modifier = Modifier.weight(1f))
+                    AnalyticsStatChip("${analytics.scansMonth}",  "scans",      AgroPalette.Amber,   modifier = Modifier.weight(1f))
+                    AnalyticsStatChip("${analytics.avgHealth}",   "avg health", AgroPalette.Primary, modifier = Modifier.weight(1f))
+                    AnalyticsStatChip("${analytics.totalPlants}", "plants",     AgroPalette.Iris,    modifier = Modifier.weight(1f))
+                }
+            }
+
+            // Milestones
+            item {
+                GlassCard(radius = 16.dp, padding = 16.dp) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Milestones", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                        MilestoneRow("First plant added", analytics.totalPlants >= 1)
+                        MilestoneRow("First scan logged", analytics.scansMonth >= 1)
+                        MilestoneRow("First watering logged", analytics.watersMonth >= 1)
+                        MilestoneRow("7-day care streak", analytics.careStreak >= 7)
+                        MilestoneRow("10 scans this month", analytics.scansMonth >= 10)
+                        MilestoneRow("30-day care streak", analytics.careStreak >= 30)
+                    }
+                }
+            }
+
+            // Per-plant breakdown
+            if (analytics.perPlant.isNotEmpty()) {
+                item {
+                    Text("By plant", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                }
+                items(analytics.perPlant) { stat ->
+                    GlassCard(radius = 14.dp, padding = 14.dp) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier.size(36.dp).clip(CircleShape).background(stat.plant.accent.copy(alpha = 0.22f)),
+                                    contentAlignment = Alignment.Center,
+                                ) { Icon(Icons.Rounded.LocalFlorist, null, tint = stat.plant.accent, modifier = Modifier.size(18.dp)) }
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(stat.plant.name, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                                    Text("${stat.plant.species} · health ${stat.plant.healthScore}", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                                }
+                                if (stat.plantStreak > 0) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Rounded.LocalFireDepartment, null, tint = AgroPalette.Rose, modifier = Modifier.size(14.dp))
+                                        Text("${stat.plantStreak}d", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Rose, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                MicroStat("💧", "${stat.watersMonth}", "waters", AgroPalette.Sky, Modifier.weight(1f))
+                                MicroStat("✨", "${stat.scansMonth}", "scans", AgroPalette.Amber, Modifier.weight(1f))
+                                MicroStat("🌱", stat.plant.stage, "stage", AgroPalette.Primary, Modifier.weight(1f))
+                            }
+                        }
                     }
                 }
             }
@@ -1854,55 +2211,49 @@ private fun PlantOperationsCard(onOpenPlants: () -> Unit) {
     }
 }
 
-private data class PlantOp(val title: String, val detail: String, val tint: Color)
-
-/** Derives concrete care tasks from real plant state — overdue waterings,
- *  low-health plants needing scans, never-scanned baselines. */
-private fun derivePlantOps(plants: List<PlantEntry>): List<PlantOp> {
-    val out = mutableListOf<PlantOp>()
-    // Overdue waterings — most urgent
-    val overdue = plants.filter {
-        com.agrosphere.app.data.repo.PlantRepository.wateringStatus(it) is com.agrosphere.app.data.repo.WateringStatus.Overdue
-    }
-    if (overdue.isNotEmpty()) {
-        val names = overdue.joinToString(", ") { it.name }
-        out += PlantOp(
-            title = "Water ${overdue.size} plant${if (overdue.size == 1) "" else "s"} — overdue",
-            detail = names,
-            tint = AgroPalette.Rose,
-        )
-    }
-    // Due today
-    val dueToday = plants.filter {
-        com.agrosphere.app.data.repo.PlantRepository.wateringStatus(it) is com.agrosphere.app.data.repo.WateringStatus.DueToday
-    }
-    if (dueToday.isNotEmpty()) {
-        out += PlantOp(
-            title = "Water ${dueToday.size} plant${if (dueToday.size == 1) "" else "s"} today",
-            detail = dueToday.joinToString(", ") { it.name },
-            tint = AgroPalette.Amber,
-        )
-    }
-    // Lowest-health plant — recommend a scan
-    plants.minByOrNull { it.healthScore }?.let { p ->
-        if (p.healthScore < 65) {
-            out += PlantOp(
-                title = "Scan ${p.name}",
-                detail = "Health ${p.healthScore} — rescan to diagnose",
-                tint = AgroPalette.Orange,
-            )
+@Composable
+private fun MilestoneRow(label: String, achieved: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(
+                    if (achieved) AgroPalette.Primary.copy(alpha = 0.20f)
+                    else AgroPalette.SurfaceGlassBorder.copy(alpha = 0.4f)
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (achieved) {
+                Icon(Icons.Rounded.CheckCircle, null, tint = AgroPalette.Primary, modifier = Modifier.size(14.dp))
+            }
         }
-    }
-    // Plants never scanned — baseline assessment needed
-    val unscanned = plants.filter { it.lastScanMs == 0L }
-    if (unscanned.isNotEmpty()) {
-        out += PlantOp(
-            title = "Baseline scan needed",
-            detail = "${unscanned.size} plant${if (unscanned.size == 1) "" else "s"} never assessed",
-            tint = AgroPalette.Sky,
+        Spacer(Modifier.width(10.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (achieved) AgroPalette.Ink else AgroPalette.InkDim,
+            fontWeight = if (achieved) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
-    return out.take(4)
+}
+
+@Composable
+private fun MicroStat(emoji: String, value: String, label: String, tint: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(tint.copy(alpha = 0.06f))
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(emoji, style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.width(4.dp))
+            Text(value, style = MaterialTheme.typography.labelMedium, color = tint, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
+        Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = AgroPalette.InkMuted, maxLines = 1)
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
