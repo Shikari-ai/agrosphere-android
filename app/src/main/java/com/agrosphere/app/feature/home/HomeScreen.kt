@@ -240,7 +240,7 @@ fun HomeScreen(
             }
             // ── At a glance grid ──────────────────────────────────────────────
             item { SectionHeader(title = stringResource(R.string.section_at_a_glance)) }
-            item { AtAGlanceGrid(state = state) }
+            item { AtAGlancePager(state = state, plants = plantsForOps) }
             // ── My Space — fields + plants, mode-aware ───────────────────────
             item { SectionHeader(title = stringResource(R.string.section_my_space), trailing = stringResource(R.string.section_manage_all)) }
             if (userMode == "farmer" || userMode == "both") {
@@ -2720,6 +2720,115 @@ private fun AtAGlanceGrid(state: HomeUiState) {
 }
 
 private data class GlanceItem(val label: String, val value: String, val sub: String, val icon: ImageVector, val tint: Color)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plant glance grid — mirrors AtAGlanceGrid for the home-plants surface
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun PlantAtAGlanceGrid(plants: List<PlantEntry>) {
+    val dueTodayCount = remember(plants) {
+        plants.count {
+            val s = com.agrosphere.app.data.repo.PlantRepository.wateringStatus(it)
+            s is com.agrosphere.app.data.repo.WateringStatus.DueToday ||
+                s is com.agrosphere.app.data.repo.WateringStatus.Overdue
+        }
+    }
+    val avgHealth = if (plants.isEmpty()) 0 else plants.map { it.healthScore }.average().toInt()
+    val species   = plants.map { it.species }.distinct().size
+
+    val items = listOf(
+        GlanceItem(
+            stringResource(R.string.glance_plants),
+            "${plants.size}",
+            stringResource(R.string.glance_growing_plants),
+            Icons.Rounded.LocalFlorist,
+            AgroPalette.Primary,
+        ),
+        GlanceItem(
+            stringResource(R.string.glance_species),
+            "$species",
+            stringResource(R.string.glance_varieties),
+            Icons.Rounded.Spa,
+            AgroPalette.Iris,
+        ),
+        GlanceItem(
+            stringResource(R.string.glance_water),
+            "$dueTodayCount",
+            if (dueTodayCount == 0) stringResource(R.string.glance_all_clear) else stringResource(R.string.glance_due_today),
+            Icons.Rounded.WaterDrop,
+            if (dueTodayCount == 0) AgroPalette.Sky else AgroPalette.Rose,
+        ),
+        GlanceItem(
+            stringResource(R.string.glance_health),
+            if (plants.isEmpty()) "—" else "$avgHealth",
+            stringResource(R.string.glance_average),
+            Icons.Rounded.Eco,
+            when {
+                avgHealth >= 80 -> AgroPalette.Primary
+                avgHealth >= 60 -> AgroPalette.Amber
+                else            -> AgroPalette.Rose
+            },
+        ),
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { GlanceCard(item = it, modifier = Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// At-a-glance pager — Farm grid / Plant grid, mode-aware with 7s auto-swipe
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun AtAGlancePager(state: HomeUiState, plants: List<PlantEntry>) {
+    val mode by AppPreferences.userMode.collectAsState()
+    val showFarm  = mode == "farmer" || mode == "both"
+    val showPlant = mode == "plant"  || mode == "both"
+
+    when {
+        showFarm && showPlant -> {
+            val pagerState = rememberPagerState(pageCount = { 2 })
+            LaunchedEffect(pagerState.isScrollInProgress, pagerState.currentPage) {
+                if (!pagerState.isScrollInProgress) {
+                    delay(7000)
+                    if (!pagerState.isScrollInProgress) {
+                        val next = (pagerState.currentPage + 1) % 2
+                        pagerState.animateScrollToPage(next)
+                    }
+                }
+            }
+            Column {
+                HorizontalPager(state = pagerState) { page ->
+                    when (page) {
+                        0    -> AtAGlanceGrid(state = state)
+                        else -> PlantAtAGlanceGrid(plants = plants)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    repeat(2) { idx ->
+                        val selected = pagerState.currentPage == idx
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(width = if (selected) 18.dp else 6.dp, height = 6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(
+                                    if (selected) AgroPalette.Primary
+                                    else AgroPalette.SurfaceGlassBorder,
+                                ),
+                        )
+                    }
+                }
+            }
+        }
+        showFarm  -> AtAGlanceGrid(state = state)
+        showPlant -> PlantAtAGlanceGrid(plants = plants)
+    }
+}
 
 @Composable
 private fun GlanceCard(item: GlanceItem, modifier: Modifier = Modifier) {

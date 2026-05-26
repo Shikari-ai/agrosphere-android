@@ -165,6 +165,16 @@
     <string name="glance_growing">Growing</string>
     <string name="glance_efficiency">Efficiency</string>
     <string name="glance_moisture">Moisture</string>
+    <!-- Plant glance grid -->
+    <string name="glance_plants">Plants</string>
+    <string name="glance_species">Species</string>
+    <string name="glance_water">Water</string>
+    <string name="glance_health">Health</string>
+    <string name="glance_growing_plants">growing</string>
+    <string name="glance_varieties">varieties</string>
+    <string name="glance_due_today">due today</string>
+    <string name="glance_all_clear">all clear</string>
+    <string name="glance_average">average</string>
 
     <!-- Fields screen -->
     <string name="fields_eyebrow">Plots</string>
