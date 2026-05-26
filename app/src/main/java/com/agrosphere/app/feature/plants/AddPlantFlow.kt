@@ -533,72 +533,76 @@ private fun ReviewStage(
                     else
                         Brush.linearGradient(listOf(AgroPalette.Primary.copy(alpha = 0.14f), AgroPalette.Primary.copy(alpha = 0.04f))),
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier.size(46.dp).clip(CircleShape).background(AgroPalette.Primary.copy(alpha = 0.22f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                if (unidentified) Icons.Rounded.Edit else Icons.Rounded.AutoAwesome,
-                                null, tint = AgroPalette.Primary,
-                            )
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                if (unidentified) "Couldn't identify automatically" else "Identified",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = AgroPalette.InkMuted,
-                            )
-                            Text(
-                                if (unidentified) "Type the species name" else (id?.commonName ?: ""),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = AgroPalette.Ink,
-                                fontWeight = FontWeight.ExtraBold,
-                            )
-                            if (!unidentified) {
+                    // GlassCard wraps content in a Box, so children stack unless we
+                    // explicitly lay them out in a Column.
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier.size(46.dp).clip(CircleShape).background(AgroPalette.Primary.copy(alpha = 0.22f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    if (unidentified) Icons.Rounded.Edit else Icons.Rounded.AutoAwesome,
+                                    null, tint = AgroPalette.Primary,
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    listOfNotNull(
-                                        id?.scientificName?.takeIf { it.isNotBlank() },
-                                        id?.variety?.takeIf { it.isNotBlank() },
-                                        id?.confidence?.let { "${it}% confidence" },
-                                    ).joinToString(" · "),
+                                    if (unidentified) "Couldn't identify automatically" else "Identified",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = AgroPalette.InkMuted,
                                 )
+                                Text(
+                                    if (unidentified) "Type the species name" else (id?.commonName ?: ""),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = AgroPalette.Ink,
+                                    fontWeight = FontWeight.ExtraBold,
+                                )
+                                if (!unidentified) {
+                                    Text(
+                                        listOfNotNull(
+                                            id?.scientificName?.takeIf { it.isNotBlank() },
+                                            id?.variety?.takeIf { it.isNotBlank() },
+                                            id?.confidence?.let { "${it}% confidence" },
+                                        ).joinToString(" · "),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = AgroPalette.InkMuted,
+                                    )
+                                }
                             }
                         }
-                    }
-                    if (unidentified) {
-                        Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value         = speciesName,
-                            onValueChange = { speciesName = it },
-                            placeholder   = { Text("e.g. Rose, Money Plant", color = AgroPalette.InkDim) },
-                            singleLine    = true,
-                            modifier      = Modifier.fillMaxWidth(),
-                            shape         = RoundedCornerShape(12.dp),
-                            colors        = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor   = AgroPalette.Primary,
-                                unfocusedBorderColor = AgroPalette.SurfaceGlassBorder,
-                                focusedTextColor     = AgroPalette.Ink,
-                                unfocusedTextColor   = AgroPalette.Ink,
-                                cursorColor          = AgroPalette.Primary,
-                                focusedContainerColor   = AgroPalette.SurfaceGlass,
-                                unfocusedContainerColor = AgroPalette.SurfaceGlass,
-                            ),
-                        )
-                    }
-                    if (id?.careNote?.isNotBlank() == true) {
-                        Spacer(Modifier.height(10.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(AgroPalette.Primary.copy(alpha = 0.07f))
-                                .padding(10.dp),
-                        ) {
-                            Text("💡 ${id.careNote}", style = MaterialTheme.typography.bodySmall, color = AgroPalette.Ink)
+                        if (unidentified) {
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value         = speciesName,
+                                onValueChange = { speciesName = it },
+                                placeholder   = { Text("e.g. Rose, Money Plant", color = AgroPalette.InkDim) },
+                                singleLine    = true,
+                                modifier      = Modifier.fillMaxWidth(),
+                                shape         = RoundedCornerShape(12.dp),
+                                colors        = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor   = AgroPalette.Primary,
+                                    unfocusedBorderColor = AgroPalette.SurfaceGlassBorder,
+                                    focusedTextColor     = AgroPalette.Ink,
+                                    unfocusedTextColor   = AgroPalette.Ink,
+                                    cursorColor          = AgroPalette.Primary,
+                                    focusedContainerColor   = AgroPalette.SurfaceGlass,
+                                    unfocusedContainerColor = AgroPalette.SurfaceGlass,
+                                ),
+                            )
+                        }
+                        if (id?.careNote?.isNotBlank() == true) {
+                            Spacer(Modifier.height(10.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(AgroPalette.Primary.copy(alpha = 0.07f))
+                                    .padding(10.dp),
+                            ) {
+                                Text("💡 ${id.careNote}", style = MaterialTheme.typography.bodySmall, color = AgroPalette.Ink)
+                            }
                         }
                     }
                 }
