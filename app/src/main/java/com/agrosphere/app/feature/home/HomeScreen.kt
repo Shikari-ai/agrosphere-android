@@ -191,7 +191,13 @@ fun HomeScreen(
                 )
             } }
             // ── [3] Field operations ──────────────────────────────────────────
-            item { EntranceItem(itemVisible[3]) { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) } }
+            item { EntranceItem(itemVisible[3]) {
+                OperationsPager(
+                    hasFields    = state.fieldsCount > 0,
+                    onOpenFields = onOpenFields,
+                    onOpenPlants = onOpenPlants,
+                )
+            } }
             // ── Alerts ────────────────────────────────────────────────────────
             item { EntranceItem(itemVisible[4]) { SectionHeader(title = stringResource(R.string.section_recent_alerts), trailing = if (state.alerts.isEmpty()) null else stringResource(R.string.section_see_all)) } }
             if (state.alerts.isEmpty()) {
@@ -1745,6 +1751,158 @@ private fun QuickActionPill(action: QuickActionData, modifier: Modifier = Modifi
         Spacer(Modifier.height(6.dp))
         Text(action.label, style = MaterialTheme.typography.labelMedium, color = AgroPalette.Ink, maxLines = 1)
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Operations pager — Field ops (farmer) / Plant ops (plant) / both with auto-swipe
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun OperationsPager(
+    hasFields: Boolean,
+    onOpenFields: () -> Unit,
+    onOpenPlants: () -> Unit,
+) {
+    val mode by AppPreferences.userMode.collectAsState()
+    when (mode) {
+        "farmer" -> FieldOperationsCard(onOpenFields = onOpenFields, hasFields = hasFields)
+        "plant"  -> PlantOperationsCard(onOpenPlants = onOpenPlants)
+        else -> {
+            val pagerState = rememberPagerState(pageCount = { 2 })
+            LaunchedEffect(pagerState.isScrollInProgress, pagerState.currentPage) {
+                if (!pagerState.isScrollInProgress) {
+                    delay(7000)
+                    if (!pagerState.isScrollInProgress) {
+                        val next = (pagerState.currentPage + 1) % 2
+                        pagerState.animateScrollToPage(next)
+                    }
+                }
+            }
+            Column {
+                HorizontalPager(state = pagerState) { page ->
+                    when (page) {
+                        0    -> FieldOperationsCard(onOpenFields = onOpenFields, hasFields = hasFields)
+                        else -> PlantOperationsCard(onOpenPlants = onOpenPlants)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    repeat(2) { idx ->
+                        val selected = pagerState.currentPage == idx
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(width = if (selected) 18.dp else 6.dp, height = 6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(
+                                    if (selected) AgroPalette.Primary
+                                    else AgroPalette.SurfaceGlassBorder,
+                                ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plant operations — today's care tasks derived from real plant state
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun PlantOperationsCard(onOpenPlants: () -> Unit) {
+    val plants by PlantRepository.plants.collectAsState()
+    val ops = remember(plants) { derivePlantOps(plants) }
+    val hasPlants = plants.isNotEmpty()
+
+    GlassCard(radius = 22.dp, padding = 18.dp, onClick = onOpenPlants) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Spa, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.section_plant_operations), style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.nav_plants), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
+            }
+            Spacer(Modifier.height(4.dp))
+            if (!hasPlants) {
+                Text(
+                    stringResource(R.string.plant_ops_no_plants_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgroPalette.InkMuted,
+                )
+            } else if (ops.isEmpty()) {
+                Text(
+                    stringResource(R.string.plant_ops_all_clear),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgroPalette.InkMuted,
+                )
+            } else {
+                Text(stringResource(R.string.plant_ops_tasks_suggested, ops.size, if (ops.size == 1) "" else "s"), style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                Spacer(Modifier.height(12.dp))
+                ops.forEach { op ->
+                    Row(modifier = Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(op.tint))
+                        Spacer(Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(op.title, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                            Text(op.detail, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                        }
+                        Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.InkMuted)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class PlantOp(val title: String, val detail: String, val tint: Color)
+
+/** Derives concrete care tasks from real plant state — overdue waterings,
+ *  low-health plants needing scans, never-scanned baselines. */
+private fun derivePlantOps(plants: List<PlantEntry>): List<PlantOp> {
+    val out = mutableListOf<PlantOp>()
+    // Overdue waterings — most urgent
+    val overdue = plants.filter {
+        com.agrosphere.app.data.repo.PlantRepository.wateringStatus(it) is com.agrosphere.app.data.repo.WateringStatus.Overdue
+    }
+    if (overdue.isNotEmpty()) {
+        val names = overdue.joinToString(", ") { it.name }
+        out += PlantOp(
+            title = "Water ${overdue.size} plant${if (overdue.size == 1) "" else "s"} — overdue",
+            detail = names,
+            tint = AgroPalette.Rose,
+        )
+    }
+    // Due today
+    val dueToday = plants.filter {
+        com.agrosphere.app.data.repo.PlantRepository.wateringStatus(it) is com.agrosphere.app.data.repo.WateringStatus.DueToday
+    }
+    if (dueToday.isNotEmpty()) {
+        out += PlantOp(
+            title = "Water ${dueToday.size} plant${if (dueToday.size == 1) "" else "s"} today",
+            detail = dueToday.joinToString(", ") { it.name },
+            tint = AgroPalette.Amber,
+        )
+    }
+    // Lowest-health plant — recommend a scan
+    plants.minByOrNull { it.healthScore }?.let { p ->
+        if (p.healthScore < 65) {
+            out += PlantOp(
+                title = "Scan ${p.name}",
+                detail = "Health ${p.healthScore} — rescan to diagnose",
+                tint = AgroPalette.Orange,
+            )
+        }
+    }
+    // Plants never scanned — baseline assessment needed
+    val unscanned = plants.filter { it.lastScanMs == 0L }
+    if (unscanned.isNotEmpty()) {
+        out += PlantOp(
+            title = "Baseline scan needed",
+            detail = "${unscanned.size} plant${if (unscanned.size == 1) "" else "s"} never assessed",
+            tint = AgroPalette.Sky,
+        )
+    }
+    return out.take(4)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -42,6 +42,10 @@
 
     <!-- Home sections -->
     <string name="section_field_operations">Field operations</string>
+    <string name="section_plant_operations">Plant operations</string>
+    <string name="plant_ops_no_plants_body">Add a plant to see today\'s care tasks.</string>
+    <string name="plant_ops_all_clear">All good — everyone\'s watered and healthy.</string>
+    <string name="plant_ops_tasks_suggested">%1$d task%2$s for your plants today</string>
     <string name="section_recent_alerts">Recent alerts</string>
     <string name="section_crop_health">Crop health monitor</string>
     <string name="section_pest_prediction">Pest prediction</string>
