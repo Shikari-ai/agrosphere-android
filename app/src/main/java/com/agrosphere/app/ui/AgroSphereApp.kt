@@ -223,6 +223,7 @@ fun AgroSphereApp() {
                     onOpenFields = { navController.navigate(Dest.Fields.route) },
                     onOpenPlants = { navController.navigate(Dest.Plants.route) },
                     onOpenPlant = { id -> navController.navigate(Dest.PlantDetail.build(id)) },
+                    onAddPlant = { navController.navigate(Dest.AddPlant.route) },
                 )
             }
             composable(Dest.Fields.route) {

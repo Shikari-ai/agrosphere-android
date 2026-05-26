@@ -135,6 +135,7 @@ fun HomeScreen(
     onOpenFields: () -> Unit = {},
     onOpenPlants: () -> Unit = {},
     onOpenPlant: (String) -> Unit = {},
+    onAddPlant: () -> Unit = {},
     vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
@@ -194,8 +195,10 @@ fun HomeScreen(
             // ── [1] Quick actions ─────────────────────────────────────────────
             item { EntranceItem(itemVisible[1]) {
                 QuickActionsRow(
-                    onScan = onOpenScanner,
-                    onAddField = onOpenFields,
+                    mode        = userMode,
+                    onScan      = onOpenScanner,
+                    onAddField  = onOpenFields,
+                    onAddPlant  = onAddPlant,
                     onAssistant = onOpenAssistant,
                 )
             } }
@@ -1701,15 +1704,50 @@ private fun LiveDataRibbon(state: HomeUiState) {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun QuickActionsRow(
+    mode: String,
     onScan: () -> Unit,
     onAddField: () -> Unit,
+    onAddPlant: () -> Unit,
     onAssistant: () -> Unit,
 ) {
-    val actions = listOf(
-        QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_scan_crop), Icons.Rounded.CameraAlt, AgroPalette.Primary, onScan),
-        QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_add_field), Icons.Rounded.Grass, AgroPalette.Sky, onAddField),
-        QuickActionData(androidx.compose.ui.res.stringResource(com.agrosphere.app.R.string.action_ai_assistant), Icons.Rounded.AutoAwesome, AgroPalette.Iris, onAssistant),
-    )
+    val actions = buildList {
+        // Scan — label adapts to mode so 'Scan crop' / 'Scan plant' / 'Scan' all read right.
+        add(QuickActionData(
+            label = when (mode) {
+                "farmer" -> stringResource(com.agrosphere.app.R.string.action_scan_crop)
+                "plant"  -> stringResource(com.agrosphere.app.R.string.action_scan_plant)
+                else     -> stringResource(com.agrosphere.app.R.string.action_scan)
+            },
+            icon  = Icons.Rounded.CameraAlt,
+            tint  = AgroPalette.Primary,
+            onClick = onScan,
+        ))
+        // Add field — farmer + both
+        if (mode == "farmer" || mode == "both") {
+            add(QuickActionData(
+                stringResource(com.agrosphere.app.R.string.action_add_field),
+                Icons.Rounded.Grass,
+                AgroPalette.Sky,
+                onAddField,
+            ))
+        }
+        // Add plant — plant + both
+        if (mode == "plant" || mode == "both") {
+            add(QuickActionData(
+                stringResource(com.agrosphere.app.R.string.action_add_plant),
+                Icons.Rounded.LocalFlorist,
+                AgroPalette.Primary,
+                onAddPlant,
+            ))
+        }
+        // AI assistant — always
+        add(QuickActionData(
+            stringResource(com.agrosphere.app.R.string.action_ai_assistant),
+            Icons.Rounded.AutoAwesome,
+            AgroPalette.Iris,
+            onAssistant,
+        ))
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),

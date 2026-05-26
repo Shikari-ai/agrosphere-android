@@ -27,6 +27,9 @@
     <!-- Home quick actions -->
     <string name="action_scan_crop">Scan crop</string>
     <string name="action_add_field">Add field</string>
+    <string name="action_add_plant">Add plant</string>
+    <string name="action_scan">Scan</string>
+    <string name="action_scan_plant">Scan plant</string>
     <string name="action_irrigation">Irrigation</string>
     <string name="action_ai_copilot">AI copilot</string>
     <string name="action_ai_assistant">AI assistant</string>
