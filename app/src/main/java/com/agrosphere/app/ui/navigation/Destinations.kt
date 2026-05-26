@@ -4,7 +4,6 @@ import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CameraAlt
-import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocalFlorist
@@ -67,7 +66,8 @@ data class TabItem(
 )
 
 /** Build the bottom tab list based on the user's chosen mode.
- *  "farmer" → Fields tab; "plant" → Plants tab; "both" → both tabs (6 items total). */
+ *  Weather isn't a tab — it's reached via the Home weather card so the nav
+ *  bar stays focused on actions (Home, what-I-grow, Scan, Ask). */
 fun bottomTabsForMode(mode: String): List<TabItem> = buildList {
     add(TabItem(Dest.Home,      R.string.nav_home,    Icons.Rounded.Home))
     if (mode == "farmer" || mode == "both") {
@@ -77,7 +77,6 @@ fun bottomTabsForMode(mode: String): List<TabItem> = buildList {
         add(TabItem(Dest.Plants, R.string.nav_plants, Icons.Rounded.LocalFlorist))
     }
     add(TabItem(Dest.Scanner,   R.string.nav_scan,    Icons.Rounded.CameraAlt))
-    add(TabItem(Dest.Weather,   R.string.nav_weather, Icons.Rounded.Cloud))
     add(TabItem(Dest.Assistant, R.string.nav_ask,     Icons.Rounded.AutoAwesome))
 }
 
