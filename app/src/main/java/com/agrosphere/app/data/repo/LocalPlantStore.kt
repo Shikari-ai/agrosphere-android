@@ -34,6 +34,10 @@ private data class PersistedPlant(
     val scanHistory: List<PlantScanRecord> = emptyList(),
     val lastScanMs: Long = 0L,
     val photoPath: String? = null,
+    val scientificName: String = "",
+    val variety: String = "",
+    val soilType: String = "",
+    val careNote: String = "",
 )
 
 object LocalPlantStore {
@@ -82,6 +86,10 @@ object LocalPlantStore {
         scanHistory           = scanHistory,
         lastScanMs            = lastScanMs,
         photoPath             = photoPath,
+        scientificName        = scientificName,
+        variety               = variety,
+        soilType              = soilType,
+        careNote              = careNote,
     )
 
     private fun PlantEntry.toPersisted(): PersistedPlant = PersistedPlant(
@@ -100,5 +108,9 @@ object LocalPlantStore {
         scanHistory           = scanHistory,
         lastScanMs            = lastScanMs,
         photoPath             = photoPath,
+        scientificName        = scientificName,
+        variety               = variety,
+        soilType              = soilType,
+        careNote              = careNote,
     )
 }

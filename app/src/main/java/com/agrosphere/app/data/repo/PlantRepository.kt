@@ -55,6 +55,10 @@ object PlantRepository {
         accent: Color,
         initialScan: PlantScanRecord? = null,
         photoPath: String? = null,
+        scientificName: String = "",
+        variety: String = "",
+        soilType: String = "",
+        careNote: String = "",
     ): PlantEntry {
         val now = System.currentTimeMillis()
         val entry = PlantEntry(
@@ -70,6 +74,10 @@ object PlantRepository {
             scanHistory           = initialScan?.let { listOf(it) } ?: emptyList(),
             lastScanMs            = if (initialScan != null) now else 0L,
             photoPath             = photoPath,
+            scientificName        = scientificName,
+            variety               = variety,
+            soilType              = soilType,
+            careNote              = careNote,
         )
         _plants.update { it + entry }
         persist()

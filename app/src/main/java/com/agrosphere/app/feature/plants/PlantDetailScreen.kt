@@ -380,8 +380,16 @@ private fun CareTab(
                         Text("Care Guide", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
                     }
                     CareIconRow(Icons.Rounded.WbSunny, stringResource(R.string.plant_care_sunlight), plant.sunlightNeed, AgroPalette.Amber)
-                    if (speciesInfo != null) {
-                        CareIconRow(Icons.Rounded.Grass, stringResource(R.string.plant_care_soil), speciesInfo.soilType, AgroPalette.Primary)
+                    // Prefer AI-identified soil/care over the static catalog — fall back to catalog only when AI didn't provide it.
+                    val soilType = plant.soilType.ifBlank { speciesInfo?.soilType.orEmpty() }
+                    val careNote = plant.careNote.ifBlank { speciesInfo?.careNote.orEmpty() }
+                    if (soilType.isNotBlank()) {
+                        CareIconRow(Icons.Rounded.Grass, stringResource(R.string.plant_care_soil), soilType, AgroPalette.Primary)
+                    }
+                    if (plant.scientificName.isNotBlank()) {
+                        CareIconRow(Icons.Rounded.LocalFlorist, "Scientific name", plant.scientificName, AgroPalette.Iris)
+                    }
+                    if (careNote.isNotBlank()) {
                         Spacer(Modifier.height(4.dp))
                         Row(
                             modifier = Modifier
@@ -390,7 +398,7 @@ private fun CareTab(
                                 .background(AgroPalette.Primary.copy(alpha = 0.07f))
                                 .padding(10.dp),
                         ) {
-                            Text("💡 ${speciesInfo.careNote}", style = MaterialTheme.typography.bodySmall, color = AgroPalette.Ink)
+                            Text("💡 $careNote", style = MaterialTheme.typography.bodySmall, color = AgroPalette.Ink)
                         }
                     }
                     CareInfoRow(label = "Pot", value = plant.potSize)

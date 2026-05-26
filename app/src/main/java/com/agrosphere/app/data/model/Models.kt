@@ -83,6 +83,12 @@ data class PlantEntry(
     val scanHistory: List<PlantScanRecord> = emptyList(), // newest first, capped at 30
     val lastScanMs: Long = 0L,                          // timestamp of most recent scan
     val photoPath: String? = null,                      // path to the most recent plant photo
+    // AI-identification metadata — populated when the plant is added via the
+    // camera flow. Detail screens prefer these over PlantData catalog lookups.
+    val scientificName: String = "",
+    val variety: String = "",
+    val soilType: String = "",
+    val careNote: String = "",
 )
 
 // ─── Weather intelligence ────────────────────────────────────────────────────

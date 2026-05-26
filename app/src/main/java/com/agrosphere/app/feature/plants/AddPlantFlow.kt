@@ -198,6 +198,10 @@ fun AddPlantFlow(
                             accent               = accent,
                             initialScan          = initialScan,
                             photoPath            = photoPath,
+                            scientificName       = identification?.scientificName.orEmpty(),
+                            variety              = identification?.variety.orEmpty(),
+                            soilType             = identification?.soilType.orEmpty(),
+                            careNote             = identification?.careNote.orEmpty(),
                         )
                         onSaved()
                     },
