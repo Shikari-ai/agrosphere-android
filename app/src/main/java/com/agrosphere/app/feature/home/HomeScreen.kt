@@ -35,8 +35,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import com.agrosphere.app.data.model.Field
 import com.agrosphere.app.data.model.PlantEntry
 import com.agrosphere.app.data.plants.PlantData
+import com.agrosphere.app.data.repo.FieldRepository
+import com.agrosphere.app.data.repo.LocalScanStore
 import com.agrosphere.app.data.repo.PlantRepository
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Spa
@@ -102,7 +105,6 @@ import com.agrosphere.app.data.model.AlertItem
 import com.agrosphere.app.data.model.ConditionKind
 import com.agrosphere.app.data.model.WeatherSnapshot
 import com.agrosphere.app.data.repo.AppPreferences
-import com.agrosphere.app.data.repo.FieldRepository
 import com.agrosphere.app.data.repo.MockRepository
 import com.agrosphere.app.data.repo.UnitFormatter
 import com.agrosphere.app.ui.components.GlassCard
@@ -1804,7 +1806,7 @@ private fun OperationsPager(
             Column {
                 HorizontalPager(state = pagerState) { page ->
                     when (page) {
-                        0    -> FieldOperationsCard(onOpenFields = onOpenFields, hasFields = true)
+                        0    -> FieldAnalyticsCard(onOpenFields = onOpenFields)
                         else -> PlantAnalyticsCard(onOpenPlants = onOpenPlants)
                     }
                 }
@@ -1826,7 +1828,7 @@ private fun OperationsPager(
                 }
             }
         }
-        showField -> FieldOperationsCard(onOpenFields = onOpenFields, hasFields = true)
+        showField -> FieldAnalyticsCard(onOpenFields = onOpenFields)
         showPlant -> PlantAnalyticsCard(onOpenPlants = onOpenPlants)
     }
 }
@@ -1913,6 +1915,257 @@ private fun computePlantAnalytics(plants: List<PlantEntry>): PlantAnalytics {
         scansByDay30  = scansByDay30.toList(),
         perPlant     = perPlant,
     )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Field Analytics — mirror of Plant Analytics, but for crop fields.
+// Stats come from FieldRepository + LocalScanStore (the disease-scan history).
+// ═════════════════════════════════════════════════════════════════════════════
+
+data class FieldAnalytics(
+    val totalFields: Int,
+    val totalAreaHa: Double,
+    val avgHealth: Int,
+    val avgMoisture: Int,
+    val scansMonth: Int,
+    val scansByDay14: List<Int>,
+    val scansByDay30: List<Int>,
+    val perField: List<Field>,
+)
+
+private fun computeFieldAnalytics(
+    fields: List<Field>,
+    scans: List<com.agrosphere.app.data.repo.SavedScan>,
+): FieldAnalytics {
+    val now = System.currentTimeMillis()
+    val today = now / MS_PER_DAY
+    val cutoff30 = now - 30 * MS_PER_DAY
+
+    val scansByDay30 = IntArray(30)
+    scans.filter { it.createdAtMillis >= cutoff30 }.forEach {
+        val idx = (29 - (today - it.createdAtMillis / MS_PER_DAY).toInt()).coerceIn(0, 29)
+        scansByDay30[idx]++
+    }
+
+    return FieldAnalytics(
+        totalFields = fields.size,
+        totalAreaHa = fields.sumOf { it.areaHa },
+        avgHealth   = if (fields.isEmpty()) 0 else fields.map { it.healthScore }.average().toInt(),
+        avgMoisture = if (fields.isEmpty()) 0 else fields.map { it.moisturePct }.average().toInt(),
+        scansMonth  = scansByDay30.sum(),
+        scansByDay14 = scansByDay30.takeLast(14),
+        scansByDay30 = scansByDay30.toList(),
+        perField    = fields.sortedByDescending { it.healthScore },
+    )
+}
+
+@Composable
+private fun FieldAnalyticsCard(onOpenFields: () -> Unit) {
+    val context = LocalContext.current
+    val fields by FieldRepository.fields.collectAsState()
+    val scans = remember(fields) { LocalScanStore.load(context) }
+    val analytics = remember(fields, scans) { computeFieldAnalytics(fields, scans) }
+    var showSheet by remember { mutableStateOf(false) }
+
+    GlassCard(radius = 22.dp, padding = 18.dp, onClick = onOpenFields) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Grass, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Field Analytics", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(AgroPalette.Primary.copy(alpha = 0.16f))
+                        .border(1.dp, AgroPalette.Primary.copy(alpha = 0.35f), CircleShape)
+                        .clickable { showSheet = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Rounded.BarChart, "Open analytics", tint = AgroPalette.Primary, modifier = Modifier.size(18.dp))
+                }
+            }
+
+            if (analytics.totalFields == 0) {
+                Spacer(Modifier.height(6.dp))
+                Text("Add a field to start tracking analytics.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                return@Column
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                AnalyticsStatChip("${analytics.totalFields}", "fields",     AgroPalette.Primary, modifier = Modifier.weight(1f))
+                AnalyticsStatChip("%.1f".format(analytics.totalAreaHa), "ha", AgroPalette.Iris, modifier = Modifier.weight(1f))
+                AnalyticsStatChip("${analytics.scansMonth}", "scans",       AgroPalette.Amber,   modifier = Modifier.weight(1f))
+                AnalyticsStatChip("${analytics.avgHealth}", "avg health",   AgroPalette.Sky,     modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(14.dp))
+            // 14-day scan history — single series so the 'waters' channel is zeros.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Last 14 days", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted, modifier = Modifier.weight(1f))
+                LegendDot(AgroPalette.Amber, "scan")
+            }
+            Spacer(Modifier.height(6.dp))
+            StackedBarChart(
+                waters = List(analytics.scansByDay14.size) { 0 },
+                scans  = analytics.scansByDay14,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+            )
+        }
+    }
+
+    if (showSheet) {
+        FieldAnalyticsSheet(analytics = analytics, onDismiss = { showSheet = false })
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FieldAnalyticsSheet(analytics: FieldAnalytics, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = AgroPalette.BgDeep,
+    ) {
+        androidx.compose.foundation.lazy.LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(bottom = 32.dp),
+        ) {
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(AgroPalette.Primary.copy(alpha = 0.14f)),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Rounded.BarChart, null, tint = AgroPalette.Primary) }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Field Analytics", style = MaterialTheme.typography.titleLarge, color = AgroPalette.Ink, fontWeight = FontWeight.ExtraBold)
+                        Text("Live stats — last 30 days", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Rounded.Close, "Close", tint = AgroPalette.InkMuted)
+                    }
+                }
+            }
+
+            // Scan-cadence banner — fields don't have a watering streak, so we
+            // surface scouting consistency instead.
+            item {
+                GlassCard(
+                    radius = 18.dp,
+                    padding = 16.dp,
+                    background = androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(AgroPalette.Amber.copy(alpha = 0.20f), AgroPalette.Primary.copy(alpha = 0.10f))
+                    ),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.size(54.dp).clip(CircleShape).background(AgroPalette.Amber.copy(alpha = 0.22f)),
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Rounded.BarChart, null, tint = AgroPalette.Amber, modifier = Modifier.size(26.dp)) }
+                        Spacer(Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("${analytics.scansMonth} scans this month", style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Ink, fontWeight = FontWeight.ExtraBold)
+                            Text(
+                                when {
+                                    analytics.scansMonth == 0 -> "Scout one of your fields with the camera to start tracking."
+                                    analytics.scansMonth < 4  -> "Light scouting cadence — aim for a weekly pass per field."
+                                    analytics.scansMonth < 12 -> "Solid scouting — your fields are well watched."
+                                    else                     -> "Top-tier scouting cadence. Catching issues early."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AgroPalette.InkMuted,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 30-day full chart
+            item {
+                GlassCard(radius = 16.dp, padding = 16.dp) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Scans — 30 days", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            LegendDot(AgroPalette.Amber, "scan")
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        StackedBarChart(
+                            waters = List(analytics.scansByDay30.size) { 0 },
+                            scans  = analytics.scansByDay30,
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text("30d ago", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim, modifier = Modifier.weight(1f))
+                            Text("today",  style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
+                        }
+                    }
+                }
+            }
+
+            // Totals strip
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AnalyticsStatChip("${analytics.totalFields}", "fields",     AgroPalette.Primary, modifier = Modifier.weight(1f))
+                    AnalyticsStatChip("%.1f".format(analytics.totalAreaHa), "ha", AgroPalette.Iris, modifier = Modifier.weight(1f))
+                    AnalyticsStatChip("${analytics.avgHealth}",   "avg health", AgroPalette.Sky,     modifier = Modifier.weight(1f))
+                    AnalyticsStatChip("${analytics.avgMoisture}", "avg moist",  AgroPalette.Amber,   modifier = Modifier.weight(1f))
+                }
+            }
+
+            // Milestones — field-specific
+            item {
+                GlassCard(radius = 16.dp, padding = 16.dp) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Milestones", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                        MilestoneRow("First field added",  analytics.totalFields >= 1)
+                        MilestoneRow("First scan logged",  analytics.scansMonth >= 1)
+                        MilestoneRow("Multiple fields (3+)", analytics.totalFields >= 3)
+                        MilestoneRow("10 scans this month", analytics.scansMonth >= 10)
+                        MilestoneRow("1+ hectare under management", analytics.totalAreaHa >= 1.0)
+                        MilestoneRow("Average health 80+",  analytics.avgHealth >= 80)
+                    }
+                }
+            }
+
+            // Per-field breakdown
+            if (analytics.perField.isNotEmpty()) {
+                item {
+                    Text("By field", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                }
+                items(analytics.perField) { f ->
+                    GlassCard(radius = 14.dp, padding = 14.dp) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier.size(36.dp).clip(CircleShape).background(f.accent.copy(alpha = 0.22f)),
+                                    contentAlignment = Alignment.Center,
+                                ) { Icon(Icons.Rounded.Grass, null, tint = f.accent, modifier = Modifier.size(18.dp)) }
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(f.name, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                                    Text("${f.crop} · ${"%.1f".format(f.areaHa)} ha · ${f.stage}", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                MicroStat("💚", "${f.healthScore}",  "health",   AgroPalette.Primary, Modifier.weight(1f))
+                                MicroStat("💧", "${f.moisturePct}%", "moisture", AgroPalette.Sky,     Modifier.weight(1f))
+                                MicroStat("📅", "${f.sownDaysAgo}d", "sown ago", AgroPalette.Amber,   Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
