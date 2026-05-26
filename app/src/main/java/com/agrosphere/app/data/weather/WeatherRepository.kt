@@ -38,6 +38,14 @@ object WeatherRepository {
     val bundleFlow: StateFlow<WeatherBundle?> = _bundle.asStateFlow()
     fun cached(): WeatherBundle? = _bundle.value
 
+    /** Seed the in-memory bundle from disk if we have a previous successful response.
+     *  Call once at app start so the very first screen render has data even if the
+     *  upcoming network refresh fails. Safe to call repeatedly — idempotent. */
+    fun seedFromDisk(context: Context) {
+        if (_bundle.value != null) return
+        LocalWeatherStore.load(context)?.let { _bundle.value = it }
+    }
+
     /**
      * Fast load — uses lastLocation (cached on device, no GPS wait) and runs
      * the reverse-geocode in parallel with the Open-Meteo fetch. Cold path is
@@ -66,12 +74,16 @@ object WeatherRepository {
                 metrics = deriveMetrics(r),
             )
             _bundle.value = bundle
+            // Persist so the next cold start has data even if Open-Meteo is down.
+            LocalWeatherStore.save(context, bundle)
             bundle
         } catch (e: Throwable) {
-            // Open-Meteo blip (502/503/timeout) after retries exhausted — fall back to
-            // the most recent successful bundle so screens stay populated. Only re-throw
-            // if we have absolutely nothing to show.
-            _bundle.value ?: throw e
+            // Open-Meteo blip (502/503/timeout) after retries exhausted — try the
+            // disk-persisted bundle first, then the in-memory one. Only re-throw if
+            // we have absolutely nothing to show.
+            _bundle.value
+                ?: LocalWeatherStore.load(context)?.also { _bundle.value = it }
+                ?: throw e
         }
     }
 

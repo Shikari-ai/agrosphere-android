@@ -24,13 +24,13 @@ import java.net.URL
  * - 4xx errors fail fast — they won't recover by retrying.
  */
 object WeatherApi {
-    private val HOSTS = listOf(
-        "https://api.open-meteo.com/v1/forecast",
-        // Same data, different CDN routing — used if the primary returns 5xx.
-        "https://api.open-meteo.com/v1/forecast?",
-    )
-    private const val MAX_ATTEMPTS = 3
-    private const val BASE_BACKOFF_MS = 300L
+    private const val BASE_URL = "https://api.open-meteo.com/v1/forecast"
+    private const val MAX_ATTEMPTS = 5
+    private const val BASE_BACKOFF_MS = 500L
+
+    // Standard browser-style UA — some CDNs/firewalls drop or 5xx unusual ones.
+    private const val USER_AGENT =
+        "Mozilla/5.0 (Linux; Android) AgroSphere/0.1"
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -47,17 +47,17 @@ object WeatherApi {
         var lastError: Throwable? = null
         repeat(MAX_ATTEMPTS) { attempt ->
             try {
-                return@withContext fetchOnce("${HOSTS[0]}?$params")
+                return@withContext fetchOnce("$BASE_URL?$params")
             } catch (e: RetryableHttpException) {
                 lastError = e
-                // Exponential backoff: 300ms, 900ms, 2.7s
+                // Exponential backoff: 500ms, 1.5s, 4.5s, 13.5s — handles ~20s outages.
                 delay(BASE_BACKOFF_MS * pow3(attempt))
             } catch (e: IOException) {
                 lastError = e
                 delay(BASE_BACKOFF_MS * pow3(attempt))
             }
         }
-        throw lastError ?: IOException("Open-Meteo unavailable")
+        throw lastError ?: IOException("Open-Meteo unavailable after $MAX_ATTEMPTS attempts")
     }
 
     private fun fetchOnce(fullUrl: String): OpenMeteoResponse {
@@ -65,7 +65,7 @@ object WeatherApi {
             connectTimeout = 8_000
             readTimeout = 8_000
             requestMethod = "GET"
-            setRequestProperty("User-Agent", "AgroSphere-Android/0.1")
+            setRequestProperty("User-Agent", USER_AGENT)
             setRequestProperty("Accept", "application/json")
         }
         try {
@@ -90,7 +90,7 @@ object WeatherApi {
         }
     }
 
-    private fun pow3(n: Int): Long = when (n) { 0 -> 1L; 1 -> 3L; 2 -> 9L; else -> 27L }
+    private fun pow3(n: Int): Long = when (n) { 0 -> 1L; 1 -> 3L; 2 -> 9L; 3 -> 27L; else -> 81L }
 
     private class RetryableHttpException(message: String) : IOException(message)
 }
