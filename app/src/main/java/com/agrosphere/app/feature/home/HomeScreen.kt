@@ -33,6 +33,14 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import com.agrosphere.app.data.model.PlantEntry
+import com.agrosphere.app.data.plants.PlantData
+import com.agrosphere.app.data.repo.AppPreferences
+import com.agrosphere.app.data.repo.PlantRepository
+import androidx.compose.material.icons.rounded.LocalFlorist
+import androidx.compose.material.icons.rounded.Spa
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -118,6 +126,8 @@ fun HomeScreen(
     onOpenAssistant: () -> Unit,
     onOpenWeather: () -> Unit = {},
     onOpenFields: () -> Unit = {},
+    onOpenPlants: () -> Unit = {},
+    onOpenPlant: (String) -> Unit = {},
     vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
@@ -187,14 +197,12 @@ fun HomeScreen(
             } else {
                 items(state.alerts.take(3)) { alert -> EntranceItem(itemVisible[5]) { AlertCard(alert) } }
             }
-            // ── [6] Crop health + pest prediction ─────────────────────────────
+            // ── [6] Crop health / Plant health (mode-aware, auto-pages every 7s in 'both') ──
             item { EntranceItem(itemVisible[6]) {
-                CropHealthCard(
-                    score = state.cropHealth,
-                    verdict = state.cropHealthVerdict,
-                    hasFields = state.fieldsCount > 0,
-                    hasScan = state.hasScan,
-                    onTap = onOpenScanner,
+                HealthMonitorPager(
+                    state          = state,
+                    onOpenScanner  = onOpenScanner,
+                    onOpenPlants   = onOpenPlants,
                 )
             } }
             item {
@@ -208,9 +216,21 @@ fun HomeScreen(
             // ── At a glance grid ──────────────────────────────────────────────
             item { SectionHeader(title = stringResource(R.string.section_at_a_glance)) }
             item { AtAGlanceGrid(state = state) }
-            // ── My fields carousel ────────────────────────────────────────────
-            item { SectionHeader(title = stringResource(R.string.section_my_fields), trailing = stringResource(R.string.section_manage_all)) }
-            item { MyFieldsCarousel(onOpenField = onOpenField, onAddField = onOpenFields) }
+            // ── My Space — fields + plants, mode-aware ───────────────────────
+            item { SectionHeader(title = stringResource(R.string.section_my_space), trailing = stringResource(R.string.section_manage_all)) }
+            val userMode by AppPreferences.userMode.collectAsState()
+            if (userMode == "farmer" || userMode == "both") {
+                if (userMode == "both") {
+                    item { SpaceSubHeader(label = "Fields", icon = Icons.Rounded.Grass, tint = AgroPalette.Amber) }
+                }
+                item { MyFieldsCarousel(onOpenField = onOpenField, onAddField = onOpenFields) }
+            }
+            if (userMode == "plant" || userMode == "both") {
+                if (userMode == "both") {
+                    item { SpaceSubHeader(label = "Plants", icon = Icons.Rounded.LocalFlorist, tint = AgroPalette.Primary) }
+                }
+                item { MyPlantsCarousel(onOpenPlant = onOpenPlant, onAddPlant = onOpenPlants) }
+            }
             // ── Insights ──────────────────────────────────────────────────────
             item { SectionHeader(title = stringResource(R.string.section_insights)) }
             item { InsightsCarousel(weather = state.weather) }
@@ -2189,6 +2209,266 @@ private fun GlanceCard(item: GlanceItem, modifier: Modifier = Modifier) {
             Text(item.label, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
             Text(item.value, style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Ink, fontWeight = FontWeight.ExtraBold)
             Text(item.sub, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Health Monitor Pager — Crop + Plant, auto-pages every 7s in "both" mode.
+// In single-mode (farmer / plant) it just shows the relevant card directly.
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun HealthMonitorPager(
+    state: HomeUiState,
+    onOpenScanner: () -> Unit,
+    onOpenPlants: () -> Unit,
+) {
+    val userMode by AppPreferences.userMode.collectAsState()
+    when (userMode) {
+        "farmer" -> CropHealthCard(
+            score     = state.cropHealth,
+            verdict   = state.cropHealthVerdict,
+            hasFields = state.fieldsCount > 0,
+            hasScan   = state.hasScan,
+            onTap     = onOpenScanner,
+        )
+        "plant" -> PlantHealthCard(onTap = onOpenPlants)
+        else -> {
+            // Both mode — auto-swiping pager
+            val pagerState = rememberPagerState(pageCount = { 2 })
+            // Auto-advance every 7s — restart timer whenever the user finishes scrolling.
+            LaunchedEffect(pagerState.isScrollInProgress, pagerState.currentPage) {
+                if (!pagerState.isScrollInProgress) {
+                    delay(7000)
+                    if (!pagerState.isScrollInProgress) {
+                        val next = (pagerState.currentPage + 1) % 2
+                        pagerState.animateScrollToPage(next)
+                    }
+                }
+            }
+            Column {
+                HorizontalPager(state = pagerState) { page ->
+                    when (page) {
+                        0 -> CropHealthCard(
+                            score     = state.cropHealth,
+                            verdict   = state.cropHealthVerdict,
+                            hasFields = state.fieldsCount > 0,
+                            hasScan   = state.hasScan,
+                            onTap     = onOpenScanner,
+                        )
+                        else -> PlantHealthCard(onTap = onOpenPlants)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                // Page indicator dots
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    repeat(2) { idx ->
+                        val selected = pagerState.currentPage == idx
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(width = if (selected) 18.dp else 6.dp, height = 6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(
+                                    if (selected) AgroPalette.Primary
+                                    else AgroPalette.SurfaceGlassBorder,
+                                ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plant Health Monitor — mirrors CropHealthCard, fed by PlantRepository
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun PlantHealthCard(onTap: () -> Unit) {
+    val plants by PlantRepository.plants.collectAsState()
+    val hasPlants = plants.isNotEmpty()
+    val hasScan = plants.any { it.scanHistory.isNotEmpty() }
+    val avgHealth = if (hasPlants) plants.map { it.healthScore }.average().toInt() else 0
+    val verdict = when {
+        !hasPlants     -> "—"
+        avgHealth >= 85 -> "Thriving"
+        avgHealth >= 70 -> "Healthy"
+        avgHealth >= 55 -> "Watch"
+        else            -> "Struggling"
+    }
+    val target = (avgHealth / 100f).coerceIn(0f, 1f)
+    val progress by animateFloatAsState(
+        targetValue   = target,
+        animationSpec = tween(durationMillis = 1400, easing = LinearOutSlowInEasing),
+        label = "plant-progress",
+    )
+
+    GlassCard(radius = 22.dp, padding = 18.dp, onClick = onTap) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Spa, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Plant Health Monitor", style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
+                if (hasPlants) Text(stringResource(R.string.section_view_all), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary)
+            }
+            Spacer(Modifier.height(14.dp))
+            when {
+                !hasPlants -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        HealthRing(progress = 0f, score = 0, modifier = Modifier.size(80.dp))
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text("No plants yet", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                            Spacer(Modifier.height(4.dp))
+                            Text("Add a plant and scan it to start tracking health.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                        }
+                    }
+                }
+                !hasScan -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(AgroPalette.Primary.copy(alpha = 0.07f))
+                            .border(1.dp, AgroPalette.Primary.copy(alpha = 0.18f), RoundedCornerShape(16.dp))
+                            .clickable(onClick = onTap)
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier.size(52.dp).clip(CircleShape).background(AgroPalette.Primary.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Rounded.CameraAlt, null, tint = AgroPalette.Primary, modifier = Modifier.size(24.dp)) }
+                        Spacer(Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("No scans yet", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(3.dp))
+                            Text("Scan one of your plants to get real health data — tap to open My Plants.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                        }
+                        Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.Primary, modifier = Modifier.size(18.dp))
+                    }
+                }
+                else -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        HealthRing(progress = progress, score = avgHealth, modifier = Modifier.size(98.dp))
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text("Overall plant health", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                            Spacer(Modifier.height(2.dp))
+                            Text(verdict, style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Primary, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Average across ${plants.size} plant${if (plants.size == 1) "" else "s"}. Rescan to refresh.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AgroPalette.InkMuted,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    // Per-category chip strip — mirrors the crop chips
+                    val byCategory = remember(plants) {
+                        plants.groupBy { PlantData.find(it.species)?.category ?: "Other" }
+                            .mapValues { (_, list) -> list.map { it.healthScore }.average().toInt() }
+                            .toList()
+                            .take(4)
+                    }
+                    if (byCategory.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            byCategory.forEach { (cat, value) ->
+                                CropChip(name = cat, value = value, modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-section header under "My Space" — small tinted label
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun SpaceSubHeader(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color) {
+    Row(
+        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium, color = AgroPalette.InkMuted, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// My Plants carousel — mirrors MyFieldsCarousel with plant-specific surface
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun MyPlantsCarousel(onOpenPlant: (String) -> Unit, onAddPlant: () -> Unit = {}) {
+    val plants by PlantRepository.plants.collectAsState()
+    if (plants.isEmpty()) {
+        GlassCard(radius = 22.dp, padding = 18.dp, onClick = onAddPlant) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(AgroPalette.Primary.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Rounded.LocalFlorist, null, tint = AgroPalette.Primary) }
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("No plants yet", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                    Text("Tap to add — the camera will identify it.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                }
+                Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.Primary)
+            }
+        }
+        return
+    }
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(plants) { plant ->
+            GlassCard(
+                modifier = Modifier.width(220.dp),
+                radius   = 22.dp,
+                padding  = 16.dp,
+                onClick  = { onOpenPlant(plant.id) },
+            ) {
+                Column {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(plant.accent.copy(alpha = 0.20f)),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Rounded.LocalFlorist, null, tint = plant.accent) }
+                    Spacer(Modifier.height(10.dp))
+                    Text(plant.name, style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
+                    Text("${plant.species} · ${plant.location}", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                    Spacer(Modifier.height(14.dp))
+                    Text("Health ${plant.healthScore}", style = MaterialTheme.typography.labelMedium, color = plant.accent)
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(AgroPalette.SurfaceGlassBorder),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(plant.healthScore / 100f)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(plant.accent),
+                        )
+                    }
+                }
+            }
         }
     }
 }

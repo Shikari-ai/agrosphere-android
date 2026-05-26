@@ -47,6 +47,7 @@
     <string name="section_pest_prediction">Pest prediction</string>
     <string name="section_at_a_glance">At a glance</string>
     <string name="section_my_fields">My fields</string>
+    <string name="section_my_space">My space</string>
     <string name="section_insights">Insights</string>
     <string name="section_see_all">See all</string>
     <string name="section_view_all">View all</string>
