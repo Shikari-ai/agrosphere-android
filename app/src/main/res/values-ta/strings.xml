@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_tagline">உங்கள் வயல்கள். மிக சாமர்த்தியமாக.</string>
 
@@ -86,6 +86,7 @@
     <string name="weather_condition_rain">மழை</string>
     <string name="weather_condition_storm">புயல்</string>
     <string name="weather_condition_night">தெளிவான இரவு</string>
+    <string name="weather_condition_windy">காற்று</string>
 
     <string name="field_ops_no_fields_body">இன்றைய முக்கிய பணிகளைப் பார்க்க வயலைச் சேர்க்கவும்.</string>
     <string name="field_ops_all_clear">அனைத்தும் சரி — இப்போது முக்கிய பணிகள் இல்லை.</string>
@@ -292,4 +293,40 @@
     <string name="sign_out_confirm_title">வெளியேறவா?</string>
     <string name="sign_out_confirm_body">நிச்சயமாக வெளியேற விரும்புகிறீர்களா?</string>
     <string name="sign_out_confirm_cancel">ரத்து</string>
+
+    <!-- Onboarding wizard -->
+    <string name="onb_lang_title">உங்கள் மொழியை தேர்வு செய்யுங்கள்</string>
+    <string name="onb_lang_subtitle">AgroSphere-ஐ உங்கள் மொழியில் பயன்படுத்துங்கள்</string>
+    <string name="onb_terms_title">தொடங்குவதற்கு முன்</string>
+    <string name="onb_terms_subtitle">AgroSphere என்ன செய்கிறது மற்றும் உங்களிடம் எங்கள் உறுதிமொழி</string>
+    <string name="onb_terms_what_title">AgroSphere என்ன செய்கிறது</string>
+    <string name="onb_terms_feat_1">புகைப்படங்களிலிருந்து AI பயிர் நோய் கண்டறிதல்</string>
+    <string name="onb_terms_feat_2">உங்கள் வயல்களுக்கான ஹைப்பர்லோக்கல் வானிலை முன்னறிவிப்பு</string>
+    <string name="onb_terms_feat_3">ஸ்மார்ட் பாசன மற்றும் தெளிப்பு நேர அலர்ட்கள்</string>
+    <string name="onb_terms_feat_4">வயல் ஆரோக்கிய கண்காணிப்பு மற்றும் வளர்ச்சி நிலை தகவல்</string>
+    <string name="onb_terms_privacy_title">விதிமுறைகள் மற்றும் தனியுரிமை சுருக்கம்</string>
+    <string name="onb_terms_priv_1">உங்கள் வயல் தரவு உங்களுடையது — நாங்கள் ஒருபோதும் விற்கமாட்டோம்</string>
+    <string name="onb_terms_priv_2">இடம் உள்ளூர் வானிலை பெற மட்டுமே பயன்படுத்தப்படுகிறது</string>
+    <string name="onb_terms_priv_3">எப்போது வேண்டுமானாலும் உங்கள் கணக்கு மற்றும் தரவை நீக்கலாம்</string>
+    <string name="onb_terms_priv_4">AI பரிந்துரைகள் நிபுணர் ஆலோசனையை நிரப்புகின்றன, மாற்றுவதில்லை</string>
+    <string name="onb_terms_priv_5">ஆப்பை பயன்படுத்துவதன் மூலம் எங்கள் சேவை விதிமுறைகளுக்கு சம்மதிக்கிறீர்கள்</string>
+    <string name="onb_terms_priv_6">இந்திய சட்டத்தால் நிர்வகிக்கப்படுகிறது · support@agrosphere.app</string>
+    <string name="onb_terms_agree">சேவை விதிமுறைகள் மற்றும் தனியுரிமை கொள்கையை ஒப்புக்கொள்கிறேன்</string>
+    <string name="onb_terms_btn">ஒப்புக்கொண்டு தொடர</string>
+    <string name="onb_quick_title">உங்கள் பண்ணையை அமைக்கவும்</string>
+    <string name="onb_quick_subtitle">எங்கிருந்து தொடங்க வேண்டும் என்று தேர்வு செய்யுங்கள் — அல்லது இப்போது தவிர்க்கவும்</string>
+    <string name="onb_quick_field_title">உங்கள் முதல் வயலை சேர்க்கவும்</string>
+    <string name="onb_quick_field_desc">வயல் எல்லையை வரைபடத்தில் குறிக்கவும், பயிர் வகை மற்றும் விதைப்பு தேதி சேர்க்கவும். AgroSphere ஆரோக்கியம், வளர்ச்சி நிலை கண்காணிக்கும் மற்றும் சரியான நேரத்தில் அலர்ட் அனுப்பும்.</string>
+    <string name="onb_quick_scan_title">பயிர் இலையை ஸ்கேன் செய்யுங்கள்</string>
+    <string name="onb_quick_scan_desc">உடனடி AI கண்டறிதலுக்கு இலையின் புகைப்படம் எடுங்கள் — நோய், பூச்சி, அல்லது ஊட்டக்குறைபாடு — படிப்படியான சிகிச்சை ஆலோசனையுடன்.</string>
+    <string name="onb_quick_hint">நீங்கள் தயாராக இருக்கும்போது ஆப்பிலிருந்து இரண்டையும் செய்யலாம்</string>
+    <string name="onb_done_set_name">நீங்கள் தயார், %1$s!</string>
+    <string name="onb_done_set">நீங்கள் தயார்!</string>
+    <string name="onb_done_body">உங்கள் பண்ணை AI தோழர் தயாராக உள்ளது.\nஒவ்வொரு அறுவடையையும் வெற்றிகரமாக்குவோம்.</string>
+    <string name="onb_done_btn">AgroSphere-க்கு செல்லவும்</string>
+    <string name="onb_made_in_india">மேட் இன் இந்தியா 🌿</string>
+    <string name="onb_skip">தவிர்</string>
+    <string name="onb_skip_for_now">இப்போது தவிர்க்கவும்</string>
+    <string name="onb_next">அடுத்து</string>
+    <string name="onb_continue">தொடர</string>
 </resources>

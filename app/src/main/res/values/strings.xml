@@ -75,6 +75,10 @@
     <string name="profile_menu_learning">Learning evolution</string>
     <string name="profile_menu_account_settings">Account settings</string>
     <string name="profile_menu_notifications">Notifications</string>
+    <string name="profile_menu_mode">App mode</string>
+    <string name="profile_sub_mode_farmer">Farmer — fields, crops, yield</string>
+    <string name="profile_sub_mode_plant">Plant Parent — home plants &amp; garden</string>
+    <string name="profile_sub_mode_both">Both — farmland and home plants</string>
     <string name="profile_menu_language">Language</string>
     <string name="profile_menu_help">Help &amp; support</string>
     <string name="profile_menu_about">About AgroSphere</string>
@@ -101,6 +105,7 @@
     <string name="weather_condition_rain">Rain</string>
     <string name="weather_condition_storm">Thunderstorm</string>
     <string name="weather_condition_night">Clear night</string>
+    <string name="weather_condition_windy">Windy</string>
 
     <!-- Home: card empty / supporting copy -->
     <string name="field_ops_no_fields_body">Add a field to see today\'s prioritised operations.</string>
@@ -315,4 +320,111 @@
     <string name="sign_out_confirm_title">Sign out?</string>
     <string name="sign_out_confirm_body">Are you sure you want to sign out?</string>
     <string name="sign_out_confirm_cancel">Cancel</string>
+
+    <!-- Onboarding wizard (4-step post-login setup) -->
+    <string name="onb_lang_title">Choose Your Language</string>
+    <string name="onb_lang_subtitle">Personalize AgroSphere in your language</string>
+    <string name="onb_terms_title">Before We Begin</string>
+    <string name="onb_terms_subtitle">A quick look at what AgroSphere does and our commitment to you</string>
+    <string name="onb_terms_what_title">What AgroSphere Does</string>
+    <string name="onb_terms_feat_1">AI crop disease detection from photos</string>
+    <string name="onb_terms_feat_2">Hyperlocal weather forecasts for your fields</string>
+    <string name="onb_terms_feat_3">Smart irrigation and spray timing alerts</string>
+    <string name="onb_terms_feat_4">Farm health tracking and growth stage insights</string>
+    <string name="onb_terms_privacy_title">Terms &amp; Privacy Summary</string>
+    <string name="onb_terms_priv_1">Your farm data belongs to you — we never sell it</string>
+    <string name="onb_terms_priv_2">Location is only used to fetch local weather</string>
+    <string name="onb_terms_priv_3">You can delete your account and data at any time</string>
+    <string name="onb_terms_priv_4">AI recommendations supplement, not replace, expert advice</string>
+    <string name="onb_terms_priv_5">By using the app you agree to our Terms of Service</string>
+    <string name="onb_terms_priv_6">Governed by Indian law · support@agrosphere.app</string>
+    <string name="onb_terms_agree">I agree to the Terms of Service and Privacy Policy</string>
+    <string name="onb_terms_btn">I Agree &amp; Continue</string>
+    <string name="onb_quick_title">Set Up Your Farm</string>
+    <string name="onb_quick_subtitle">Pick where you\'d like to start — or skip for now</string>
+    <string name="onb_quick_field_title">Add Your First Field</string>
+    <string name="onb_quick_field_desc">Map your field boundary, add crop type and sown date. AgroSphere will track health, growth stage, and send timely alerts.</string>
+    <string name="onb_quick_scan_title">Scan a Crop Leaf</string>
+    <string name="onb_quick_scan_desc">Photograph a leaf for instant AI diagnosis — disease, pest, or nutrient deficiency — with step-by-step treatment advice.</string>
+    <string name="onb_quick_hint">You can do both from the app whenever you\'re ready</string>
+    <string name="onb_done_set_name">You\'re all set, %1$s!</string>
+    <string name="onb_done_set">You\'re all set!</string>
+    <string name="onb_done_body">Your farm\'s AI companion is ready.\nLet\'s make every harvest count.</string>
+    <string name="onb_done_btn">Go to AgroSphere</string>
+    <string name="onb_made_in_india">Made in India 🌿</string>
+    <string name="onb_skip">Skip</string>
+    <string name="onb_skip_for_now">Skip for now</string>
+    <string name="onb_next">Next</string>
+    <string name="onb_continue">Continue</string>
+
+    <!-- Onboarding — mode selection step (step 2 of 5) -->
+    <string name="onb_mode_title">What Do You Grow?</string>
+    <string name="onb_mode_subtitle">We\'ll personalise AgroSphere around what matters to you</string>
+    <string name="onb_mode_farmer">Farmer</string>
+    <string name="onb_mode_farmer_desc">Manage agricultural fields, crops, and yield</string>
+    <string name="onb_mode_plant">Plant Parent</string>
+    <string name="onb_mode_plant_desc">Monitor flowers, houseplants, and home gardens</string>
+    <string name="onb_mode_both">Both</string>
+    <string name="onb_mode_both_desc">Full access — farmland and home plants</string>
+    <!-- Mode-specific Quick Start cards -->
+    <string name="onb_quick_plant_title">Add Your First Plant</string>
+    <string name="onb_quick_plant_desc">Track watering schedules, sunlight needs, and health. Get timely reminders before your plants need attention.</string>
+    <!-- Mode-specific Complete step copy -->
+    <string name="onb_done_body_plant">Your plant companion is ready.\nLet\'s help every plant thrive.</string>
+    <string name="onb_done_body_both">Your green-space companion is ready.\nFarmland and plants, all in one place.</string>
+
+    <!-- Bottom nav — plants tab -->
+    <string name="nav_plants">Plants</string>
+
+    <!-- Plants screen -->
+    <string name="plants_eyebrow">My Garden</string>
+    <string name="plants_title">Home Plants</string>
+    <string name="plants_metric_plants">Plants</string>
+    <string name="plants_metric_due">Due today</string>
+    <string name="plants_metric_healthy">Healthy</string>
+    <string name="plants_search_placeholder">Search plants…</string>
+    <string name="plants_filter_all">All</string>
+    <string name="plants_filter_flowering">Flowering</string>
+    <string name="plants_filter_indoor">Indoor</string>
+    <string name="plants_filter_succulent">Succulent</string>
+    <string name="plants_filter_herb">Herb</string>
+    <string name="plants_filter_overdue">Overdue</string>
+    <string name="plants_results_count">%1$d of %2$d plants</string>
+    <string name="plants_empty_title">No plants yet</string>
+    <string name="plants_empty_body">Add your first plant — track watering, health, and care in one place.</string>
+    <string name="plants_empty_filter_title">No plants match</string>
+    <string name="plants_empty_filter_body">Try clearing the search or switching filters.</string>
+    <string name="plant_deleted_snackbar">"%1$s" removed</string>
+    <string name="plant_delete_confirm_title">Remove plant?</string>
+    <string name="plant_delete_confirm_body">"%1$s" and all its data will be permanently removed.</string>
+
+    <!-- Add plant sheet -->
+    <string name="plant_add_title">Add a Plant</string>
+    <string name="plant_add_nickname_label">Nickname</string>
+    <string name="plant_add_nickname_hint">e.g. Grandma\'s Rose</string>
+    <string name="plant_add_species_label">Species</string>
+    <string name="plant_add_location_label">Where is it?</string>
+    <string name="plant_add_pot_label">Pot size</string>
+    <string name="plant_add_sun_label">Sunlight need</string>
+    <string name="plant_add_water_label">Water every %1$d day%2$s</string>
+    <string name="plant_add_btn">Add Plant</string>
+    <string name="plant_add_species_search_hint">Search species…</string>
+
+    <!-- Plant detail screen -->
+    <string name="plant_detail_care_tab">Care</string>
+    <string name="plant_detail_activity_tab">Activity</string>
+    <string name="plant_detail_health_tab">Health</string>
+    <string name="plant_water_log_btn">Log Watering</string>
+    <string name="plant_water_logged">Watered ✓</string>
+    <string name="plant_water_due_today">Due today</string>
+    <string name="plant_water_due_in">Due in %1$d day%2$s</string>
+    <string name="plant_water_overdue">Overdue %1$d day%2$s</string>
+    <string name="plant_water_never">Never logged</string>
+    <string name="plant_care_sunlight">Sunlight</string>
+    <string name="plant_care_soil">Soil type</string>
+    <string name="plant_care_note">Care tip</string>
+    <string name="plant_care_interval">Water every</string>
+    <string name="plant_care_days">%1$d days</string>
+    <string name="plant_activity_empty">No waterings logged yet.\nTap \'Log Watering\' on the Care tab.</string>
+    <string name="plant_delete_btn">Remove Plant</string>
 </resources>

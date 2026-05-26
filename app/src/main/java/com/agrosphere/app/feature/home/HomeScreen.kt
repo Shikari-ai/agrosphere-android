@@ -88,8 +88,10 @@ import coil.compose.AsyncImage
 import com.agrosphere.app.data.model.AlertItem
 import com.agrosphere.app.data.model.ConditionKind
 import com.agrosphere.app.data.model.WeatherSnapshot
+import com.agrosphere.app.data.repo.AppPreferences
 import com.agrosphere.app.data.repo.FieldRepository
 import com.agrosphere.app.data.repo.MockRepository
+import com.agrosphere.app.data.repo.UnitFormatter
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.SectionHeader
 import com.agrosphere.app.ui.theme.AgroBrushes
@@ -138,7 +140,11 @@ fun HomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        HomeBackdrop(isDay = state.timeOfDay.isDay)
+        HomeBackdrop(
+            kind   = state.weather?.kind ?: if (state.timeOfDay.isDay) ConditionKind.Clear else ConditionKind.Night,
+            tempC  = state.weather?.tempC ?: 25,
+            isDay  = state.timeOfDay.isDay,
+        )
 
         LazyColumn(
             modifier = Modifier
@@ -172,8 +178,6 @@ fun HomeScreen(
                     onAssistant = onOpenAssistant,
                 )
             } }
-            // ── [2] Live data ribbon — glowing scrolling metrics ──────────────
-            item { EntranceItem(itemVisible[2]) { LiveDataRibbon(state = state) } }
             // ── [3] Field operations ──────────────────────────────────────────
             item { EntranceItem(itemVisible[3]) { FieldOperationsCard(onOpenFields = onOpenFields, hasFields = state.fieldsCount > 0) } }
             // ── Alerts ────────────────────────────────────────────────────────
@@ -189,6 +193,7 @@ fun HomeScreen(
                     score = state.cropHealth,
                     verdict = state.cropHealthVerdict,
                     hasFields = state.fieldsCount > 0,
+                    hasScan = state.hasScan,
                     onTap = onOpenScanner,
                 )
             } }
@@ -246,73 +251,236 @@ private fun EntranceItem(visibleState: State<Boolean>, content: @Composable () -
 // Time-of-day adaptive atmospheric backdrop
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun HomeBackdrop(isDay: Boolean) {
+private fun HomeBackdrop(kind: ConditionKind, tempC: Int, isDay: Boolean) {
     val tr = rememberInfiniteTransition(label = "home-bg")
     val t by tr.animateFloat(
         0f, (PI * 2).toFloat(),
         animationSpec = infiniteRepeatable(tween(40_000, easing = LinearEasing)),
         label = "t",
     )
-    val gradient = if (isDay) {
-        Brush.verticalGradient(
-            0f to Color(0xFF0A1A14),
-            0.55f to AgroPalette.BgFarm,
-            1f to AgroPalette.BgDeep,
-        )
-    } else {
-        Brush.verticalGradient(
-            0f to Color(0xFF02060E),
-            0.55f to Color(0xFF050C14),
-            1f to AgroPalette.BgDeep,
-        )
+    val tFast by tr.animateFloat(
+        0f, 1f,
+        animationSpec = infiniteRepeatable(tween(6_000, easing = LinearEasing)),
+        label = "tf",
+    )
+
+    // ── Full-screen base gradient — condition + temp aware ──────────────────
+    val heat = ((tempC - 15) / 30f).coerceIn(0f, 1f)
+    val gradient: Brush = when (kind) {
+        ConditionKind.Clear -> if (isDay) {
+            // Warm golden harvest — hotter = more amber/orange
+            val top = androidx.compose.ui.graphics.lerp(Color(0xFF0C1F12), Color(0xFF2A1200), heat)
+            val mid = androidx.compose.ui.graphics.lerp(Color(0xFF081A10), Color(0xFF1A0B00), heat)
+            Brush.verticalGradient(listOf(top, mid, AgroPalette.BgDeep))
+        } else {
+            Brush.verticalGradient(listOf(Color(0xFF02060E), Color(0xFF050A18), AgroPalette.BgDeep))
+        }
+        ConditionKind.PartlyCloudy -> if (isDay) {
+            // Warm sunset-adjacent glow
+            val top = androidx.compose.ui.graphics.lerp(Color(0xFF120E0A), Color(0xFF2C1200), heat)
+            Brush.verticalGradient(listOf(top, Color(0xFF0D0810), AgroPalette.BgDeep))
+        } else {
+            Brush.verticalGradient(listOf(Color(0xFF04060F), Color(0xFF080A18), AgroPalette.BgDeep))
+        }
+        ConditionKind.Cloudy ->
+            Brush.verticalGradient(listOf(Color(0xFF0C0F14), Color(0xFF080A10), AgroPalette.BgDeep))
+        ConditionKind.Rain ->
+            Brush.verticalGradient(listOf(Color(0xFF040E1E), Color(0xFF040A14), AgroPalette.BgDeep))
+        ConditionKind.Storm ->
+            Brush.verticalGradient(listOf(Color(0xFF0E0620), Color(0xFF060210), AgroPalette.BgDeep))
+        ConditionKind.Night ->
+            Brush.verticalGradient(listOf(Color(0xFF010308), Color(0xFF03050E), AgroPalette.BgDeep))
+        ConditionKind.Windy ->
+            Brush.verticalGradient(listOf(Color(0xFF041410), Color(0xFF030D0A), AgroPalette.BgDeep))
     }
+
     Box(modifier = Modifier.fillMaxSize().background(gradient)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-            // Sun (day) or moon (night) glow in top-right
-            val cx = w * 0.85f
-            val cy = h * 0.12f
-            val glow = if (isDay) AgroPalette.Amber else AgroPalette.Iris
-            drawCircle(
-                brush = Brush.radialGradient(
-                    0f to glow.copy(alpha = 0.22f),
-                    0.55f to glow.copy(alpha = 0.05f),
-                    1f to Color.Transparent,
-                    center = Offset(cx, cy),
-                    radius = w * 0.7f,
-                ),
-                radius = w * 0.7f,
-                center = Offset(cx, cy),
-            )
-            // Soft drifting orb bottom-left
-            val ox = w * 0.15f + sin(t) * w * 0.15f
-            val oy = h * 0.65f + cos(t * 0.6f) * h * 0.05f
-            drawCircle(
-                brush = Brush.radialGradient(
-                    0f to AgroPalette.Primary.copy(alpha = 0.18f),
-                    0.6f to AgroPalette.Primary.copy(alpha = 0.04f),
-                    1f to Color.Transparent,
-                    center = Offset(ox, oy),
-                    radius = w * 0.7f,
-                ),
-                radius = w * 0.7f,
-                center = Offset(ox, oy),
-            )
-            // Stars at night
-            if (!isDay) {
-                repeat(28) { i ->
-                    val seed = (i * 137 + 7) % 1000 / 1000f
-                    val sx = w * (((i * 53) % 100) / 100f)
-                    val sy = h * 0.4f * (((i * 31) % 90) / 100f)
-                    val twinkle = 0.4f + 0.6f * (sin(t * 1.5f + seed * 6.28f) * 0.5f + 0.5f)
+
+            when (kind) {
+                // ── Clear day: golden sun halo (grows hotter with tempC) ──────────
+                ConditionKind.Clear -> if (isDay) {
+                    val sunAlpha = 0.18f + heat * 0.22f
+                    val sunColor = androidx.compose.ui.graphics.lerp(AgroPalette.Amber, Color(0xFFF97316), heat)
                     drawCircle(
-                        color = AgroPalette.Ink.copy(alpha = 0.12f + 0.3f * twinkle),
-                        radius = 0.8f + (i % 3) * 0.5f,
-                        center = Offset(sx, sy),
+                        brush = Brush.radialGradient(
+                            0f to sunColor.copy(alpha = sunAlpha),
+                            0.45f to sunColor.copy(alpha = sunAlpha * 0.35f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.82f, h * 0.08f), radius = w * 0.85f,
+                        ),
+                        radius = w * 0.85f, center = Offset(w * 0.82f, h * 0.08f),
+                    )
+                    // Ground warmth glow at bottom
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to sunColor.copy(alpha = 0.10f + heat * 0.12f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.5f, h * 0.95f), radius = w * 0.9f,
+                        ),
+                        radius = w * 0.9f, center = Offset(w * 0.5f, h * 0.95f),
+                    )
+                } else {
+                    // Clear night: moon glow
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to AgroPalette.Iris.copy(alpha = 0.20f),
+                            0.5f to AgroPalette.Iris.copy(alpha = 0.05f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.80f, h * 0.09f), radius = w * 0.65f,
+                        ),
+                        radius = w * 0.65f, center = Offset(w * 0.80f, h * 0.09f),
                     )
                 }
+
+                // ── Partly cloudy: warm rim + softer sun or moon ──────────────────
+                ConditionKind.PartlyCloudy -> {
+                    val glowColor = if (isDay) AgroPalette.Amber else AgroPalette.Iris
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to glowColor.copy(alpha = if (isDay) 0.22f + heat * 0.12f else 0.15f),
+                            0.6f to glowColor.copy(alpha = 0.04f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.78f, h * 0.10f), radius = w * 0.75f,
+                        ),
+                        radius = w * 0.75f, center = Offset(w * 0.78f, h * 0.10f),
+                    )
+                    // Warm low glow (sunset-adjacent during day)
+                    if (isDay) drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to Color(0xFFF97316).copy(alpha = 0.08f + heat * 0.10f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.5f, h), radius = w * 1.1f,
+                        ),
+                        radius = w * 1.1f, center = Offset(w * 0.5f, h),
+                    )
+                }
+
+                // ── Cloudy: flat diffuse overhead glow ────────────────────────────
+                ConditionKind.Cloudy -> {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to Color(0xFF94A3B8).copy(alpha = 0.10f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.5f, h * 0.15f), radius = w * 0.9f,
+                        ),
+                        radius = w * 0.9f, center = Offset(w * 0.5f, h * 0.15f),
+                    )
+                }
+
+                // ── Rain: cool blue radial from top ───────────────────────────────
+                ConditionKind.Rain -> {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to Color(0xFF38BDF8).copy(alpha = 0.12f),
+                            0.6f to Color(0xFF0EA5E9).copy(alpha = 0.04f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.5f, 0f), radius = w * 0.9f,
+                        ),
+                        radius = w * 0.9f, center = Offset(w * 0.5f, 0f),
+                    )
+                    // Drifting rain streaks across whole screen
+                    for (i in 0 until 55) {
+                        val seed = (i * 73 + 11) % 100 / 100f
+                        val x = w * (((i * 47) % 100) / 100f)
+                        val travel = h * 1.1f
+                        val y = ((tFast + seed) % 1f) * travel - 40f
+                        val len = 14f + (i % 5) * 5f
+                        drawLine(
+                            color = Color(0xFF93C5FD).copy(alpha = 0.18f + seed * 0.10f),
+                            start = Offset(x - 2f, y), end = Offset(x, y + len),
+                            strokeWidth = 1f, cap = StrokeCap.Round,
+                        )
+                    }
+                }
+
+                // ── Storm: purple electric pulse + lightning backdrop ─────────────
+                ConditionKind.Storm -> {
+                    val pulse = sin(tFast * PI.toFloat() * 2f) * 0.5f + 0.5f
+                    val flash = if ((tFast * 7f % 1f) > 0.94f) 0.22f else 0f
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to Color(0xFF7C3AED).copy(alpha = 0.20f * pulse + flash),
+                            0.5f to Color(0xFF4C1D95).copy(alpha = 0.08f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.5f, h * 0.18f), radius = w * 1.1f,
+                        ),
+                        radius = w * 1.1f, center = Offset(w * 0.5f, h * 0.18f),
+                    )
+                    // Bottom indigo fill
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to Color(0xFF3B0764).copy(alpha = 0.18f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.5f, h), radius = w * 0.85f,
+                        ),
+                        radius = w * 0.85f, center = Offset(w * 0.5f, h),
+                    )
+                }
+
+                // ── Night: stars across upper half ────────────────────────────────
+                ConditionKind.Night -> {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to AgroPalette.Iris.copy(alpha = 0.16f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.78f, h * 0.08f), radius = w * 0.60f,
+                        ),
+                        radius = w * 0.60f, center = Offset(w * 0.78f, h * 0.08f),
+                    )
+                    repeat(40) { i ->
+                        val seed = (i * 137 + 7) % 1000 / 1000f
+                        val sx = w * (((i * 53) % 100) / 100f)
+                        val sy = h * 0.45f * (((i * 31) % 90) / 100f)
+                        val twinkle = 0.4f + 0.6f * (sin(t * 1.5f + seed * 6.28f) * 0.5f + 0.5f)
+                        drawCircle(
+                            color = AgroPalette.Ink.copy(alpha = 0.12f + 0.30f * twinkle),
+                            radius = 0.8f + (i % 3) * 0.5f, center = Offset(sx, sy),
+                        )
+                    }
+                }
+
+                // ── Windy: teal ambient + fast horizontal gust streaks ────────────
+                ConditionKind.Windy -> {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to Color(0xFF4ADE80).copy(alpha = 0.12f),
+                            1f to Color.Transparent,
+                            center = Offset(w * 0.5f, h * 0.22f), radius = w * 0.9f,
+                        ),
+                        radius = w * 0.9f, center = Offset(w * 0.5f, h * 0.22f),
+                    )
+                    for (i in 0 until 22) {
+                        val seed = (i * 61 + 13) % 100 / 100f
+                        val y = h * (0.06f + (i * 0.71f % 0.88f))
+                        val len = w * (0.18f + seed * 0.40f)
+                        val xStart = ((tFast * 1.1f + seed) % 1.5f - 0.3f) * w
+                        val alpha = 0.04f + seed * 0.07f
+                        drawLine(
+                            brush = Brush.linearGradient(
+                                listOf(Color.Transparent, Color(0xFF4ADE80).copy(alpha = alpha), Color.Transparent),
+                                start = Offset(xStart, y), end = Offset(xStart + len, y),
+                            ),
+                            start = Offset(xStart, y), end = Offset(xStart + len, y),
+                            strokeWidth = 1.2f + (i % 3) * 0.5f, cap = StrokeCap.Round,
+                        )
+                    }
+                }
             }
+
+            // ── Shared: drifting green orb bottom-left (depth / life) ────────
+            val ox = w * 0.15f + sin(t) * w * 0.12f
+            val oy = h * 0.70f + cos(t * 0.6f) * h * 0.04f
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to AgroPalette.Primary.copy(alpha = 0.10f),
+                    1f to Color.Transparent,
+                    center = Offset(ox, oy), radius = w * 0.65f,
+                ),
+                radius = w * 0.65f, center = Offset(ox, oy),
+            )
         }
     }
 }
@@ -459,6 +627,7 @@ private fun initialsOf(name: String): String {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap: () -> Unit) {
+    val useMetric by AppPreferences.useMetric.collectAsState()
     val kind = snapshot?.kind ?: ConditionKind.Cloudy
     val temp = snapshot?.tempC ?: 0
     val (icon, tint) = if (snapshot != null) iconAndTintFor(snapshot.kind) else Icons.Rounded.Cloud to AgroPalette.InkMuted
@@ -500,7 +669,7 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
-                            snapshot?.let { "${it.tempC}°" } ?: "—",
+                            snapshot?.let { UnitFormatter.tempShort(it.tempC, useMetric) } ?: "—",
                             style = MaterialTheme.typography.displayLarge.copy(fontSize = 60.sp),
                             color = tempColor,
                             fontWeight = FontWeight.Black,
@@ -541,8 +710,8 @@ private fun WeatherHeroCard(snapshot: WeatherSnapshot?, loading: Boolean, onTap:
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 WeatherMetric(stringResource(R.string.weather_humidity), snapshot?.humidityPct?.let { "$it%" } ?: "—", Icons.Rounded.WaterDrop, AgroPalette.Sky)
-                WeatherMetric(stringResource(R.string.weather_wind), snapshot?.windKph?.let { "$it km/h" } ?: "—", Icons.Rounded.Air, AgroPalette.Primary)
-                WeatherMetric(stringResource(R.string.weather_rain), snapshot?.rainMm?.let { "$it mm" } ?: "—", Icons.Rounded.Cloud, AgroPalette.InkMuted)
+                WeatherMetric(stringResource(R.string.weather_wind), snapshot?.windKph?.let { UnitFormatter.wind(it, useMetric) } ?: "—", Icons.Rounded.Air, AgroPalette.Primary)
+                WeatherMetric(stringResource(R.string.weather_rain), snapshot?.rainMm?.let { UnitFormatter.rain(it.toFloat(), useMetric) } ?: "—", Icons.Rounded.Cloud, AgroPalette.InkMuted)
             }
             Spacer(Modifier.height(10.dp))
             Row(
@@ -589,6 +758,11 @@ private fun weatherCardBrush(kind: ConditionKind, tempC: Int): Brush {
         ConditionKind.Night -> Brush.verticalGradient(
             listOf(Color(0xFF01020F), Color(0xFF000005))
         )
+        ConditionKind.Windy -> Brush.verticalGradient(
+            0f to Color(0xFF021410),
+            0.55f to Color(0xFF051A0E),
+            1f to Color(0xFF020A06),
+        )
     }
 }
 
@@ -617,6 +791,7 @@ private fun WeatherAtmosphere(
     rainMm: Int = 0,
     humidityPct: Int = 60,
     uvIndex: Int = 5,
+    isDay: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val tr = rememberInfiniteTransition(label = "weather-fx")
@@ -627,30 +802,36 @@ private fun WeatherAtmosphere(
 
     Canvas(modifier = modifier) {
         when (kind) {
-            ConditionKind.Clear        -> drawSunScene(t, t3, tempC, uvIndex)
-            ConditionKind.PartlyCloudy -> drawSunsetScene(t, t3, windScalar)
-            ConditionKind.Cloudy       -> drawFogScene(t, t3, humidityPct)
-            ConditionKind.Rain         -> drawRainScene(t, t2, rainMm)
-            ConditionKind.Storm        -> drawStormScene(t, t2, windKph)
+            ConditionKind.Clear        -> drawSunScene(t, t3, tempC, uvIndex, isDay)
+            ConditionKind.PartlyCloudy -> drawSunsetScene(t, t3, windScalar, isDay)
+            ConditionKind.Cloudy       -> drawFogScene(t, t3, humidityPct, isDay)
+            ConditionKind.Rain         -> drawRainScene(t, t2, rainMm, isDay)
+            ConditionKind.Storm        -> drawStormScene(t, t2, windKph, isDay)
             ConditionKind.Night        -> drawNightScene(t, t2, t3)
+            ConditionKind.Windy        -> drawWindyScene(t, t2, t3, windKph, isDay)
         }
     }
 }
 
 // ── ☀️ Clear / Summer ─────────────────────────────────────────────────────────
-// Light rays count = 4 + (uvIndex/3). Dust motes drift upward.
-// Heat shimmer drawn at tempC > 32°C.
+// Day: light rays, golden dust motes, heat shimmer at tempC > 32°C.
+// Night (rare — wmoToKind maps codes 0-3 to Night, but guard anyway):
+//   cooler silver rays, blue-white motes.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunScene(
-    t: Float, t3: Float, tempC: Int, uvIndex: Int,
+    t: Float, t3: Float, tempC: Int, uvIndex: Int, isDay: Boolean = true,
 ) {
     val w = size.width; val h = size.height
     val cx = w * 0.82f; val cy = h * 0.13f
 
-    // Sun corona
+    val coronaColor = if (isDay) Color(0xFFFCD34D) else Color(0xFFD1D5DB)
+    val rayColor    = if (isDay) Color(0xFFFCD34D) else Color(0xFFBFDBFE)
+    val moteColor   = if (isDay) Color(0xFFFCD34D) else Color(0xFFE0E7FF)
+
+    // Sun / moon corona
     drawCircle(
         brush = Brush.radialGradient(
-            0f to Color(0xFFFCD34D).copy(alpha = 0.55f),
-            0.35f to Color(0xFFF59E0B).copy(alpha = 0.18f),
+            0f to coronaColor.copy(alpha = if (isDay) 0.55f else 0.30f),
+            0.35f to coronaColor.copy(alpha = if (isDay) 0.18f else 0.08f),
             1f to Color.Transparent,
             center = Offset(cx, cy), radius = w * 0.52f,
         ),
@@ -659,7 +840,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunScene(
 
     // Crepuscular light rays — count wired to UV index
     val rayCount = 4 + (uvIndex / 3).coerceAtMost(4)
-    val rayAlpha = 0.08f + 0.07f * (sin(t3 * PI.toFloat() * 2f) * 0.5f + 0.5f)
+    val rayAlpha = (if (isDay) 0.08f else 0.05f) + 0.07f * (sin(t3 * PI.toFloat() * 2f) * 0.5f + 0.5f)
     val spreadTotal = 1.10f; val midAngle = 2.30f
     repeat(rayCount) { i ->
         val angle = midAngle + (i - rayCount / 2f) * (spreadTotal / rayCount)
@@ -668,7 +849,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunScene(
         val ey = cy + sin(angle) * rayLen
         drawLine(
             brush = Brush.linearGradient(
-                0f to Color(0xFFFCD34D).copy(alpha = rayAlpha),
+                0f to rayColor.copy(alpha = rayAlpha),
                 1f to Color.Transparent,
                 start = Offset(cx, cy), end = Offset(ex, ey),
             ),
@@ -677,7 +858,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunScene(
         )
     }
 
-    // Golden dust motes drifting upward
+    // Dust / star motes drifting upward
     repeat(40) { i ->
         val seed = (i * 73 + 17) % 1000 / 1000f
         val anchorX = w * (((i * 47) % 100) / 100f)
@@ -686,13 +867,13 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunScene(
         val y = ((startY - t * speed * h + h * 2f) % h)
         val x = anchorX + sin(t * (1.5f + seed) * PI.toFloat() * 2f + seed * 6.28f) * w * 0.03f
         drawCircle(
-            color  = Color(0xFFFCD34D).copy(alpha = (0.12f + 0.18f * seed) * (1f - y / h * 0.5f).coerceIn(0f, 1f)),
+            color  = moteColor.copy(alpha = (0.12f + 0.18f * seed) * (1f - y / h * 0.5f).coerceIn(0f, 1f)),
             radius = 0.8f + seed * 1.4f, center = Offset(x, y),
         )
     }
 
-    // Heat shimmer lines at very high temperatures
-    if (tempC > 32) {
+    // Heat shimmer lines at very high temperatures (day only)
+    if (isDay && tempC > 32) {
         repeat(7) { i ->
             val phase = i * (PI.toFloat() / 3.5f)
             val yOff = sin(t * PI.toFloat() * 6f + phase) * 3f
@@ -707,42 +888,70 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunScene(
 }
 
 // ── 🌅 PartlyCloudy / Sunset ──────────────────────────────────────────────────
-// Orange horizon glow, warm amber clouds, lens flare, silhouette hills.
+// Day: orange horizon glow, warm amber clouds, lens flare, silhouette hills.
+// Night: blue-silver moonrise glow, cool grey-violet clouds, moon halo.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunsetScene(
-    t: Float, t3: Float, windScalar: Float,
+    t: Float, t3: Float, windScalar: Float, isDay: Boolean = true,
 ) {
     val w = size.width; val h = size.height
 
-    // Orange horizon glow band
-    drawRect(
-        brush = Brush.verticalGradient(
-            0f to Color.Transparent,
-            0.55f to Color(0xFFFF7B00).copy(alpha = 0.20f),
-            0.75f to Color(0xFFFF4500).copy(alpha = 0.14f),
-            1f to Color.Transparent,
-        ),
-        size = androidx.compose.ui.geometry.Size(w, h),
-    )
+    // Horizon glow band — warm orange day, cool blue-violet night
+    if (isDay) {
+        drawRect(
+            brush = Brush.verticalGradient(
+                0f to Color.Transparent,
+                0.55f to Color(0xFFFF7B00).copy(alpha = 0.20f),
+                0.75f to Color(0xFFFF4500).copy(alpha = 0.14f),
+                1f to Color.Transparent,
+            ),
+            size = androidx.compose.ui.geometry.Size(w, h),
+        )
+    } else {
+        drawRect(
+            brush = Brush.verticalGradient(
+                0f to Color.Transparent,
+                0.50f to Color(0xFF3B4B7A).copy(alpha = 0.18f),
+                0.75f to Color(0xFF1E2B50).copy(alpha = 0.22f),
+                1f to Color.Transparent,
+            ),
+            size = androidx.compose.ui.geometry.Size(w, h),
+        )
+    }
 
-    // Sunset-tinted warm clouds
-    drawSunsetClouds(t, windScalar)
+    // Clouds — amber (day) or cool violet-grey (night)
+    drawSunsetClouds(t, windScalar, isDay)
 
-    // Lens flare from top-right
+    // Lens flare (day) or moon halo (night) from top-right
     val flareAlpha = 0.45f + 0.30f * (sin(t3 * PI.toFloat() * 2f) * 0.5f + 0.5f)
     val fx = w * 0.82f; val fy = h * 0.12f
-    drawCircle(
-        brush = Brush.radialGradient(
-            0f to Color(0xFFFCD34D).copy(alpha = 0.65f * flareAlpha),
-            0.4f to Color(0xFFFB923C).copy(alpha = 0.20f * flareAlpha),
-            1f to Color.Transparent,
-            center = Offset(fx, fy), radius = 32f,
-        ),
-        radius = 32f, center = Offset(fx, fy),
-    )
-    // Secondary flare glints along a line toward centre
+    if (isDay) {
+        drawCircle(
+            brush = Brush.radialGradient(
+                0f to Color(0xFFFCD34D).copy(alpha = 0.65f * flareAlpha),
+                0.4f to Color(0xFFFB923C).copy(alpha = 0.20f * flareAlpha),
+                1f to Color.Transparent,
+                center = Offset(fx, fy), radius = 32f,
+            ),
+            radius = 32f, center = Offset(fx, fy),
+        )
+    } else {
+        // Moon glow — soft silver halo
+        drawCircle(
+            brush = Brush.radialGradient(
+                0f to Color(0xFFE2E8F0).copy(alpha = 0.45f * flareAlpha),
+                0.45f to Color(0xFF94A3B8).copy(alpha = 0.12f * flareAlpha),
+                1f to Color.Transparent,
+                center = Offset(fx, fy), radius = 28f,
+            ),
+            radius = 28f, center = Offset(fx, fy),
+        )
+        drawCircle(Color(0xFFE2E8F0).copy(alpha = 0.80f * flareAlpha), radius = 9f, center = Offset(fx, fy))
+    }
+    // Secondary glints along a line toward centre
+    val glintColor = if (isDay) Color(0xFFFF7B00) else Color(0xFF7DD3FC)
     listOf(0.22f, 0.42f, 0.62f).forEachIndexed { i, dist ->
         drawCircle(
-            color  = Color(0xFFFF7B00).copy(alpha = (0.25f - i * 0.07f) * flareAlpha),
+            color  = glintColor.copy(alpha = (0.25f - i * 0.07f) * flareAlpha),
             radius = 7f - i * 2f,
             center = Offset(fx + (w * 0.5f - fx) * dist, fy + (h * 0.5f - fy) * dist),
         )
@@ -760,13 +969,17 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunsetScene(
     drawPath(hill, Color(0xFF020001).copy(alpha = 0.70f))
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunsetClouds(t: Float, windScalar: Float) {
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunsetClouds(
+    t: Float, windScalar: Float, isDay: Boolean = true,
+) {
     val w = size.width; val h = size.height
     val puffs = listOf(
         Triple( 0.00f, 0.05f, 1.00f), Triple(-0.55f, 0.15f, 0.70f),
         Triple( 0.55f, 0.15f, 0.70f), Triple(-0.30f,-0.25f, 0.80f),
         Triple( 0.30f,-0.30f, 0.75f),
     )
+    val cloudInner = if (isDay) Color(0xFFFFB347) else Color(0xFF8B9DC3)
+    val cloudOuter = if (isDay) Color(0xFFFF7B00) else Color(0xFF4A5568)
     data class SC(val ax: Float, val ay: Float, val dX: Float, val wY: Float, val per: Float, val ph: Float, val sc: Float, val ma: Float, val d: Float)
     val baseS = h * 0.16f
     listOf(
@@ -783,8 +996,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunsetClouds(t:
             val r = scale * sf; val px = cx + dx * scale; val py = cy + dy * scale
             drawCircle(
                 brush = Brush.radialGradient(
-                    0f to Color(0xFFFFB347).copy(alpha = alpha),
-                    0.5f to Color(0xFFFF7B00).copy(alpha = alpha * 0.35f),
+                    0f to cloudInner.copy(alpha = alpha),
+                    0.5f to cloudOuter.copy(alpha = alpha * 0.35f),
                     1f to Color.Transparent,
                     center = Offset(px, py), radius = r,
                 ),
@@ -795,28 +1008,41 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunsetClouds(t:
 }
 
 // ── 🌧️ Rain ───────────────────────────────────────────────────────────────────
-// Streak count = 30 + rainMm*2 (max 70). Angled streaks, splash rings, neon fog.
+// Day: blue streaks, teal fog, mist. Night: deeper navy + more neon cyan glow.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainScene(
-    t: Float, t2: Float, rainMm: Int,
+    t: Float, t2: Float, rainMm: Int, isDay: Boolean = true,
 ) {
     val w = size.width; val h = size.height
+    val streakColor  = if (isDay) Color(0xFF93C5FD) else Color(0xFF38BDF8)
+    val orbAlpha     = if (isDay) 0.08f else 0.14f
+    val mistAlpha    = if (isDay) 0.09f else 0.14f
 
-    // Neon teal fog orbs drifting horizontally
+    // Neon teal / cyan fog orbs drifting horizontally
     val fogDrift = sin(t2 * PI.toFloat() * 2f) * w * 0.08f
     listOf(
         Offset(w * 0.25f + fogDrift, h * 0.42f) to w * 0.60f,
         Offset(w * 0.75f - fogDrift * 0.7f, h * 0.62f) to w * 0.50f,
     ).forEach { (pos, r) ->
         drawCircle(
-            brush = Brush.radialGradient(0f to Color(0xFF22D3EE).copy(alpha = 0.08f), 1f to Color.Transparent, center = pos, radius = r),
+            brush = Brush.radialGradient(0f to Color(0xFF22D3EE).copy(alpha = orbAlpha), 1f to Color.Transparent, center = pos, radius = r),
             radius = r, center = pos,
         )
     }
     // Rising mist from bottom
     drawRect(
-        brush = Brush.verticalGradient(0.60f to Color.Transparent, 1f to Color(0xFF93C5FD).copy(alpha = 0.09f)),
+        brush = Brush.verticalGradient(0.60f to Color.Transparent, 1f to streakColor.copy(alpha = mistAlpha)),
         size  = androidx.compose.ui.geometry.Size(w, h),
     )
+    // Night darkening overlay
+    if (!isDay) {
+        drawRect(
+            brush = Brush.verticalGradient(
+                0f to Color(0xFF020D1A).copy(alpha = 0.30f),
+                1f to Color(0xFF010609).copy(alpha = 0.45f),
+            ),
+            size = androidx.compose.ui.geometry.Size(w, h),
+        )
+    }
     // Angled rain streaks — density driven by rainMm
     val count = (30 + rainMm * 2).coerceIn(30, 70)
     repeat(count) { i ->
@@ -825,7 +1051,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainScene(
         val y = ((t + seed) % 1f) * (h + 60f) - 30f
         val len = 10f + (i % 5) * 5f
         drawLine(
-            color = Color(0xFF93C5FD).copy(alpha = 0.40f + (i % 3) * 0.08f),
+            color = streakColor.copy(alpha = 0.40f + (i % 3) * 0.08f),
             start = Offset(x, y), end = Offset(x + len * 0.07f, y + len),
             strokeWidth = 0.7f + (i % 3) * 0.4f, cap = StrokeCap.Round,
         )
@@ -836,7 +1062,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainScene(
         val alpha = (1f - r / 10f) * 0.40f
         if (alpha > 0.02f) {
             drawCircle(
-                color  = Color(0xFF93C5FD).copy(alpha = alpha),
+                color  = streakColor.copy(alpha = alpha),
                 radius = r + 1f,
                 center = Offset(w * (((i * 83) % 100) / 100f), h * (0.89f + (i % 3) * 0.035f)),
                 style  = Stroke(width = 0.8f),
@@ -846,9 +1072,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainScene(
 }
 
 // ── ⛈️ Storm ──────────────────────────────────────────────────────────────────
-// Violet storm mass, 65 fast streaks, jagged zig-zag lightning with glow aura.
+// Day: violet storm mass, fast streaks, lightning. Night: same + electric indigo.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStormScene(
-    t: Float, t2: Float, windKph: Int,
+    t: Float, t2: Float, windKph: Int, isDay: Boolean = true,
 ) {
     val w = size.width; val h = size.height
     val pulse = sin(t * PI.toFloat() * 2f) * 0.5f + 0.5f
@@ -873,6 +1099,15 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStormScene(
             start = Offset(w * (((i * 47) % 100) / 100f), y),
             end   = Offset(w * (((i * 47) % 100) / 100f) + len * 0.10f, y + len),
             strokeWidth = 0.9f, cap = StrokeCap.Round,
+        )
+    }
+
+    // Night darkening + extra indigo overlay
+    if (!isDay) {
+        drawRect(Color(0xFF050010).copy(alpha = 0.35f))
+        drawCircle(
+            brush = Brush.radialGradient(0f to Color(0xFF3730A3).copy(alpha = 0.18f), 1f to Color.Transparent, center = Offset(size.width * 0.75f, size.height * 0.10f), radius = size.width * 0.55f),
+            radius = size.width * 0.55f, center = Offset(size.width * 0.75f, size.height * 0.10f),
         )
     }
 
@@ -902,12 +1137,14 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStormScene(
 }
 
 // ── 🌫️ Cloudy / Fog ───────────────────────────────────────────────────────────
-// 4 drifting fog layers (opacity ∝ humidityPct), cold vignette, frost specks.
+// Day: grey mist, cold vignette, frost specks. Night: cooler blue-grey fog.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawFogScene(
-    t: Float, t3: Float, humidityPct: Int,
+    t: Float, t3: Float, humidityPct: Int, isDay: Boolean = true,
 ) {
     val w = size.width; val h = size.height
     val fogDensity = 0.06f + humidityPct * 0.00028f
+    val fogTint    = if (isDay) Color(0xFFCBD5E1) else Color(0xFF64748B)
+    val fogBright  = if (isDay) Color(0xFFE2E8F0) else Color(0xFF94A3B8)
 
     // 4 extremely slow drifting fog layers at different heights
     listOf(
@@ -920,9 +1157,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawFogScene(
         drawRect(
             brush = Brush.horizontalGradient(
                 0f to Color.Transparent,
-                0.20f to Color(0xFFCBD5E1).copy(alpha = fogDensity),
-                0.50f to Color(0xFFE2E8F0).copy(alpha = fogDensity * 1.4f),
-                0.80f to Color(0xFFCBD5E1).copy(alpha = fogDensity),
+                0.20f to fogTint.copy(alpha = fogDensity),
+                0.50f to fogBright.copy(alpha = fogDensity * 1.4f),
+                0.80f to fogTint.copy(alpha = fogDensity),
                 1f to Color.Transparent,
                 startX = drift, endX = w + drift,
             ),
@@ -1022,6 +1259,100 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawNightScene(
     }
 }
 
+// ── 🌬️ Windy / Stormy-Windy ──────────────────────────────────────────────────
+// Horizontal gust streaks (count ∝ windKph), blown debris specks, gust wave.
+// Day: teal-green tones. Night: cool blue + faint star backdrop.
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawWindyScene(
+    t: Float, t2: Float, t3: Float, windKph: Int, isDay: Boolean = true,
+) {
+    val w = size.width; val h = size.height
+    val gustColor   = if (isDay) Color(0xFF4ADE80) else Color(0xFF38BDF8)
+    val debrisColor = if (isDay) Color(0xFF86EFAC) else Color(0xFF7DD3FC)
+
+    // Ambient glow — green (day) or blue (night)
+    drawCircle(
+        brush = Brush.radialGradient(
+            0f to gustColor.copy(alpha = 0.14f),
+            1f to Color.Transparent,
+            center = Offset(w * 0.5f, h * 0.22f), radius = w * 0.90f,
+        ),
+        radius = w * 0.90f, center = Offset(w * 0.5f, h * 0.22f),
+    )
+
+    // Night: faint star backdrop
+    if (!isDay) {
+        repeat(20) { i ->
+            val seed = (i * 137 + 7) % 1000 / 1000f
+            val twinkle = 0.30f + 0.40f * (sin(t * PI.toFloat() * 2.8f + seed * 6.28f) * 0.5f + 0.5f)
+            drawCircle(
+                color  = Color(0xFFE2E8F0).copy(alpha = 0.06f + 0.18f * twinkle),
+                radius = 0.7f + (i % 3) * 0.4f,
+                center = Offset(w * (((i * 53) % 100) / 100f), h * 0.35f * (((i * 31) % 90) / 100f)),
+            )
+        }
+    }
+
+    // Horizontal gust streaks — count and speed driven by windKph
+    val streakCount = ((windKph - 30).coerceAtLeast(20)).coerceAtMost(55)
+    val speedMul = (windKph / 45f).coerceIn(1f, 2.5f)
+    repeat(streakCount) { i ->
+        val seed = (i * 83 + 13) % 100 / 100f
+        val baseY = h * (((i * 47) % 100) / 100f)
+        val xPhase = ((t2 * speedMul + seed) % 1f)
+        val len = w * (0.06f + seed * 0.12f)
+        val xEnd = xPhase * (w + len) - len
+        val xStart = xEnd - len
+        val yWobble = sin(t * PI.toFloat() * 3f + seed * 6.28f) * h * 0.012f
+        drawLine(
+            brush = Brush.linearGradient(
+                0f to Color.Transparent,
+                0.35f to gustColor.copy(alpha = 0.25f + seed * 0.20f),
+                1f to Color.Transparent,
+                start = Offset(xStart, baseY + yWobble),
+                end   = Offset(xEnd,   baseY + yWobble),
+            ),
+            start = Offset(xStart, baseY + yWobble),
+            end   = Offset(xEnd,   baseY + yWobble),
+            strokeWidth = 0.8f + seed * 1.2f, cap = StrokeCap.Round,
+        )
+    }
+
+    // Blown debris specks — tiny circles swept horizontally
+    repeat(22) { i ->
+        val seed = (i * 61 + 19) % 1000 / 1000f
+        val baseY = h * (0.15f + ((i * 43) % 75) / 100f)
+        val speed = 0.08f + seed * 0.18f
+        val x = ((t * speed * (w + 60f) + seed * w) % (w + 60f)) - 30f
+        val yWobble = sin(t * PI.toFloat() * 4f + seed * 12.56f) * h * 0.025f
+        drawCircle(
+            color  = debrisColor.copy(alpha = 0.25f + seed * 0.25f),
+            radius = 1.2f + seed * 1.8f,
+            center = Offset(x, baseY + yWobble),
+        )
+    }
+
+    // Curved gust wave at mid-height — a subtle wide arc that drifts rightward
+    val wavePhase = (t3 * 0.6f) % 1f
+    val waveX = wavePhase * w * 1.4f - w * 0.2f
+    drawLine(
+        brush = Brush.linearGradient(
+            0f to Color.Transparent,
+            0.3f to gustColor.copy(alpha = 0.12f),
+            0.7f to gustColor.copy(alpha = 0.12f),
+            1f to Color.Transparent,
+            start = Offset(waveX, h * 0.55f), end = Offset(waveX + w * 0.55f, h * 0.45f),
+        ),
+        start = Offset(waveX, h * 0.55f), end = Offset(waveX + w * 0.55f, h * 0.45f),
+        strokeWidth = 28f, cap = StrokeCap.Round,
+    )
+
+    // Rising mist from bottom — anchors the scene
+    drawRect(
+        brush = Brush.verticalGradient(0.70f to Color.Transparent, 1f to gustColor.copy(alpha = 0.07f)),
+        size  = androidx.compose.ui.geometry.Size(w, h),
+    )
+}
+
 @Composable
 private fun WeatherMetric(label: String, value: String, icon: ImageVector, tint: Color) {
     Column {
@@ -1041,6 +1372,7 @@ private fun iconAndTintFor(kind: ConditionKind): Pair<ImageVector, Color> = when
     ConditionKind.Rain -> Icons.Rounded.WaterDrop to AgroPalette.Sky
     ConditionKind.Storm -> Icons.Rounded.Bolt to AgroPalette.Iris
     ConditionKind.Night -> Icons.Rounded.NightlightRound to AgroPalette.Iris
+    ConditionKind.Windy -> Icons.Rounded.Air to AgroPalette.Primary
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1063,22 +1395,11 @@ private fun HeroBand(
     onBellTap: () -> Unit,
     onWeatherTap: () -> Unit,
 ) {
+    val useMetric by AppPreferences.useMetric.collectAsState()
     val kind        = snapshot?.kind ?: ConditionKind.Cloudy
     val temp        = snapshot?.tempC ?: 0
     val (wIcon, wTint) = if (snapshot != null) iconAndTintFor(snapshot.kind) else Icons.Rounded.Cloud to AgroPalette.InkMuted
     val tempColor   = colorForTemp(temp, snapshot != null)
-
-    // Animated health bar
-    val healthProgress by animateFloatAsState(
-        targetValue  = (cropHealth / 100f).coerceIn(0f, 1f),
-        animationSpec = tween(1600, easing = LinearOutSlowInEasing),
-        label = "hero-health",
-    )
-    val healthTint = when {
-        cropHealth >= 80 -> AgroPalette.Primary
-        cropHealth >= 60 -> AgroPalette.Amber
-        else -> AgroPalette.Rose
-    }
 
     // Shared infinite transition for all canvas effects
     val inf = rememberInfiniteTransition(label = "hero")
@@ -1110,6 +1431,7 @@ private fun HeroBand(
             rainMm      = snapshot?.rainMm     ?: 0,
             humidityPct = snapshot?.humidityPct ?: 60,
             uvIndex     = snapshot?.uvIndex    ?: 5,
+            isDay       = timeOfDay.isDay,
             modifier    = Modifier.matchParentSize().clip(shape),
         )
 
@@ -1210,8 +1532,6 @@ private fun HeroBand(
                         color = AgroPalette.Ink,
                         fontWeight = FontWeight.ExtraBold,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    SystemBadge(healthy = systemHealthy)
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
@@ -1229,52 +1549,13 @@ private fun HeroBand(
                         contentAlignment = Alignment.Center,
                     ) { Icon(wIcon, null, tint = wTint, modifier = Modifier.size(38.dp)) }
                     Text(
-                        snapshot?.let { "${it.tempC}°" } ?: "—",
+                        snapshot?.let { UnitFormatter.tempShort(it.tempC, useMetric) } ?: "—",
                         style = MaterialTheme.typography.displayLarge.copy(fontSize = 52.sp),
                         color = tempColor, fontWeight = FontWeight.Black,
                     )
                     Text(
                         snapshot?.let { localizedConditionLabel(it.kind) } ?: if (loading) "…" else "—",
                         style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted,
-                    )
-                }
-            }
-
-            if (cropHealth > 0) {
-                Spacer(Modifier.height(16.dp))
-
-                // Farm health bar — only shown when real data is available
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Farm Health",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = AgroPalette.InkMuted,
-                        modifier = Modifier.width(82.dp),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(AgroPalette.SurfaceGlass),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(healthProgress)
-                                .height(6.dp)
-                                .clip(RoundedCornerShape(3.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(healthTint.copy(alpha = 0.7f), healthTint)
-                                    )
-                                ),
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "$cropHealth%",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = healthTint, fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -1288,8 +1569,8 @@ private fun HeroBand(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 WeatherMetric(stringResource(R.string.weather_humidity), snapshot?.humidityPct?.let { "$it%" } ?: "—", Icons.Rounded.WaterDrop, AgroPalette.Sky)
-                WeatherMetric(stringResource(R.string.weather_wind), snapshot?.windKph?.let { "$it km/h" } ?: "—", Icons.Rounded.Air, AgroPalette.Primary)
-                WeatherMetric(stringResource(R.string.weather_rain), snapshot?.rainMm?.let { "$it mm" } ?: "—", Icons.Rounded.Cloud, AgroPalette.InkMuted)
+                WeatherMetric(stringResource(R.string.weather_wind), snapshot?.windKph?.let { UnitFormatter.wind(it, useMetric) } ?: "—", Icons.Rounded.Air, AgroPalette.Primary)
+                WeatherMetric(stringResource(R.string.weather_rain), snapshot?.rainMm?.let { UnitFormatter.rain(it.toFloat(), useMetric) } ?: "—", Icons.Rounded.Cloud, AgroPalette.InkMuted)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.weather_view_forecast), style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary, fontWeight = FontWeight.SemiBold)
                     Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.Primary, modifier = Modifier.size(16.dp))
@@ -1567,7 +1848,7 @@ private fun AlertsEmptyCard(hasFields: Boolean) {
 // Crop Health Monitor — animated sweep gradient ring
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun CropHealthCard(score: Int, verdict: String, hasFields: Boolean, onTap: () -> Unit) {
+private fun CropHealthCard(score: Int, verdict: String, hasFields: Boolean, hasScan: Boolean, onTap: () -> Unit) {
     val target = (score / 100f).coerceIn(0f, 1f)
     val progress by animateFloatAsState(
         targetValue = target,
@@ -1591,12 +1872,37 @@ private fun CropHealthCard(score: Int, verdict: String, hasFields: Boolean, onTa
                     Column {
                         Text(stringResource(R.string.crop_no_data_title), style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
                         Spacer(Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.crop_no_data_body),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AgroPalette.InkMuted,
-                        )
+                        Text(stringResource(R.string.crop_no_data_body), style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
                     }
+                }
+            } else if (!hasScan) {
+                // Fields exist but no scan done yet — show prompt
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(AgroPalette.Primary.copy(alpha = 0.07f))
+                        .border(1.dp, AgroPalette.Primary.copy(alpha = 0.18f), RoundedCornerShape(16.dp))
+                        .clickable(onClick = onTap)
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(AgroPalette.Primary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Rounded.CameraAlt, null, tint = AgroPalette.Primary, modifier = Modifier.size(24.dp))
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("No scan data yet", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(3.dp))
+                        Text("Scan your field to get real crop health data — tap to open scanner.", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                    }
+                    Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.Primary, modifier = Modifier.size(18.dp))
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2193,4 +2499,5 @@ private fun localizedConditionLabel(kind: ConditionKind): String = stringResourc
     ConditionKind.Rain -> R.string.weather_condition_rain
     ConditionKind.Storm -> R.string.weather_condition_storm
     ConditionKind.Night -> R.string.weather_condition_night
+    ConditionKind.Windy -> R.string.weather_condition_windy
 })

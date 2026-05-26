@@ -6,9 +6,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 private val AgroColors = darkColorScheme(
@@ -29,6 +31,26 @@ private val AgroColors = darkColorScheme(
     error = AgroPalette.Rose,
     onError = AgroPalette.Ink,
     outline = AgroPalette.SurfaceGlassBorder,
+)
+
+private val AgroLightColors = lightColorScheme(
+    primary              = AgroPalette.Primary,
+    onPrimary            = Color.White,
+    primaryContainer     = AgroPalette.Primary.copy(alpha = 0.14f),
+    onPrimaryContainer   = Color(0xFF032918),
+    secondary            = AgroPalette.Sky,
+    onSecondary          = Color.White,
+    tertiary             = AgroPalette.Iris,
+    onTertiary           = Color.White,
+    background           = Color(0xFFF0FDF4),
+    onBackground         = Color(0xFF0A1F0E),
+    surface              = Color(0xFFFFFFFF),
+    onSurface            = Color(0xFF0A1F0E),
+    surfaceVariant       = Color(0xFFE2F5EB),
+    onSurfaceVariant     = Color(0xFF2D5A3D),
+    error                = AgroPalette.Rose,
+    onError              = Color.White,
+    outline              = Color(0xFFB4D9C0),
 )
 
 val AgroShapes = Shapes(
@@ -65,16 +87,19 @@ object AgroBrushes {
 }
 
 @Composable
-fun AgroSphereTheme(content: @Composable () -> Unit) {
+fun AgroSphereTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = AgroColors,
+        colorScheme = if (darkTheme) AgroColors else AgroLightColors,
         typography = AgroTypography,
         shapes = AgroShapes,
     ) {
+        val bg = if (darkTheme) AgroBrushes.canvas else Brush.verticalGradient(
+            0f to Color(0xFFF0FDF4),
+            0.6f to Color(0xFFE8F5ED),
+            1f to Color(0xFFDCF0E4),
+        )
         androidx.compose.foundation.layout.Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(AgroBrushes.canvas)
+            modifier = Modifier.fillMaxSize().background(bg)
         ) { content() }
     }
 }

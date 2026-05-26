@@ -15,18 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import com.agrosphere.app.ui.theme.AgroPalette
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-/**
- * Subtle atmospheric backdrop for the profile screens.
- *
- * Two slow-drifting radial orbs (emerald + iris) over a vertical gradient,
- * plus a sparse star layer at the top. Quieter than the auth backdrop so it
- * never fights with the menu content.
- */
 @Composable
 fun ProfileBackdrop() {
     val tr = rememberInfiniteTransition(label = "profile-bg")
@@ -41,8 +35,8 @@ fun ProfileBackdrop() {
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    0f to Color(0xFF071210),
-                    0.55f to AgroPalette.BgFarm,
+                    0f to Color(0xFF060F0D),
+                    0.45f to AgroPalette.BgFarm,
                     1f to AgroPalette.BgDeep,
                 )
             )
@@ -51,47 +45,94 @@ fun ProfileBackdrop() {
             val w = size.width
             val h = size.height
 
-            // Emerald orb, upper-left
-            val ax = w * 0.20f + sin(t) * w * 0.18f
-            val ay = h * 0.18f + cos(t * 0.7f) * h * 0.06f
+            // ── Orb 1: Emerald, upper-left ───────────────────────────────────
+            val ax = w * 0.18f + sin(t) * w * 0.16f
+            val ay = h * 0.16f + cos(t * 0.7f) * h * 0.06f
             drawCircle(
                 brush = Brush.radialGradient(
-                    0f to AgroPalette.Primary.copy(alpha = 0.22f),
-                    0.55f to AgroPalette.Primary.copy(alpha = 0.05f),
+                    0f to AgroPalette.Primary.copy(alpha = 0.26f),
+                    0.5f to AgroPalette.Primary.copy(alpha = 0.06f),
                     1f to Color.Transparent,
-                    center = Offset(ax, ay),
-                    radius = w * 0.75f,
+                    center = Offset(ax, ay), radius = w * 0.78f,
                 ),
-                radius = w * 0.75f,
-                center = Offset(ax, ay),
-            )
-            // Iris orb, lower-right
-            val bx = w * 0.85f + cos(t * 0.6f + 1.4f) * w * 0.20f
-            val by = h * 0.70f + sin(t * 0.5f + 2f) * h * 0.08f
-            drawCircle(
-                brush = Brush.radialGradient(
-                    0f to AgroPalette.Iris.copy(alpha = 0.16f),
-                    0.6f to AgroPalette.Iris.copy(alpha = 0.04f),
-                    1f to Color.Transparent,
-                    center = Offset(bx, by),
-                    radius = w * 0.7f,
-                ),
-                radius = w * 0.7f,
-                center = Offset(bx, by),
+                radius = w * 0.78f, center = Offset(ax, ay),
             )
 
-            // Star dust — top third only
-            repeat(22) { i ->
+            // ── Orb 2: Iris, lower-right ─────────────────────────────────────
+            val bx = w * 0.85f + cos(t * 0.6f + 1.4f) * w * 0.18f
+            val by = h * 0.68f + sin(t * 0.5f + 2f) * h * 0.08f
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to AgroPalette.Iris.copy(alpha = 0.20f),
+                    0.6f to AgroPalette.Iris.copy(alpha = 0.05f),
+                    1f to Color.Transparent,
+                    center = Offset(bx, by), radius = w * 0.72f,
+                ),
+                radius = w * 0.72f, center = Offset(bx, by),
+            )
+
+            // ── Orb 3: Amber, upper-right (smaller accent) ───────────────────
+            val cx = w * 0.82f + sin(t * 0.8f + 1f) * w * 0.10f
+            val cy = h * 0.12f + cos(t * 0.9f) * h * 0.04f
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0f to AgroPalette.Amber.copy(alpha = 0.14f),
+                    1f to Color.Transparent,
+                    center = Offset(cx, cy), radius = w * 0.38f,
+                ),
+                radius = w * 0.38f, center = Offset(cx, cy),
+            )
+
+            // ── Flowing mesh lines — 4 slow diagonal passes ──────────────────
+            val meshAlphas = listOf(0.04f, 0.03f, 0.05f, 0.03f)
+            val meshAngles = listOf(-0.30f, 0.25f, -0.18f, 0.35f)
+            val meshSpeeds = listOf(0.12f, 0.09f, 0.15f, 0.07f)
+            val meshSpacings = listOf(h * 0.28f, h * 0.42f, h * 0.60f, h * 0.75f)
+            meshAlphas.forEachIndexed { i, alpha ->
+                val xOffset = ((t / (PI * 2).toFloat() * meshSpeeds[i] * w * 2f + i * w * 0.25f) % (w * 1.5f)) - w * 0.25f
+                val yBase = meshSpacings[i]
+                val slant = meshAngles[i] * h
+                drawLine(
+                    color = AgroPalette.Primary.copy(alpha = alpha),
+                    start = Offset(xOffset, yBase),
+                    end = Offset(xOffset + w * 0.85f, yBase + slant),
+                    strokeWidth = 1f,
+                    cap = StrokeCap.Round,
+                )
+            }
+
+            // ── Star field — 35 stars, every 8th gets a glow halo ────────────
+            repeat(35) { i ->
                 val seed = (i * 137 + 7) % 1000 / 1000f
                 val sx = w * (((i * 53) % 100) / 100f)
-                val sy = h * 0.35f * (((i * 31) % 90) / 100f)
+                val sy = h * 0.42f * (((i * 31) % 90) / 100f)
                 val twinkle = 0.4f + 0.6f * (sin(t * 1.6f + seed * 6.28f) * 0.5f + 0.5f)
+                val bright = i % 8 == 0
+                if (bright) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to AgroPalette.Ink.copy(alpha = 0.35f * twinkle),
+                            1f to Color.Transparent,
+                            center = Offset(sx, sy), radius = 5f + (i % 3) * 1.5f,
+                        ),
+                        radius = 5f + (i % 3) * 1.5f, center = Offset(sx, sy),
+                    )
+                }
                 drawCircle(
-                    color = AgroPalette.Ink.copy(alpha = 0.10f + 0.30f * twinkle),
-                    radius = 0.9f + (i % 3) * 0.5f,
+                    color = AgroPalette.Ink.copy(alpha = (if (bright) 0.18f else 0.08f) + 0.28f * twinkle),
+                    radius = if (bright) 1.4f + (i % 3) * 0.3f else 0.7f + (i % 3) * 0.5f,
                     center = Offset(sx, sy),
                 )
             }
+
+            // ── Bottom vignette — content lifts above the deep bg ────────────
+            drawRect(
+                brush = Brush.verticalGradient(
+                    0.55f to Color.Transparent,
+                    1f to AgroPalette.BgDeep.copy(alpha = 0.55f),
+                ),
+                size = size,
+            )
         }
     }
 }

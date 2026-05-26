@@ -54,6 +54,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.agrosphere.app.R
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.agrosphere.app.data.repo.AppPreferences
+import com.agrosphere.app.data.repo.UnitFormatter
 import com.agrosphere.app.data.weather.LocationProvider
 import com.agrosphere.app.data.weather.WeatherBundle
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -214,6 +216,9 @@ private fun backgroundBrushFor(kind: ConditionKind): Brush = when (kind) {
     ConditionKind.Night -> Brush.verticalGradient(
         listOf(Color(0xFF02060E), Color(0xFF030610), AgroPalette.BgDeep)
     )
+    ConditionKind.Windy -> Brush.verticalGradient(
+        listOf(Color(0xFF031410), Color(0xFF020E0A), AgroPalette.BgDeep)
+    )
 }
 
 /** A condition-specific atmospheric overlay (sun glow / drifting rain / storm pulse / stars). */
@@ -231,6 +236,7 @@ private fun ConditionOverlay(kind: ConditionKind) {
         ConditionKind.Rain -> RainStreaks(t)
         ConditionKind.Storm -> StormFlash(t)
         ConditionKind.Night -> Starfield(t)
+        ConditionKind.Windy -> WindOverlay(t)
     }
 }
 
@@ -327,6 +333,42 @@ private fun Starfield(t: Float) {
     }
 }
 
+@Composable
+private fun WindOverlay(t: Float) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        val gustColor = Color(0xFF4ADE80)
+        drawCircle(
+            brush = Brush.radialGradient(
+                0f to gustColor.copy(alpha = 0.14f),
+                1f to Color.Transparent,
+                center = Offset(w * 0.5f, h * 0.25f),
+                radius = w * 0.8f,
+            ),
+            radius = w * 0.8f,
+            center = Offset(w * 0.5f, h * 0.25f),
+        )
+        for (i in 0 until 18) {
+            val seed = (i * 61 + 13) % 100 / 100f
+            val y = h * (0.08f + (i * 0.73f % 0.60f))
+            val len = w * (0.20f + seed * 0.40f)
+            val xStart = ((t * 0.8f + seed) % 1.4f - 0.3f) * w
+            val alpha = 0.05f + seed * 0.09f
+            drawLine(
+                brush = Brush.linearGradient(
+                    listOf(Color.Transparent, gustColor.copy(alpha = alpha), Color.Transparent),
+                    start = Offset(xStart, y), end = Offset(xStart + len, y),
+                ),
+                start = Offset(xStart, y),
+                end = Offset(xStart + len, y),
+                strokeWidth = 1.2f + (i % 3) * 0.5f,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Header — location chip with radar pulse
 // ─────────────────────────────────────────────────────────────────────────────
@@ -394,6 +436,7 @@ private fun RadarDot() {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun HeroBlock(snapshot: WeatherSnapshot) {
+    val useMetric by AppPreferences.useMetric.collectAsState()
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
     Box(
         modifier = Modifier
@@ -419,13 +462,13 @@ private fun HeroBlock(snapshot: WeatherSnapshot) {
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "${snapshot.tempC}°",
+                        UnitFormatter.tempShort(snapshot.tempC, useMetric),
                         style = MaterialTheme.typography.displayLarge.copy(fontSize = 92.sp),
                         color = heroTempColor(snapshot.tempC),
                         fontWeight = FontWeight.Black,
                     )
                     Text(
-                        stringResource(R.string.weather_feels_like, snapshot.feelsLikeC),
+                        UnitFormatter.feelsLike(snapshot.feelsLikeC, useMetric),
                         style = MaterialTheme.typography.labelMedium,
                         color = AgroPalette.InkMuted,
                     )
@@ -455,6 +498,7 @@ private fun heroBrushFor(kind: ConditionKind, tempC: Int): Brush {
         ConditionKind.Rain -> listOf(Color(0xFF0F2A3F), Color(0xFF06121C))
         ConditionKind.Storm -> listOf(Color(0xFF1A1335), Color(0xFF06030F))
         ConditionKind.Night -> listOf(Color(0xFF050B18), Color(0xFF02040A))
+        ConditionKind.Windy -> listOf(Color(0xFF0A1F1A), Color(0xFF030D0A))
     }
     return Brush.linearGradient(listOf(base[0].overlay(warmth), base[1]))
 }
@@ -590,13 +634,14 @@ private fun parseHm(text: String): java.time.LocalTime? = try {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun ChipRow(snapshot: WeatherSnapshot) {
+    val useMetric by AppPreferences.useMetric.collectAsState()
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         SmallChip("${snapshot.humidityPct}%", stringResource(R.string.weather_humidity), Icons.Rounded.WaterDrop, AgroPalette.Sky, Modifier.weight(1f))
-        SmallChip("${snapshot.windKph} km/h", stringResource(R.string.weather_wind), Icons.Rounded.Air, AgroPalette.Primary, Modifier.weight(1f))
-        SmallChip("${snapshot.rainMm} mm", stringResource(R.string.weather_rain), Icons.Rounded.Cloud, AgroPalette.InkMuted, Modifier.weight(1f))
+        SmallChip(UnitFormatter.wind(snapshot.windKph, useMetric), stringResource(R.string.weather_wind), Icons.Rounded.Air, AgroPalette.Primary, Modifier.weight(1f))
+        SmallChip(UnitFormatter.rain(snapshot.rainMm.toFloat(), useMetric), stringResource(R.string.weather_rain), Icons.Rounded.Cloud, AgroPalette.InkMuted, Modifier.weight(1f))
         UvChip(value = snapshot.uvIndex, modifier = Modifier.weight(1f))
     }
 }
@@ -732,6 +777,7 @@ private fun HourCurve(hours: List<HourSlot>, minT: Int, range: Int) {
 
 @Composable
 private fun HourCell(slot: HourSlot) {
+    val useMetric by AppPreferences.useMetric.collectAsState()
     val (icon, tint) = iconAndTintFor(slot.kind)
     val isNow = slot.label == "Now"
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
@@ -765,7 +811,7 @@ private fun HourCell(slot: HourSlot) {
         Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp))
         Spacer(Modifier.height(8.dp))
         Text(
-            "${slot.tempC}°",
+            UnitFormatter.tempShort(slot.tempC, useMetric),
             style = MaterialTheme.typography.titleSmall,
             color = AgroPalette.Ink,
             fontWeight = if (isNow) FontWeight.Black else FontWeight.SemiBold,
@@ -813,6 +859,7 @@ private fun InsightCard(insight: WeatherInsight) {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun DayRow(day: WeatherDay) {
+    val useMetric by AppPreferences.useMetric.collectAsState()
     val kind = when {
         "thunder" in day.condition.lowercase() -> ConditionKind.Storm
         "shower" in day.condition.lowercase() || day.rainMm > 0 -> ConditionKind.Rain
@@ -835,9 +882,12 @@ private fun DayRow(day: WeatherDay) {
             TempRangeBar(low = day.tempLowC, high = day.tempC, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(12.dp))
             Column(horizontalAlignment = Alignment.End) {
-                Text("${day.tempC}°/${day.tempLowC}°", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
                 Text(
-                    if (day.rainMm > 0) "${day.rainMm} mm" else stringResource(R.string.weather_dry),
+                    "${UnitFormatter.tempShort(day.tempC, useMetric)}/${UnitFormatter.tempShort(day.tempLowC, useMetric)}",
+                    style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink,
+                )
+                Text(
+                    if (day.rainMm > 0) UnitFormatter.rain(day.rainMm.toFloat(), useMetric) else stringResource(R.string.weather_dry),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (day.rainMm > 0) AgroPalette.Sky else AgroPalette.InkDim,
                 )
@@ -925,6 +975,7 @@ private fun iconAndTintFor(kind: ConditionKind): Pair<ImageVector, Color> = when
     ConditionKind.Rain -> Icons.Rounded.WaterDrop to AgroPalette.Sky
     ConditionKind.Storm -> Icons.Rounded.Thunderstorm to AgroPalette.Iris
     ConditionKind.Night -> Icons.Rounded.NightlightRound to AgroPalette.Iris
+    ConditionKind.Windy -> Icons.Rounded.Air to AgroPalette.Primary
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -950,6 +1001,7 @@ private fun HeroAtmosphere(kind: ConditionKind, windKph: Int, modifier: Modifier
             ConditionKind.Rain -> { heroCloudWash(); heroRain(t) }
             ConditionKind.Storm -> { heroStorm(t); heroRain(t) }
             ConditionKind.Night -> heroStars(t)
+            ConditionKind.Windy -> heroWindGusts(t, windScalar)
         }
     }
 }
@@ -1075,6 +1127,43 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.heroStars(t: Float)
             color = Color(0xFFF8FAFC).copy(alpha = 0.10f + 0.35f * twinkle),
             radius = 1.0f + (i % 3) * 0.4f,
             center = Offset(sx, sy),
+        )
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.heroWindGusts(t: Float, windScalar: Float) {
+    val w = size.width
+    val h = size.height
+    val gustColor = Color(0xFF4ADE80)
+    // Ambient teal glow
+    drawCircle(
+        brush = Brush.radialGradient(
+            0f to gustColor.copy(alpha = 0.18f),
+            1f to Color.Transparent,
+            center = Offset(w * 0.5f, h * 0.35f),
+            radius = w * 0.75f,
+        ),
+        radius = w * 0.75f,
+        center = Offset(w * 0.5f, h * 0.35f),
+    )
+    // Horizontal gust streaks
+    val streakCount = 14
+    for (i in 0 until streakCount) {
+        val seed = (i * 61 + 13) % 100 / 100f
+        val yFrac = 0.10f + (i * 0.73f % 0.80f)
+        val y = h * yFrac + sin(t * 3f + seed * 6.28f) * h * 0.018f
+        val len = w * (0.25f + seed * 0.35f)
+        val xStart = ((t * windScalar * 0.6f + seed) % 1.4f - 0.3f) * w
+        val alpha = (0.06f + seed * 0.10f) * windScalar.coerceIn(0.5f, 1.5f)
+        drawLine(
+            brush = Brush.linearGradient(
+                listOf(Color.Transparent, gustColor.copy(alpha = alpha), Color.Transparent),
+                start = Offset(xStart, y), end = Offset(xStart + len, y),
+            ),
+            start = Offset(xStart, y),
+            end = Offset(xStart + len, y),
+            strokeWidth = 1.5f + (i % 3) * 0.5f,
+            cap = StrokeCap.Round,
         )
     }
 }

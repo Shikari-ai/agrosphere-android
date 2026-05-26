@@ -35,6 +35,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,9 +45,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
 import android.content.Context
 import com.agrosphere.app.data.auth.AuthRepository
+import com.agrosphere.app.data.repo.AppPreferences
+import com.agrosphere.app.data.i18n.LocaleManager
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -60,9 +63,12 @@ import com.agrosphere.app.feature.developer.DeveloperScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.agrosphere.app.feature.fields.FieldDetailScreen
 import com.agrosphere.app.feature.fields.FieldsScreen
+import com.agrosphere.app.feature.plants.PlantDetailScreen
+import com.agrosphere.app.feature.plants.PlantsScreen
 import com.agrosphere.app.feature.fields.FieldsViewModel
 import com.agrosphere.app.feature.fields.MapPickerScreen
 import com.agrosphere.app.feature.home.HomeScreen
+import com.agrosphere.app.feature.onboarding.OnboardingScreen
 import com.agrosphere.app.feature.map.MapScreen
 import com.agrosphere.app.feature.pest.PestPredictionScreen
 import com.agrosphere.app.feature.profile.ProfileDetailScreen
@@ -74,8 +80,16 @@ import com.agrosphere.app.feature.weather.WeatherScreen
 import com.agrosphere.app.ui.components.AgroIntroScreen
 import com.agrosphere.app.ui.components.AgroSplashScreen
 import com.agrosphere.app.ui.navigation.BottomTabs
+import com.agrosphere.app.ui.navigation.bottomTabsForMode
 import com.agrosphere.app.ui.navigation.Dest
 import com.agrosphere.app.ui.theme.AgroPalette
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
+import androidx.compose.runtime.LaunchedEffect
+import androidx.core.content.ContextCompat
 
 @Composable
 fun AgroSphereApp() {
@@ -91,13 +105,45 @@ fun AgroSphereApp() {
     // so the user can jump to any section from a detail/sub-page too.
     val showBottomBar = loggedIn && currentRoute != null &&
         currentRoute != Dest.Auth.route &&
-        currentRoute != Dest.MapPicker.route
+        currentRoute != Dest.MapPicker.route &&
+        currentRoute != Dest.AddPlant.route &&
+        currentRoute != Dest.RescanPlant.route &&
+        currentRoute != Dest.PlantDetail.route.substringBefore("{") // hide for plant detail sub-page
 
-    // Branded launch experience: splash every launch, intro on first launch.
+    // Branded launch experience: splash every launch, intro + onboarding after every login.
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("agro_prefs", Context.MODE_PRIVATE) }
+    // If the activity was recreated mid-onboarding (e.g. locale change), resume from saved step.
+    val savedOnbStep = prefs.getInt("onboarding_resume_step", -1)
     var showSplash by remember { mutableStateOf(true) }
-    var introSeen by remember { mutableStateOf(prefs.getBoolean("intro_seen", false)) }
+    var showIntro by remember { mutableStateOf(false) }
+    var showOnboarding by remember { mutableStateOf(loggedIn && savedOnbStep >= 0) }
+    var onboardingStartStep by remember { mutableIntStateOf(savedOnbStep.coerceAtLeast(0)) }
+
+    // Synchronous check: was the user already logged in with no pending onboarding at launch?
+    // Firebase's currentUser is available instantly (no network call), so this is safe to read
+    // once at first composition and never changes — gives NavHost its correct start destination
+    // from frame 1 so the Auth screen never flashes for returning users.
+    val initiallyLoggedIn = remember { authRepo.currentUser != null && savedOnbStep < 0 }
+
+    // Seed user-mode preference from SharedPreferences (set during onboarding).
+    val savedMode = remember { prefs.getString("user_mode", "both") ?: "both" }
+    remember { AppPreferences.setUserMode(savedMode) }
+    val userMode by AppPreferences.userMode.collectAsState()
+
+    // Ask for POST_NOTIFICATIONS once — after splash/intro/onboarding are all gone.
+    val notifPermLauncher = rememberLauncherForActivityResult(RequestPermission()) { /* result surfaced in profile */ }
+    val fullyLoggedIn = loggedIn && !showSplash && !showIntro && !showOnboarding
+    LaunchedEffect(fullyLoggedIn) {
+        if (fullyLoggedIn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val alreadyAsked = prefs.getBoolean("notif_permission_asked", false)
+            val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            if (!alreadyAsked && !granted) {
+                prefs.edit().putBoolean("notif_permission_asked", true).apply()
+                notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
@@ -110,6 +156,7 @@ fun AgroSphereApp() {
             ) {
                 AgroBottomBar(
                     currentRoute = currentRoute,
+                    tabs = bottomTabsForMode(userMode),
                     onTabSelected = { dest ->
                         navController.navigate(dest.route) {
                             // Clear any detail screens stacked on top so a tab tap always
@@ -128,7 +175,7 @@ fun AgroSphereApp() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = if (loggedIn) Dest.Home.route else Dest.Auth.route,
+            startDestination = if (initiallyLoggedIn) Dest.Home.route else Dest.Auth.route,
             modifier = Modifier.fillMaxSize(),
             enterTransition = {
                 slideInVertically(
@@ -157,10 +204,11 @@ fun AgroSphereApp() {
         ) {
             composable(Dest.Auth.route) {
                 AuthScreen(onAuthenticated = {
-                    // Auth state is observed at the top; just navigate.
-                    navController.navigate(Dest.Home.route) {
-                        popUpTo(Dest.Auth.route) { inclusive = true }
-                    }
+                    // Reset to step 0 for this login — clears any stale step from a prior session.
+                    prefs.edit().putInt("onboarding_resume_step", 0).apply()
+                    onboardingStartStep = 0
+                    showIntro = true
+                    // Do NOT navigate — overlays cover the auth screen until onboarding finishes.
                 })
             }
             composable(Dest.Home.route) {
@@ -199,6 +247,44 @@ fun AgroSphereApp() {
                             fieldsVm.deleteField(id)
                             navController.popBackStack()
                         },
+                    )
+                }
+            }
+            composable(Dest.Plants.route) {
+                PlantsScreen(
+                    padding     = innerPadding,
+                    onOpenPlant = { id -> navController.navigate(Dest.PlantDetail.build(id)) },
+                    onAddPlant  = { navController.navigate(Dest.AddPlant.route) },
+                )
+            }
+            composable(Dest.AddPlant.route) {
+                Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    com.agrosphere.app.feature.plants.AddPlantFlow(
+                        onBack  = { navController.popBackStack() },
+                        onSaved = { navController.popBackStack() },
+                    )
+                }
+            }
+            composable(Dest.PlantDetail.route) { backStack ->
+                val id = backStack.arguments?.getString("id") ?: ""
+                Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    PlantDetailScreen(
+                        plantId  = id,
+                        onBack   = { navController.popBackStack() },
+                        onRescan = { navController.navigate(Dest.RescanPlant.build(id)) },
+                        onDelete = {
+                            navController.popBackStack()
+                        },
+                    )
+                }
+            }
+            composable(Dest.RescanPlant.route) { backStack ->
+                val id = backStack.arguments?.getString("id") ?: ""
+                Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    com.agrosphere.app.feature.plants.RescanPlantScreen(
+                        plantId    = id,
+                        onBack     = { navController.popBackStack() },
+                        onFinished = { navController.popBackStack() },
                     )
                 }
             }
@@ -263,7 +349,6 @@ fun AgroSphereApp() {
                             navController.navigate(Dest.ProfileDetail.build(section))
                         },
                         onOpenRegional = { navController.navigate(Dest.Regional.route) },
-                        onOpenDeveloper = { navController.navigate(Dest.Developer.route) },
                     )
                 }
             }
@@ -287,12 +372,51 @@ fun AgroSphereApp() {
         }
     }
 
-        // First-launch intro — shown after sign-in (over Home), once.
-        if (loggedIn && !introSeen && !showSplash) {
+        // Intro screen — shown after every login.
+        if (showIntro && !showSplash) {
             AgroIntroScreen(onGetStarted = {
-                prefs.edit().putBoolean("intro_seen", true).apply()
-                introSeen = true
+                showIntro = false
+                showOnboarding = true
             })
+        }
+        // 4-step onboarding wizard — shown after Get Started.
+        if (showOnboarding && !showSplash && !showIntro) {
+            OnboardingScreen(
+                userName = currentUser?.displayName ?: "",
+                startStep = onboardingStartStep,
+                onApplyLanguage = { tag ->
+                    // Persist resume point BEFORE recreating — so we land on step 1 after restart.
+                    prefs.edit().putInt("onboarding_resume_step", 1).apply()
+                    onboardingStartStep = 1
+                    LocaleManager.setLocale(tag)
+                    // Force recreation so every stringResource() picks up the new locale.
+                    var c: android.content.Context = context
+                    while (c is android.content.ContextWrapper) {
+                        if (c is android.app.Activity) { c.recreate(); break }
+                        c = c.baseContext
+                    }
+                },
+                onStepChange = { s ->
+                    prefs.edit().putInt("onboarding_resume_step", s).apply()
+                },
+                onModeSelected = { mode ->
+                    prefs.edit().putString("user_mode", mode).apply()
+                    AppPreferences.setUserMode(mode)
+                },
+                onFinished = { pendingAction ->
+                    prefs.edit().remove("onboarding_resume_step").apply()
+                    showOnboarding = false
+                    // Navigate to Home, clearing the auth screen from the back stack.
+                    navController.navigate(Dest.Home.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                    when (pendingAction) {
+                        "fields"  -> navController.navigate(Dest.Fields.route)
+                        "plants"  -> navController.navigate(Dest.Plants.route)
+                        "scanner" -> navController.navigate(Dest.Scanner.route)
+                    }
+                },
+            )
         }
         // Branded splash sits on top during launch.
         if (showSplash) {
@@ -304,6 +428,7 @@ fun AgroSphereApp() {
 @Composable
 private fun AgroBottomBar(
     currentRoute: String?,
+    tabs: List<com.agrosphere.app.ui.navigation.TabItem> = BottomTabs,
     onTabSelected: (Dest) -> Unit,
 ) {
     // Continuous glow pulse for the active tab indicator
@@ -341,7 +466,7 @@ private fun AgroBottomBar(
                 )
             },
     ) {
-        BottomTabs.forEach { tab ->
+        tabs.forEach { tab ->
             val selected = currentRoute == tab.dest.route
             NavigationBarItem(
                 selected = selected,

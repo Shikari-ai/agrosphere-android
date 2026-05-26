@@ -72,7 +72,12 @@ object WeatherRepository {
 
     private fun toSnapshot(location: String, r: OpenMeteoResponse): WeatherSnapshot {
         val c = r.current
-        val kind = wmoToKind(c.weather_code, c.is_day == 1)
+        val baseKind = wmoToKind(c.weather_code, c.is_day == 1)
+        val windKph = c.wind_speed_10m.roundToInt()
+        val kind = if (
+            windKph > 45 &&
+            baseKind in listOf(ConditionKind.Clear, ConditionKind.PartlyCloudy, ConditionKind.Cloudy)
+        ) ConditionKind.Windy else baseKind
         val sunrise = r.daily.sunrise.firstOrNull()?.let { parseTime(it) } ?: "—"
         val sunset = r.daily.sunset.firstOrNull()?.let { parseTime(it) } ?: "—"
         return WeatherSnapshot(

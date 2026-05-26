@@ -7,6 +7,7 @@ import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.agrosphere.app.R
@@ -32,6 +33,14 @@ sealed class Dest(val route: String) {
     data object ProfileDetail : Dest("profile/{section}") {
         fun build(section: String) = "profile/$section"
     }
+    data object Plants : Dest("plants")
+    data object AddPlant : Dest("plants/add")
+    data object PlantDetail : Dest("plant/{id}") {
+        fun build(id: String) = "plant/$id"
+    }
+    data object RescanPlant : Dest("plant/{id}/rescan") {
+        fun build(id: String) = "plant/$id/rescan"
+    }
 }
 
 /** Section ids consumed by [ProfileDetail] — kept as constants so the menu + screen can't drift. */
@@ -45,6 +54,7 @@ object ProfileSections {
     const val AI_RELIABILITY = "ai-reliability"
     const val LEARNING = "learning"
     const val NOTIFICATIONS = "notifications"
+    const val MODE = "mode"
     const val LANGUAGE = "language"
     const val HELP = "help"
     const val ABOUT = "about"
@@ -56,10 +66,20 @@ data class TabItem(
     val icon: ImageVector,
 )
 
-val BottomTabs = listOf(
-    TabItem(Dest.Home, R.string.nav_home, Icons.Rounded.Home),
-    TabItem(Dest.Fields, R.string.nav_fields, Icons.Rounded.Grass),
-    TabItem(Dest.Scanner, R.string.nav_scan, Icons.Rounded.CameraAlt),
-    TabItem(Dest.Weather, R.string.nav_weather, Icons.Rounded.Cloud),
-    TabItem(Dest.Assistant, R.string.nav_ask, Icons.Rounded.AutoAwesome),
-)
+/** Build the bottom tab list based on the user's chosen mode.
+ *  "farmer" → Fields tab; "plant" → Plants tab; "both" → both tabs (6 items total). */
+fun bottomTabsForMode(mode: String): List<TabItem> = buildList {
+    add(TabItem(Dest.Home,      R.string.nav_home,    Icons.Rounded.Home))
+    if (mode == "farmer" || mode == "both") {
+        add(TabItem(Dest.Fields, R.string.nav_fields, Icons.Rounded.Grass))
+    }
+    if (mode == "plant" || mode == "both") {
+        add(TabItem(Dest.Plants, R.string.nav_plants, Icons.Rounded.LocalFlorist))
+    }
+    add(TabItem(Dest.Scanner,   R.string.nav_scan,    Icons.Rounded.CameraAlt))
+    add(TabItem(Dest.Weather,   R.string.nav_weather, Icons.Rounded.Cloud))
+    add(TabItem(Dest.Assistant, R.string.nav_ask,     Icons.Rounded.AutoAwesome))
+}
+
+/** Fallback static list (farmer default) — used only where compose state isn't available. */
+val BottomTabs = bottomTabsForMode("farmer")

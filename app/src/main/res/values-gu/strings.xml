@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_tagline">તમારા ખેતરો. વધુ સ્માર્ટ.</string>
 
@@ -86,6 +86,7 @@
     <string name="weather_condition_rain">વરસાદ</string>
     <string name="weather_condition_storm">તોફાન</string>
     <string name="weather_condition_night">સ્વચ્છ રાત</string>
+    <string name="weather_condition_windy">પવनाળું</string>
 
     <string name="field_ops_no_fields_body">આજનાં પ્રાથમિક કાર્યો જોવા માટે ખેતર ઉમેરો.</string>
     <string name="field_ops_all_clear">બધું બરાબર — હાલમાં કોઈ પ્રાથમિક કાર્ય નથી.</string>
@@ -292,4 +293,40 @@
     <string name="sign_out_confirm_title">સાઇન આઉટ કરવું?</string>
     <string name="sign_out_confirm_body">શું તમે ખરેખર સાઇન આઉટ કરવા માંગો છો?</string>
     <string name="sign_out_confirm_cancel">રદ કરો</string>
+
+    <!-- Onboarding wizard -->
+    <string name="onb_lang_title">તમારી ભાષા પસંદ કરો</string>
+    <string name="onb_lang_subtitle">AgroSphere ને તમારી ભાષામાં વાપરો</string>
+    <string name="onb_terms_title">શરૂ કરતાં પહેલાં</string>
+    <string name="onb_terms_subtitle">AgroSphere શું કરે છે અને અમારી પ્રતિબદ્ધતાની એક ઝલક</string>
+    <string name="onb_terms_what_title">AgroSphere શું કરે છે</string>
+    <string name="onb_terms_feat_1">ફોટોથી AI પાક રોગ ઓળખ</string>
+    <string name="onb_terms_feat_2">તમારા ખેતરો માટે હાઇપરલોકલ હવામાન પૂર્વાનુમાન</string>
+    <string name="onb_terms_feat_3">સ્માર્ટ સિંચાઈ અને સ્પ્રે સમય ચેતવણી</string>
+    <string name="onb_terms_feat_4">ખેત આરોગ્ય ટ્રેકિંગ અને વૃદ્ધિ તબક્કાની માહિતી</string>
+    <string name="onb_terms_privacy_title">શરતો અને ગોપનીયતા સારાંશ</string>
+    <string name="onb_terms_priv_1">તમારો ખેત ડેટા તમારો છે — અમે ક્યારેય વેચીએ નહીં</string>
+    <string name="onb_terms_priv_2">સ્થાન ફક્ત સ્થાનિક હવામાન મેળવવા માટે વપરાય છે</string>
+    <string name="onb_terms_priv_3">તમે ગમે ત્યારે તમારો એકાઉન્ટ અને ડેટા ડિલીટ કરી શકો છો</string>
+    <string name="onb_terms_priv_4">AI ભલામણો નિષ્ણાત સલાહ ની પૂરક છે, વિકલ્પ નહીં</string>
+    <string name="onb_terms_priv_5">એપ્પ ઉપયોગ કરીને તમે અમારી સેવા શરતોથી સહમત છો</string>
+    <string name="onb_terms_priv_6">ભારતીય કાયદા દ્વારા સંચાલિત · support@agrosphere.app</string>
+    <string name="onb_terms_agree">હું સેવા શરતો અને ગોપનીયતા નીતિ સ્વીકારું છું</string>
+    <string name="onb_terms_btn">સ્વીકારો અને આગળ વધો</string>
+    <string name="onb_quick_title">તમારું ખેત સેટ કરો</string>
+    <string name="onb_quick_subtitle">ક્યાંથી શરૂ કરવું તે પસંદ કરો — અથવા હવે છોડો</string>
+    <string name="onb_quick_field_title">તમારું પહેલું ખેત ઉમેરો</string>
+    <string name="onb_quick_field_desc">ખેતની સીમા નકશો, પાકનો પ્રકાર અને વાવણીની તારીખ ઉમેરો. AgroSphere આરોગ્ય, વૃદ્ધિ તબક્કો ટ્રેક કરશે અને સમયસર ચેતવણી મોકલશે.</string>
+    <string name="onb_quick_scan_title">પાકના પાંદડા સ્કેન કરો</string>
+    <string name="onb_quick_scan_desc">તત્કાળ AI નિદાન માટે પાંદડાનો ફોટો લો — રોગ, જીવાત, અથવા પોષણ ઉણપ — ચરણ-દ-ચરણ સારવાર સલાહ સાથે.</string>
+    <string name="onb_quick_hint">તમે ક્યારે ઇચ્છો ત્યારે એપ્પ પર બંને કરી શકો છો</string>
+    <string name="onb_done_set_name">તમે તૈયાર છો, %1$s!</string>
+    <string name="onb_done_set">તમે તૈયાર છો!</string>
+    <string name="onb_done_body">તમારો ખેત AI સાથી તૈયાર છે.\nહર ફસલ સફળ બનાવો.</string>
+    <string name="onb_done_btn">AgroSphere પર જાઓ</string>
+    <string name="onb_made_in_india">મેડ ઇન ઇન્ડિયા 🌿</string>
+    <string name="onb_skip">છોડો</string>
+    <string name="onb_skip_for_now">હવે છોડો</string>
+    <string name="onb_next">આગળ</string>
+    <string name="onb_continue">આગળ વધો</string>
 </resources>

@@ -53,9 +53,41 @@ data class AlertItem(
     val tint: Color,
 )
 
+// ─── Home plant / garden ────────────────────────────────────────────────────
+
+/** One snapshot of an AI scan against a specific plant. Persisted on device. */
+@kotlinx.serialization.Serializable
+data class PlantScanRecord(
+    val timestamp: Long,
+    val verdict: String,                          // e.g. "Healthy", "Powdery mildew detected"
+    val healthScore: Int,                         // derived from riskLevel
+    val riskLevel: String,                        // "healthy" | "low" | "medium" | "high"
+    val summary: String,                          // 1–2 sentence AI summary
+    val recommendations: List<String> = emptyList(),
+    val photoPath: String? = null,                // local file path of the scan photo
+)
+
+data class PlantEntry(
+    val id: String,
+    val name: String,                                   // user's nickname, e.g. "Grandma's Rose"
+    val species: String,                                // e.g. "Rose" — matches PlantData catalog
+    val location: String,                               // "Balcony", "Living Room", "Garden", …
+    val potSize: String,                                // "Small pot", "Medium pot", "Large pot", "Ground / Bed"
+    val sunlightNeed: String,                           // "Full Sun", "Partial Shade", "Indoors", "Low Light"
+    val wateringIntervalDays: Int,
+    val lastWateredMs: Long = 0L,                       // epoch ms; 0 = never logged
+    val wateringLog: List<Long> = emptyList(),          // epoch ms timestamps, newest first (max 30)
+    val healthScore: Int = 75,                          // 0..100; updated by latest scan
+    val accent: Color = AgroPalette.Primary,
+    val stage: String = "Growing",                      // Seedling | Growing | Mature | Flowering | Fruiting | Dormant | Recovering
+    val scanHistory: List<PlantScanRecord> = emptyList(), // newest first, capped at 30
+    val lastScanMs: Long = 0L,                          // timestamp of most recent scan
+    val photoPath: String? = null,                      // path to the most recent plant photo
+)
+
 // ─── Weather intelligence ────────────────────────────────────────────────────
 
-enum class ConditionKind { Clear, PartlyCloudy, Cloudy, Rain, Storm, Night }
+enum class ConditionKind { Clear, PartlyCloudy, Cloudy, Rain, Storm, Night, Windy }
 
 data class WeatherSnapshot(
     val location: String,

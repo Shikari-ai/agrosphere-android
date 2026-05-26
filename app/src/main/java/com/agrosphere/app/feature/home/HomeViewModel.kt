@@ -12,6 +12,7 @@ import com.agrosphere.app.data.model.ConditionKind
 import com.agrosphere.app.data.model.Field
 import com.agrosphere.app.data.model.WeatherSnapshot
 import com.agrosphere.app.data.repo.FieldRepository
+import com.agrosphere.app.data.repo.LocalScanStore
 import com.agrosphere.app.data.weather.WeatherRepository
 import com.agrosphere.app.ui.theme.AgroPalette
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +42,7 @@ data class HomeUiState(
     val alerts: List<AlertItem> = emptyList(),
     val cropHealth: Int = 0,
     val cropHealthVerdict: String = "—",
+    val hasScan: Boolean = false,
     val pestRiskLevel: String = "—",
     val pestRiskBlip: Float = 0f,
     val fieldsCount: Int = 0,
@@ -84,7 +86,35 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
         }
+        // Load scan history — health score comes from real scan results, not field defaults
+        viewModelScope.launch {
+            val scans = LocalScanStore.load(getApplication())
+            if (scans.isNotEmpty()) {
+                val avgScore = scans.take(5).map { scanToHealthScore(it.diagnosis.riskLevel) }.average().toInt()
+                _state.update {
+                    it.copy(
+                        hasScan = true,
+                        cropHealth = avgScore,
+                        cropHealthVerdict = healthVerdict(avgScore),
+                    )
+                }
+            }
+        }
         refreshWeather()
+    }
+
+    fun onScanCompleted() {
+        val scans = LocalScanStore.load(getApplication())
+        if (scans.isNotEmpty()) {
+            val avgScore = scans.take(5).map { scanToHealthScore(it.diagnosis.riskLevel) }.average().toInt()
+            _state.update {
+                it.copy(
+                    hasScan = true,
+                    cropHealth = avgScore,
+                    cropHealthVerdict = healthVerdict(avgScore),
+                )
+            }
+        }
     }
 
     fun refresh() {
@@ -119,14 +149,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 cropsCount = fields.map { f -> f.crop }.distinct().size,
                 avgMoisture = if (hasFields) fields.map { f -> f.moisturePct }.average().toInt() else 0,
                 irrigationEfficiency = deriveIrrigationEfficiency(weather),
-                cropHealth = avgHealth,
-                cropHealthVerdict = when {
-                    !hasFields -> "—"
-                    avgHealth >= 85 -> "Excellent"
-                    avgHealth >= 70 -> "Strong"
-                    avgHealth >= 55 -> "Watch"
-                    else -> "At risk"
-                },
+                // Only use field default health if no real scan data exists yet
+                cropHealth = if (_state.value.hasScan) _state.value.cropHealth else avgHealth,
+                cropHealthVerdict = if (_state.value.hasScan) _state.value.cropHealthVerdict
+                    else when {
+                        !hasFields -> "—"
+                        avgHealth >= 85 -> "Excellent"
+                        avgHealth >= 70 -> "Strong"
+                        avgHealth >= 55 -> "Watch"
+                        else -> "At risk"
+                    },
                 pestRiskLevel = pest.first,
                 pestRiskBlip = pest.second,
                 alerts = alerts,
@@ -208,10 +240,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private fun computeTimeOfDay(now: LocalTime = LocalTime.now()): TimeOfDay {
         val h = now.hour
         return when (h) {
-            in 5..10 -> TimeOfDay(R.string.greeting_morning, "☀️", isDay = true)
-            in 11..15 -> TimeOfDay(R.string.greeting_afternoon, "🌤️", isDay = true)
-            in 16..19 -> TimeOfDay(R.string.greeting_evening, "🌇", isDay = true)
-            else -> TimeOfDay(R.string.greeting_night, "🌙", isDay = false)
+            in 5..11  -> TimeOfDay(R.string.greeting_morning,   "☀️",  isDay = true)
+            in 12..16 -> TimeOfDay(R.string.greeting_afternoon, "🌤️", isDay = true)
+            in 17..21 -> TimeOfDay(R.string.greeting_evening,   "🌇",  isDay = true)
+            else      -> TimeOfDay(R.string.greeting_night,     "🌙",  isDay = false)
         }
     }
 
@@ -220,4 +252,19 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             initializer { HomeViewModel(this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application) }
         }
     }
+}
+
+private fun scanToHealthScore(riskLevel: String): Int = when (riskLevel.lowercase()) {
+    "healthy" -> 90
+    "low"     -> 72
+    "medium"  -> 45
+    "high"    -> 22
+    else      -> 60
+}
+
+private fun healthVerdict(score: Int): String = when {
+    score >= 85 -> "Excellent"
+    score >= 70 -> "Strong"
+    score >= 55 -> "Watch"
+    else        -> "At risk"
 }

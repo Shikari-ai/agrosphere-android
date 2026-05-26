@@ -35,9 +35,18 @@ import androidx.compose.material.icons.rounded.Cached
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.Inbox
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.StarRate
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.LocationOn
@@ -86,6 +95,9 @@ import androidx.compose.runtime.collectAsState
 import com.agrosphere.app.data.repo.FieldRepository
 import com.agrosphere.app.data.repo.LocalProfileStore
 import com.agrosphere.app.data.repo.MockRepository
+import com.agrosphere.app.data.repo.SupportTicket
+import com.agrosphere.app.data.repo.SupportTicketRepository
+import com.agrosphere.app.data.repo.TicketType
 import com.agrosphere.app.ui.components.GhostButton
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.PrimaryButton
@@ -94,6 +106,17 @@ import com.agrosphere.app.ui.navigation.ProfileSections
 import com.agrosphere.app.ui.theme.AgroBrushes
 import com.agrosphere.app.ui.theme.AgroPalette
 import kotlinx.coroutines.launch
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ProfileDetailScreen — one screen, many panels. Dispatches on [section]
@@ -128,15 +151,15 @@ fun ProfileDetailScreen(
                     ProfileSections.ACCOUNT -> AccountPanel(snackbar = snackbar, onSignOut = onSignOut, onOpenSection = onOpenSection)
                     ProfileSections.EDIT_PROFILE -> EditProfilePanel(snackbar = snackbar, onBack = onBack)
                     ProfileSections.MY_FARMS -> MyFarmsPanel(snackbar = snackbar, onOpenField = onOpenField)
-                    ProfileSections.SUBSCRIPTION -> SubscriptionPanel(snackbar = snackbar)
                     ProfileSections.AI_PREFS -> AiPrefsPanel(snackbar = snackbar)
                     ProfileSections.AI_RELIABILITY -> AiReliabilityPanel()
                     ProfileSections.LEARNING -> LearningPanel()
                     ProfileSections.NOTIFICATIONS -> NotificationsPanel(snackbar = snackbar)
+                    ProfileSections.MODE -> ModePanel(snackbar = snackbar)
                     ProfileSections.LANGUAGE -> LanguagePanel(snackbar = snackbar)
                     ProfileSections.HELP -> HelpPanel(snackbar = snackbar)
-                    ProfileSections.ABOUT -> AboutPanel(snackbar = snackbar)
-                    else -> AboutPanel(snackbar = snackbar)
+                    ProfileSections.ABOUT -> AboutPanel(snackbar = snackbar, onOpenSection = onOpenSection)
+                    else -> AboutPanel(snackbar = snackbar, onOpenSection = onOpenSection)
                 }
             }
         }
@@ -158,11 +181,11 @@ private fun titleFor(section: String): String = when (section) {
     ProfileSections.ACCOUNT -> "Account settings"
     ProfileSections.EDIT_PROFILE -> "Edit profile"
     ProfileSections.MY_FARMS -> "My farms"
-    ProfileSections.SUBSCRIPTION -> "Subscription"
     ProfileSections.AI_PREFS -> "AI preferences"
     ProfileSections.AI_RELIABILITY -> "AI reliability"
     ProfileSections.LEARNING -> "Learning evolution"
     ProfileSections.NOTIFICATIONS -> "Notifications"
+    ProfileSections.MODE -> "App mode"
     ProfileSections.LANGUAGE -> "Language"
     ProfileSections.HELP -> "Help & support"
     else -> "About AgroSphere"
@@ -814,45 +837,184 @@ private fun LearningPanel() {
 // ─── Notifications ───────────────────────────────────────────────────────────
 @Composable
 private fun NotificationsPanel(snackbar: SnackbarHostState) {
-    val items = remember {
-        mutableStateListOf(
-            "Storm watch" to true,
-            "Pest & disease alerts" to true,
-            "Optimal spray window" to true,
-            "Irrigation reminder" to true,
-            "Weather windows" to false,
-            "Weekly farm summary" to true,
-            "Subscription updates" to false,
-            "App tips & tricks" to false,
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Reactively track permission state — updated by launcher result or "Enable" tap.
+    var permGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            else true
         )
     }
-    val scope = rememberCoroutineScope()
+
+    val permLauncher = rememberLauncherForActivityResult(RequestPermission()) { granted ->
+        permGranted = granted
+        if (!granted) scope.launch { snackbar.showSnackbar("Open Settings → App info → Notifications") }
+    }
+
+    // Persist per-topic preferences across sessions.
+    val topicPrefs = remember { context.getSharedPreferences("agro_notif_topics", Context.MODE_PRIVATE) }
+    val defaultTopics = listOf(
+        "Storm watch"          to true,
+        "Pest & disease alerts" to true,
+        "Optimal spray window" to true,
+        "Irrigation reminder"  to true,
+        "Weather windows"      to false,
+        "Weekly farm summary"  to true,
+        "Subscription updates" to false,
+        "App tips & tricks"    to false,
+    )
+    val items = remember {
+        mutableStateListOf(*defaultTopics.map { (label, default) ->
+            label to topicPrefs.getBoolean(label, default)
+        }.toTypedArray())
+    }
+
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        // Permission banner — only shown when OS permission is missing.
+        if (!permGranted) {
+            item {
+                GlassCard(radius = 14.dp, padding = 16.dp) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Rounded.Notifications, null,
+                            tint = AgroPalette.Amber,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Notifications blocked",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = AgroPalette.Ink,
+                            )
+                            Text(
+                                "Allow AgroSphere to send you alerts",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AgroPalette.InkMuted,
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(AgroPalette.Primary.copy(alpha = 0.18f))
+                                .border(1.dp, AgroPalette.Primary.copy(alpha = 0.35f), RoundedCornerShape(50))
+                                .clickable {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    } else {
+                                        context.startActivity(
+                                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                data = Uri.fromParts("package", context.packageName, null)
+                                            }
+                                        )
+                                    }
+                                }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            Text(
+                                "Enable",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AgroPalette.Primary,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         item { SectionHeader(title = "What to ping me about") }
+
         items(items.size) { idx ->
             val (label, on) = items[idx]
             GlassCard(radius = 14.dp, padding = 12.dp, onClick = {
-                items[idx] = label to !on
-                scope.launch { snackbar.showSnackbar(if (!on) "$label on" else "$label off") }
+                if (permGranted) {
+                    val newOn = !on
+                    items[idx] = label to newOn
+                    topicPrefs.edit().putBoolean(label, newOn).apply()
+                    scope.launch { snackbar.showSnackbar(if (newOn) "$label on" else "$label off") }
+                }
             }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(label, style = MaterialTheme.typography.bodyMedium, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (permGranted) AgroPalette.Ink else AgroPalette.InkDim,
+                        modifier = Modifier.weight(1f),
+                    )
                     Switch(
                         checked = on,
-                        onCheckedChange = {
-                            items[idx] = label to it
-                            scope.launch { snackbar.showSnackbar(if (it) "$label on" else "$label off") }
+                        enabled = permGranted,
+                        onCheckedChange = { newOn ->
+                            items[idx] = label to newOn
+                            topicPrefs.edit().putBoolean(label, newOn).apply()
+                            scope.launch { snackbar.showSnackbar(if (newOn) "$label on" else "$label off") }
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = AgroPalette.BgDeep,
                             checkedTrackColor = AgroPalette.Primary,
                             uncheckedThumbColor = AgroPalette.InkDim,
                             uncheckedTrackColor = AgroPalette.SurfaceGlass,
+                            disabledCheckedTrackColor = AgroPalette.SurfaceGlass,
+                            disabledUncheckedTrackColor = AgroPalette.SurfaceGlass,
                         ),
                     )
+                }
+            }
+        }
+        item { Spacer(Modifier.height(40.dp)) }
+    }
+}
+
+// ─── App mode (farmer / plant parent / both) ─────────────────────────────────
+@Composable
+private fun ModePanel(snackbar: SnackbarHostState) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val currentMode by com.agrosphere.app.data.repo.AppPreferences.userMode.collectAsState()
+
+    val options = listOf(
+        Triple("farmer", "🌾 Farmer",       "Manage agricultural fields, crops, and yield"),
+        Triple("plant",  "🪴 Plant Parent", "Monitor flowers, houseplants, and home gardens"),
+        Triple("both",   "🌿 Both",         "Full access — farmland and home plants"),
+    )
+
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            Text(
+                "Changing modes updates your bottom tabs instantly. You can switch any time.",
+                style = MaterialTheme.typography.bodySmall,
+                color = AgroPalette.InkMuted,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+            )
+        }
+        items(options) { (key, title, desc) ->
+            val selected = currentMode == key
+            GlassCard(radius = 16.dp, padding = 16.dp, onClick = {
+                // Persist + apply live
+                context.getSharedPreferences("agro_prefs", Context.MODE_PRIVATE)
+                    .edit().putString("user_mode", key).apply()
+                com.agrosphere.app.data.repo.AppPreferences.setUserMode(key)
+                scope.launch { snackbar.showSnackbar("Mode set to ${title.substringAfter(' ')}") }
+            }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(title, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                        Text(desc, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                    }
+                    if (selected) {
+                        Icon(Icons.Rounded.CheckCircle, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
         }
@@ -919,35 +1081,277 @@ private fun HelpPanel(snackbar: SnackbarHostState) {
         "How do I delete my account?" to "Profile → Account settings → Delete account. Your login is removed; your saved scans and chat history stay on this device.",
     )
     val scope = rememberCoroutineScope()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    var submitType by remember { mutableStateOf<TicketType?>(null) }
+    var showMyTickets by remember { mutableStateOf(false) }
+
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        // ── Get Help ─────────────────────────────────────────────────────────
+        item { SectionHeader(title = "Get help") }
+        item {
+            HelpCard(
+                icon = Icons.Rounded.Forum, iconTint = AgroPalette.Primary,
+                title = "Chat with Support", sub = "We usually reply quickly",
+                onClick = { submitType = TicketType.CHAT_SUPPORT },
+            )
+        }
+        item {
+            HelpCard(
+                icon = Icons.Rounded.MenuBook, iconTint = AgroPalette.Sky,
+                title = "Help Center", sub = "Browse articles and guides",
+                onClick = { scope.launch { snackbar.showSnackbar("Help Center — coming soon.") } },
+            )
+        }
+        item {
+            HelpCard(
+                icon = Icons.Rounded.BugReport, iconTint = AgroPalette.Rose,
+                title = "Report an Issue", sub = "Let us know what went wrong",
+                onClick = { submitType = TicketType.ISSUE },
+            )
+        }
+        item {
+            HelpCard(
+                icon = Icons.Rounded.StarRate, iconTint = AgroPalette.Iris,
+                title = "Feedback", sub = "Share your experience",
+                onClick = { submitType = TicketType.FEEDBACK },
+            )
+        }
+
+        // ── Your Submissions ─────────────────────────────────────────────────
+        item { SectionHeader(title = "Your submissions") }
+        item {
+            HelpCard(
+                icon = Icons.Rounded.Inbox, iconTint = AgroPalette.Amber,
+                title = "My Tickets", sub = "See your requests & replies",
+                onClick = { showMyTickets = true },
+            )
+        }
+
+        // ── Quick Tips ───────────────────────────────────────────────────────
+        item { SectionHeader(title = "Quick tips") }
+        item {
+            GlassCard(radius = 16.dp, padding = 14.dp) {
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(AgroPalette.Amber.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Rounded.Lightbulb, null, tint = AgroPalette.Amber, modifier = Modifier.size(18.dp)) }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "Add a field under Fields → Run a crop scan → Open Weather for forecasts → Use AI Assistant for real-time farm guidance.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AgroPalette.InkMuted,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+
+        // ── FAQ ──────────────────────────────────────────────────────────────
         item { SectionHeader(title = "Frequently asked") }
         items(faqs) { (q, a) -> FaqRow(q = q, a = a) }
-        item { SectionHeader(title = "Contact") }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                PrimaryButton(text = "Email support", icon = Icons.Rounded.Email, modifier = Modifier.weight(1f), onClick = {
-                    val ok = launchMailto(
-                        context,
-                        to = "support@agrosphere.app",
-                        subject = "AgroSphere Android — Support",
-                    )
-                    if (!ok) scope.launch { snackbar.showSnackbar("No mail app installed.") }
-                })
+        item { Spacer(Modifier.height(40.dp)) }
+    }
+
+    // ── Submit ticket dialog ──────────────────────────────────────────────────
+    submitType?.let { type ->
+        TicketSubmitDialog(
+            type = type,
+            onDismiss = { submitType = null },
+            onSubmit = { msg ->
+                scope.launch {
+                    val ok = SupportTicketRepository.submit(type, msg)
+                    submitType = null
+                    snackbar.showSnackbar(if (ok) "Message sent! We'll reply shortly." else "Failed to send — check your connection.")
+                }
+            },
+        )
+    }
+
+    // ── My tickets dialog ─────────────────────────────────────────────────────
+    if (showMyTickets) {
+        MyTicketsDialog(onDismiss = { showMyTickets = false })
+    }
+}
+
+@Composable
+private fun HelpCard(icon: androidx.compose.ui.graphics.vector.ImageVector, iconTint: Color, title: String, sub: String, onClick: () -> Unit) {
+    GlassCard(radius = 16.dp, padding = 14.dp, onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iconTint.copy(alpha = 0.14f))
+                    .border(1.dp, iconTint.copy(alpha = 0.22f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center,
+            ) { Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp)) }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                Text(sub, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
             }
-            Spacer(Modifier.height(8.dp))
-            GhostButton(text = "Send feedback", onClick = {
-                val ok = launchMailto(
-                    context,
-                    to = "feedback@agrosphere.app",
-                    subject = "AgroSphere Android — Feedback",
+            Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.InkMuted)
+        }
+    }
+}
+
+@Composable
+private fun TicketSubmitDialog(type: TicketType, onDismiss: () -> Unit, onSubmit: (String) -> Unit) {
+    var message by remember { mutableStateOf("") }
+    val (tint, icon, subText) = when (type) {
+        TicketType.CHAT_SUPPORT -> Triple(AgroPalette.Primary, Icons.Rounded.Forum, "Describe your problem and we'll get back to you.")
+        TicketType.ISSUE        -> Triple(AgroPalette.Rose, Icons.Rounded.BugReport, "Describe what went wrong in as much detail as possible.")
+        TicketType.FEEDBACK     -> Triple(AgroPalette.Iris, Icons.Rounded.StarRate, "Tell us what you love or what could be better.")
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AgroPalette.Surface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(tint.copy(0.15f)),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(icon, null, tint = tint, modifier = Modifier.size(18.dp)) }
+                Spacer(Modifier.width(10.dp))
+                Text(type.label, color = AgroPalette.Ink)
+            }
+        },
+        text = {
+            Column {
+                Text(subText, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = message,
+                    onValueChange = { if (it.length <= 1000) message = it },
+                    placeholder = { Text("Type your message here…", style = MaterialTheme.typography.bodySmall) },
+                    minLines = 4,
+                    maxLines = 6,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = tint,
+                        unfocusedBorderColor = AgroPalette.SurfaceGlassBorder,
+                        focusedTextColor = AgroPalette.Ink,
+                        unfocusedTextColor = AgroPalette.Ink,
+                        cursorColor = tint,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                if (!ok) scope.launch { snackbar.showSnackbar("No mail app installed.") }
-            })
-            Spacer(Modifier.height(40.dp))
+                Text(
+                    "${message.length} / 1000",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AgroPalette.InkDim,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (message.isNotBlank()) onSubmit(message.trim()) },
+                enabled = message.isNotBlank(),
+            ) { Text("Send", color = tint, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = AgroPalette.InkMuted) }
+        },
+    )
+}
+
+@Composable
+private fun MyTicketsDialog(onDismiss: () -> Unit) {
+    val tickets = remember { mutableStateListOf<SupportTicket>() }
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        tickets.addAll(SupportTicketRepository.myTickets())
+        loading = false
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AgroPalette.Surface,
+        title = { Text("My Tickets", color = AgroPalette.Ink) },
+        text = {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                when {
+                    loading -> Box(Modifier.fillMaxWidth().height(80.dp), Alignment.Center) {
+                        CircularProgressIndicator(color = AgroPalette.Primary, modifier = Modifier.size(28.dp))
+                    }
+                    tickets.isEmpty() -> Box(Modifier.fillMaxWidth().height(80.dp), Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Rounded.Inbox, null, tint = AgroPalette.InkDim, modifier = Modifier.size(32.dp))
+                            Spacer(Modifier.height(8.dp))
+                            Text("No tickets yet", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                        }
+                    }
+                    else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        tickets.forEach { t -> TicketRow(t) }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close", color = AgroPalette.Primary) }
+        },
+    )
+}
+
+@Composable
+private fun TicketRow(ticket: SupportTicket) {
+    val (tint, icon) = when (ticket.type) {
+        TicketType.CHAT_SUPPORT -> AgroPalette.Primary to Icons.Rounded.Forum
+        TicketType.ISSUE        -> AgroPalette.Rose    to Icons.Rounded.BugReport
+        TicketType.FEEDBACK     -> AgroPalette.Iris    to Icons.Rounded.StarRate
+    }
+    val (statusLabel, statusTint) = when (ticket.status) {
+        "replied"  -> "Replied"  to AgroPalette.Sky
+        "resolved" -> "Resolved" to AgroPalette.InkMuted
+        else       -> "Open"     to AgroPalette.Amber
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(AgroPalette.SurfaceGlass)
+            .padding(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = tint, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(ticket.type.label, style = MaterialTheme.typography.labelSmall, color = tint, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(statusTint.copy(alpha = 0.14f))
+                    .padding(horizontal = 7.dp, vertical = 2.dp),
+            ) { Text(statusLabel, style = MaterialTheme.typography.labelSmall, color = statusTint, fontWeight = FontWeight.Bold) }
+        }
+        Spacer(Modifier.height(5.dp))
+        Text(
+            ticket.message,
+            style = MaterialTheme.typography.bodySmall,
+            color = AgroPalette.InkMuted,
+            maxLines = 2,
+        )
+        if (!ticket.devReply.isNullOrBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(AgroPalette.Sky.copy(alpha = 0.08f))
+                    .padding(8.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Icon(Icons.Rounded.Send, null, tint = AgroPalette.Sky, modifier = Modifier.size(12.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(ticket.devReply, style = MaterialTheme.typography.bodySmall, color = AgroPalette.Sky)
+            }
         }
     }
 }
@@ -955,7 +1359,6 @@ private fun HelpPanel(snackbar: SnackbarHostState) {
 @Composable
 private fun FaqRow(q: String, a: String) {
     var expanded by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "chev")
     GlassCard(radius = 16.dp, padding = 14.dp, onClick = { expanded = !expanded }) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -977,47 +1380,148 @@ private fun FaqRow(q: String, a: String) {
 
 // ─── About ───────────────────────────────────────────────────────────────────
 @Composable
-private fun AboutPanel(snackbar: SnackbarHostState) {
+private fun AboutPanel(snackbar: SnackbarHostState, onOpenSection: (String) -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    data class AboutLink(val icon: androidx.compose.ui.graphics.vector.ImageVector, val title: String, val subtitle: String, val tint: androidx.compose.ui.graphics.Color, val url: String)
+
+    val links = listOf(
+        AboutLink(Icons.Rounded.Lock,     "Privacy Policy",   "How we handle your data",          AgroPalette.Sky,     "https://agritech-4d1ba.web.app/privacy.html"),
+        AboutLink(Icons.Rounded.MenuBook, "Terms of Service", "Usage terms and conditions",        AgroPalette.Iris,    "https://agritech-4d1ba.web.app/terms.html"),
+        AboutLink(Icons.Rounded.Email,    "Contact Us",       "Docs, contact, feedback",           AgroPalette.Primary, "help"),
+        AboutLink(Icons.Rounded.StarRate, "Rate the App",     "Enjoying AgroSphere? Let us know",  AgroPalette.Amber,   ""),
+        AboutLink(Icons.Rounded.Language, "Visit Website",    "agritech-4d1ba.web.app",            Color(0xFF22D3EE),    "https://agritech-4d1ba.web.app"),
+    )
+
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // ── Hero identity card ─────────────────────────────────────────────
         item {
-            GlassCard(background = AgroBrushes.leafCard, radius = 24.dp, padding = 22.dp) {
+            GlassCard(background = AgroBrushes.leafCard, radius = 24.dp, padding = 24.dp) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Rounded.Bolt, null, tint = AgroPalette.Primary, modifier = Modifier.size(40.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text("AgroSphere", style = MaterialTheme.typography.headlineMedium, color = AgroPalette.Ink, fontWeight = FontWeight.Black)
-                    Text("Your fields. Smarter.", style = MaterialTheme.typography.labelMedium, color = AgroPalette.InkMuted)
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(AgroPalette.Primary.copy(alpha = 0.16f))
+                            .border(1.dp, AgroPalette.Primary.copy(alpha = 0.30f), RoundedCornerShape(20.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Rounded.Bolt, null, tint = AgroPalette.Primary, modifier = Modifier.size(36.dp)) }
                     Spacer(Modifier.height(14.dp))
-                    Text("0.1.0 · build 1", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Primary, fontWeight = FontWeight.Bold)
+                    Text("AgroSphere", style = MaterialTheme.typography.headlineMedium, color = AgroPalette.Ink, fontWeight = FontWeight.Black)
+                    Spacer(Modifier.height(4.dp))
+                    Text("Your fields. Smarter.", style = MaterialTheme.typography.bodyMedium, color = AgroPalette.InkMuted)
+                    Spacer(Modifier.height(14.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(AgroPalette.Primary.copy(alpha = 0.14f))
+                                .padding(horizontal = 12.dp, vertical = 5.dp),
+                        ) {
+                            Text("v0.1.0", style = MaterialTheme.typography.labelMedium, color = AgroPalette.Primary, fontWeight = FontWeight.Bold)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(AgroPalette.SurfaceGlass)
+                                .padding(horizontal = 12.dp, vertical = 5.dp),
+                        ) {
+                            Text("Build 1", style = MaterialTheme.typography.labelMedium, color = AgroPalette.InkMuted)
+                        }
+                    }
                 }
             }
         }
-        item { SectionHeader(title = "Built with") }
-        items(listOf(
-            "Kotlin 2.1.20 + Jetpack Compose",
-            "Material 3 dynamic colour",
-            "Firebase Auth + Firestore",
-            "Open-Meteo (weather)",
-            "CameraX (scanner)",
-            "Coil (images)",
-        )) { line ->
-            GlassCard(radius = 14.dp, padding = 12.dp) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Star, null, tint = AgroPalette.Amber, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text(line, style = MaterialTheme.typography.bodyMedium, color = AgroPalette.Ink)
-                }
-            }
-        }
+
+        // ── Mission ────────────────────────────────────────────────────────
+        item { SectionHeader(title = "Our Mission") }
         item {
-            GhostButton(text = "Source on GitHub", onClick = {
-                val ok = launchUrl(context, "https://github.com/Shikari-ai/agrosphere-android")
-                if (!ok) scope.launch { snackbar.showSnackbar("No browser app installed.") }
-            })
+            GlassCard(radius = 18.dp, padding = 18.dp) {
+                Text(
+                    "AgroSphere is built for smallholder and commercial farmers who deserve the same AI-powered insights that large agri-corporations rely on — free, accessible, and deeply local. We believe every farm, regardless of size, should have the intelligence to thrive.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AgroPalette.InkMuted,
+                    lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.6,
+                )
+            }
+        }
+
+        // ── What we stand for ──────────────────────────────────────────────
+        item { SectionHeader(title = "What We Stand For") }
+        items(listOf(
+            Triple(Icons.Rounded.Verified,       "Farmer first",          "Every feature is designed around what a farmer actually needs in the field."),
+            Triple(Icons.Rounded.Lock,           "Privacy by default",    "Your farm data is yours. We never sell or share your data with third parties."),
+            Triple(Icons.Rounded.AutoAwesome,    "AI that explains itself","Our recommendations show reasoning, not just answers."),
+            Triple(Icons.Rounded.Grass,          "Made in India",         "Built with Indian soil types, crops, and climate patterns at the core."),
+        )) { (icon, title, desc) ->
+            GlassCard(radius = 16.dp, padding = 14.dp) {
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(AgroPalette.Primary.copy(alpha = 0.14f)),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(icon, null, tint = AgroPalette.Primary, modifier = Modifier.size(18.dp)) }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(title, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(2.dp))
+                        Text(desc, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                    }
+                }
+            }
+        }
+
+        // ── Links ──────────────────────────────────────────────────────────
+        item { SectionHeader(title = "Legal & Contact") }
+        items(links) { link ->
+            GlassCard(radius = 16.dp, padding = 14.dp, onClick = {
+                when {
+                    link.url == "help" -> onOpenSection(com.agrosphere.app.ui.navigation.ProfileSections.HELP)
+                    link.title == "Rate the App" -> scope.launch { snackbar.showSnackbar("Coming soon on Play Store.") }
+                    link.url.isNotBlank() -> {
+                        val ok = launchUrl(context, link.url)
+                        if (!ok) scope.launch { snackbar.showSnackbar("No browser app installed.") }
+                    }
+                }
+            }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(link.tint.copy(alpha = 0.14f)),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(link.icon, null, tint = link.tint, modifier = Modifier.size(20.dp)) }
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(link.title, style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink)
+                        Text(link.subtitle, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                    }
+                    Icon(Icons.Rounded.ChevronRight, null, tint = AgroPalette.InkMuted)
+                }
+            }
+        }
+
+        // ── Footer ─────────────────────────────────────────────────────────
+        item {
+            Spacer(Modifier.height(8.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("Made with care in India 🌿", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
+                Spacer(Modifier.height(4.dp))
+                Text("© 2025 AgroSphere. All rights reserved.", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
+            }
             Spacer(Modifier.height(40.dp))
         }
     }

@@ -4,7 +4,10 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.agrosphere.app.data.repo.AppPreferences
 import com.agrosphere.app.ui.AgroSphereApp
 import com.agrosphere.app.ui.theme.AgroSphereTheme
 
@@ -21,7 +24,8 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         splash.setKeepOnScreenCondition { false }
         setContent {
-            AgroSphereTheme {
+            val darkTheme by AppPreferences.darkTheme.collectAsState()
+            AgroSphereTheme(darkTheme = darkTheme) {
                 AgroSphereApp()
             }
         }

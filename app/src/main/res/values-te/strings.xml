@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_tagline">మీ పొలాలు. మరింత తెలివిగా.</string>
 
@@ -86,6 +86,7 @@
     <string name="weather_condition_rain">వర్షం</string>
     <string name="weather_condition_storm">తుఫాను</string>
     <string name="weather_condition_night">స్వచ్ఛమైన రాత్రి</string>
+    <string name="weather_condition_windy">గాలి</string>
 
     <string name="field_ops_no_fields_body">నేటి ప్రాధాన్యత పనులు చూడటానికి పొలం జోడించండి.</string>
     <string name="field_ops_all_clear">అన్నీ సరే — ఇప్పుడు ప్రాధాన్యత పనులు లేవు.</string>
@@ -292,4 +293,40 @@
     <string name="sign_out_confirm_title">సైన్ అవుట్ చేయాలా?</string>
     <string name="sign_out_confirm_body">మీరు ఖచ్చితంగా సైన్ అవుట్ చేయాలనుకుంటున్నారా?</string>
     <string name="sign_out_confirm_cancel">రద్దు</string>
+
+    <!-- Onboarding wizard -->
+    <string name="onb_lang_title">మీ భాషను ఎంచుకోండి</string>
+    <string name="onb_lang_subtitle">AgroSphere-ని మీ భాషలో ఉపయోగించండి</string>
+    <string name="onb_terms_title">ప్రారంభించే ముందు</string>
+    <string name="onb_terms_subtitle">AgroSphere ఏమి చేస్తుందో మరియు మా నిబద్ధత గురించి ఒక చూపు</string>
+    <string name="onb_terms_what_title">AgroSphere ఏమి చేస్తుంది</string>
+    <string name="onb_terms_feat_1">ఫోటోల నుండి AI పంట వ్యాధి గుర్తింపు</string>
+    <string name="onb_terms_feat_2">మీ పొలాలకు హైపర్‌లోకల్ వాతావరణ అంచనా</string>
+    <string name="onb_terms_feat_3">స్మార్ట్ నీటిపారుదల మరియు స్ప్రే సమయ హెచ్చరికలు</string>
+    <string name="onb_terms_feat_4">పొలం ఆరోగ్య ట్రాకింగ్ మరియు వృద్ధి దశ సమాచారం</string>
+    <string name="onb_terms_privacy_title">నిబంధనలు మరియు గోప్యత సారాంశం</string>
+    <string name="onb_terms_priv_1">మీ పొలం డేటా మీది — మేము దాన్ని ఎప్పుడూ అమ్మం</string>
+    <string name="onb_terms_priv_2">స్థానం స్థానిక వాతావరణం తెచ్చుకోవడానికి మాత్రమే ఉపయోగించబడుతుంది</string>
+    <string name="onb_terms_priv_3">మీరు ఎప్పుడైనా మీ ఖాతా మరియు డేటాను తొలగించవచ్చు</string>
+    <string name="onb_terms_priv_4">AI సిఫార్సులు నిపుణుల సలహాకు అనుబంధం, ప్రత్యామ్నాయం కాదు</string>
+    <string name="onb_terms_priv_5">యాప్ వాడటం ద్వారా మీరు మా సేవా నిబంధనలతో అంగీకరిస్తారు</string>
+    <string name="onb_terms_priv_6">భారత చట్టం ద్వారా నిర్వహించబడుతుంది · support@agrosphere.app</string>
+    <string name="onb_terms_agree">సేవా నిబంధనలు మరియు గోప్యతా విధానానికి నేను అంగీకరిస్తాను</string>
+    <string name="onb_terms_btn">అంగీకరించి కొనసాగించు</string>
+    <string name="onb_quick_title">మీ వ్యవసాయాన్ని సెటప్ చేయండి</string>
+    <string name="onb_quick_subtitle">ఎక్కడ ప్రారంభించాలో ఎంచుకోండి — లేదా ఇప్పటికి దాటవేయండి</string>
+    <string name="onb_quick_field_title">మీ మొదటి పొలం జోడించండి</string>
+    <string name="onb_quick_field_desc">పొలం సరిహద్దు మ్యాప్ చేయండి, పంట రకం మరియు విత్తే తేదీ జోడించండి. AgroSphere ఆరోగ్యం, వృద్ధి దశను ట్రాక్ చేస్తుంది మరియు సకాలంలో హెచ్చరికలు పంపుతుంది.</string>
+    <string name="onb_quick_scan_title">పంట ఆకును స్కాన్ చేయండి</string>
+    <string name="onb_quick_scan_desc">తక్షణ AI నిర్ధారణకు ఆకు ఫోటో తీయండి — వ్యాధి, పురుగు, లేదా పోషకాల లోపం — దశల వారీ చికిత్స సలహాతో.</string>
+    <string name="onb_quick_hint">మీరు సిద్ధంగా ఉన్నప్పుడు యాప్ నుండి రెండూ చేయవచ్చు</string>
+    <string name="onb_done_set_name">మీరు సిద్ధంగా ఉన్నారు, %1$s!</string>
+    <string name="onb_done_set">మీరు సిద్ధంగా ఉన్నారు!</string>
+    <string name="onb_done_body">మీ వ్యవసాయ AI సహాయకుడు సిద్ధంగా ఉన్నాడు.\nప్రతి పంటను విజయవంతం చేద్దాం.</string>
+    <string name="onb_done_btn">AgroSphere-కి వెళ్ళండి</string>
+    <string name="onb_made_in_india">మేడ్ ఇన్ ఇండియా 🌿</string>
+    <string name="onb_skip">దాటవేయి</string>
+    <string name="onb_skip_for_now">ఇప్పటికి దాటవేయి</string>
+    <string name="onb_next">తదుపరి</string>
+    <string name="onb_continue">కొనసాగించు</string>
 </resources>

@@ -1,6 +1,11 @@
 package com.agrosphere.app.feature.fields
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -31,7 +36,6 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Grass
-import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material.icons.rounded.ViewModule
 import androidx.compose.material.icons.rounded.WaterDrop
@@ -65,8 +69,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import com.agrosphere.app.data.agro.CropAdvisor
 import com.agrosphere.app.data.model.Field
+import com.agrosphere.app.data.repo.AppPreferences
 import com.agrosphere.app.data.repo.MockRepository
+import com.agrosphere.app.data.repo.UnitFormatter
+import com.agrosphere.app.data.weather.WeatherRepository
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.components.StatChip
@@ -77,7 +87,6 @@ private enum class DetailTab(val label: String, val icon: ImageVector) {
     Overview("Overview", Icons.Rounded.ViewModule),
     Activity("Activity", Icons.Rounded.CalendarMonth),
     Health("Health", Icons.Rounded.Timeline),
-    Map("Map", Icons.Rounded.Map),
 }
 
 @Composable
@@ -106,7 +115,6 @@ fun FieldDetailScreen(fieldId: String, onBack: () -> Unit, onDelete: () -> Unit 
                 DetailTab.Overview -> OverviewTab(field)
                 DetailTab.Activity -> ActivityTab()
                 DetailTab.Health -> HealthTab(field)
-                DetailTab.Map -> MapTab(field)
             }
         }
 
@@ -150,6 +158,7 @@ fun FieldDetailScreen(fieldId: String, onBack: () -> Unit, onDelete: () -> Unit 
 
 @Composable
 private fun HeroBar(field: Field, onBack: () -> Unit) {
+    val useMetric by AppPreferences.useMetric.collectAsState()
     GlassCard(
         background = AgroBrushes.leafCard,
         radius = 0.dp,
@@ -175,7 +184,7 @@ private fun HeroBar(field: Field, onBack: () -> Unit) {
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(field.name, style = MaterialTheme.typography.displaySmall.copy(fontSize = 26.sp), color = AgroPalette.Ink, fontWeight = FontWeight.ExtraBold)
-                    Text("${field.crop} · ${field.areaHa} ha", style = MaterialTheme.typography.bodyMedium, color = AgroPalette.InkMuted)
+                    Text("${field.crop} · ${UnitFormatter.area(field.areaHa, useMetric)}", style = MaterialTheme.typography.bodyMedium, color = AgroPalette.InkMuted)
                 }
             }
         }
@@ -224,6 +233,24 @@ private fun TabStrip(selected: DetailTab, onSelect: (DetailTab) -> Unit) {
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun OverviewTab(field: Field) {
+    val context = LocalContext.current
+    val useMetric by AppPreferences.useMetric.collectAsState()
+    val weatherBundle by WeatherRepository.bundleFlow.collectAsState()
+    LaunchedEffect(Unit) {
+        if (WeatherRepository.cached() == null) runCatching { WeatherRepository.load(context) }
+    }
+    val weather = weatherBundle?.snapshot
+
+    val cropStage  = remember(field.crop, field.sownDaysAgo, weather) {
+        CropAdvisor.stageFor(field.crop, field.sownDaysAgo, weather)
+    }
+    val nextOp     = remember(field.crop, field.sownDaysAgo, field.moisturePct, field.healthScore, weather) {
+        CropAdvisor.nextOperation(field.crop, field.sownDaysAgo, field, weather)
+    }
+    val riskFlags  = remember(field.healthScore, field.moisturePct, weather) {
+        CropAdvisor.riskFlags(field, weather)
+    }
+
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -238,15 +265,20 @@ private fun OverviewTab(field: Field) {
         item {
             GlassCard(radius = 18.dp) {
                 Column {
-                    Text("Current stage", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Current stage", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted, modifier = Modifier.weight(1f))
+                        if (cropStage.daysRemaining > 0) {
+                            Text(
+                                "~${cropStage.daysRemaining}d to next",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AgroPalette.Primary,
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(4.dp))
-                    Text(field.stage, style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                    Text(cropStage.name, style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
-                    Text(
-                        "Crop is in the ${field.stage.lowercase()} phase. Continue routine scouting; next critical window in ~${(20 - (field.sownDaysAgo % 20))} days.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = AgroPalette.InkMuted,
-                    )
+                    Text(cropStage.description, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
                 }
             }
         }
@@ -256,10 +288,9 @@ private fun OverviewTab(field: Field) {
         item {
             GlassCard(radius = 18.dp) {
                 Column {
-                    InfoLine("Estimated yield", "${(field.areaHa * 2.8).toInt()} t — based on cultivar + stage")
-                    InfoLine("Water used", "${(field.moisturePct * 1.4).toInt()} mm in last 7 days")
-                    InfoLine("Next operation", "Foliar feed window opens in 3 days")
-                    InfoLine("Risk flags", if (field.healthScore < 70) "Leaf rust under watch" else "None")
+                    InfoLine("Estimated yield", "${"%.0f".format(field.areaHa * 2.8)} t · ${UnitFormatter.area(field.areaHa, useMetric)} — based on cultivar + stage")
+                    InfoLine("Next operation", nextOp)
+                    InfoLine("Risk flags", riskFlags)
                 }
             }
         }
@@ -269,8 +300,9 @@ private fun OverviewTab(field: Field) {
 
 @Composable
 private fun InfoLine(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted, modifier = Modifier.weight(1f))
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+        Spacer(Modifier.height(2.dp))
         Text(value, style = MaterialTheme.typography.bodyMedium, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
     }
 }
@@ -407,91 +439,3 @@ private fun HealthSparkline(values: List<Int>, tint: Color) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Map (stylized canvas — this field highlighted among the others)
-// ─────────────────────────────────────────────────────────────────────────────
-@Composable
-private fun MapTab(highlight: Field) {
-    LazyColumn(
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            GlassCard(radius = 22.dp, padding = 0.dp) {
-                Box(modifier = Modifier.fillMaxWidth().aspectRatio(1.05f)) {
-                    FieldMapCanvas(highlight = highlight)
-                }
-            }
-        }
-        item {
-            GlassCard(radius = 18.dp) {
-                Column {
-                    InfoLine("Coordinates", "19.997° N, 73.789° E (approx.)")
-                    InfoLine("Elevation", "560 m above sea level")
-                    InfoLine("Soil type", "Sandy loam · drains well")
-                    InfoLine("Nearest weather station", "Nashik · 8.4 km")
-                }
-            }
-        }
-        item { Spacer(Modifier.height(20.dp)) }
-    }
-}
-
-@Composable
-private fun FieldMapCanvas(highlight: Field) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val w = size.width
-        val h = size.height
-        // background grid (topo feel)
-        drawRect(brush = Brush.verticalGradient(listOf(Color(0xFF0C1F18), Color(0xFF06120C))))
-        val gridStep = 32f
-        var gx = 0f
-        while (gx < w) {
-            drawLine(color = AgroPalette.Primary.copy(alpha = 0.06f), start = Offset(gx, 0f), end = Offset(gx, h), strokeWidth = 1f)
-            gx += gridStep
-        }
-        var gy = 0f
-        while (gy < h) {
-            drawLine(color = AgroPalette.Primary.copy(alpha = 0.06f), start = Offset(0f, gy), end = Offset(w, gy), strokeWidth = 1f)
-            gy += gridStep
-        }
-
-        // Render each field as a rounded polygon — stylized
-        val fields = MockRepository.fields
-        val cells = listOf(
-            Offset(0.22f, 0.30f) to 0.36f,
-            Offset(0.62f, 0.25f) to 0.30f,
-            Offset(0.35f, 0.65f) to 0.32f,
-            Offset(0.74f, 0.68f) to 0.28f,
-        )
-        fields.forEachIndexed { i, f ->
-            val (centerFrac, sizeFrac) = cells[i % cells.size]
-            val cx = centerFrac.x * w
-            val cy = centerFrac.y * h
-            val pw = sizeFrac * w
-            val ph = sizeFrac * w * 0.85f
-            val isHighlight = f.id == highlight.id
-            val fill = if (isHighlight) f.accent.copy(alpha = 0.55f) else f.accent.copy(alpha = 0.22f)
-            val border = if (isHighlight) f.accent else f.accent.copy(alpha = 0.55f)
-            drawRoundRect(
-                color = fill,
-                topLeft = Offset(cx - pw / 2, cy - ph / 2),
-                size = GeomSize(pw, ph),
-                cornerRadius = CornerRadius(18f),
-            )
-            drawRoundRect(
-                color = border,
-                topLeft = Offset(cx - pw / 2, cy - ph / 2),
-                size = GeomSize(pw, ph),
-                cornerRadius = CornerRadius(18f),
-                style = Stroke(width = if (isHighlight) 2.5f else 1f),
-            )
-        }
-        // crosshair on highlighted field
-        val (centerFrac, _) = cells[fields.indexOf(highlight).coerceAtLeast(0) % cells.size]
-        val cx = centerFrac.x * w
-        val cy = centerFrac.y * h
-        drawCircle(color = highlight.accent, radius = 6f, center = Offset(cx, cy))
-        drawCircle(color = highlight.accent.copy(alpha = 0.3f), radius = 14f, center = Offset(cx, cy))
-    }
-}

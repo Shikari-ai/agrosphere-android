@@ -482,7 +482,9 @@ private fun TabStrip(selected: Int, onSelect: (Int) -> Unit) {
 /** Slides a half-width indicator across its parent. fraction: 0f (left) .. 1f (right). */
 private fun Modifier.slideIndicator(fraction: Float): Modifier = this.layout { measurable, constraints ->
     val placeable = measurable.measure(constraints)
-    val shift = ((constraints.maxWidth - placeable.width) * fraction.coerceIn(0f, 1f)).toInt()
+    // The indicator fills half the track (placeable.width == halfTrackWidth), so to move it
+    // from the left half to the right half we shift by exactly one indicator width.
+    val shift = (placeable.width * fraction.coerceIn(0f, 1f)).toInt()
     layout(placeable.width, placeable.height) {
         placeable.place(shift, 0)
     }
