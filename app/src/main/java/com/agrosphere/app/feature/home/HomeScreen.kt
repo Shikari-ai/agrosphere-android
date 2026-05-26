@@ -37,7 +37,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.agrosphere.app.data.model.PlantEntry
 import com.agrosphere.app.data.plants.PlantData
-import com.agrosphere.app.data.repo.AppPreferences
 import com.agrosphere.app.data.repo.PlantRepository
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Spa
@@ -131,6 +130,9 @@ fun HomeScreen(
     vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
+    // Live-collected once at the HomeScreen scope (LazyListScope isn't @Composable
+    // so we can't collect inside the LazyColumn lambda).
+    val userMode by AppPreferences.userMode.collectAsState()
     var showNotifications by remember { mutableStateOf(false) }
     // rememberSaveable survives NavHost destination disposal (tab switches, back-stack
     // recreation).  Once true, every future HomeScreen composition seeds itemVisible
@@ -218,7 +220,6 @@ fun HomeScreen(
             item { AtAGlanceGrid(state = state) }
             // ── My Space — fields + plants, mode-aware ───────────────────────
             item { SectionHeader(title = stringResource(R.string.section_my_space), trailing = stringResource(R.string.section_manage_all)) }
-            val userMode by AppPreferences.userMode.collectAsState()
             if (userMode == "farmer" || userMode == "both") {
                 if (userMode == "both") {
                     item { SpaceSubHeader(label = "Fields", icon = Icons.Rounded.Grass, tint = AgroPalette.Amber) }
