@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -441,7 +442,7 @@ private fun AnalyzingStage(nickname: String) {
                     ),
                     radius = size.minDimension / 2f * pulse,
                 )
-                androidx.compose.ui.graphics.drawscope.rotate(rot) {
+                rotate(rot) {
                     drawArc(
                         brush = Brush.sweepGradient(listOf(AgroPalette.Primary, AgroPalette.Sky, AgroPalette.Iris, AgroPalette.Amber, AgroPalette.Primary)),
                         startAngle = 0f, sweepAngle = 270f, useCenter = false,

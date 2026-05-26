@@ -68,9 +68,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Spa
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.PrimaryButton
 import com.agrosphere.app.ui.theme.AgroBrushes
@@ -563,9 +560,9 @@ private fun HealthTab(plant: PlantEntry) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val stroke = Stroke(14.dp.toPx(), cap = StrokeCap.Round)
                     val inset  = 8.dp.toPx()
-                    drawArc(AgroPalette.SurfaceGlass, -90f, 360f, false, stroke = stroke,
+                    drawArc(AgroPalette.SurfaceGlass, -90f, 360f, false, style = stroke,
                         topLeft = Offset(inset, inset), size = GeomSize(size.width - inset * 2, size.height - inset * 2))
-                    drawArc(ringColor, -90f, 360f * target, false, stroke = stroke,
+                    drawArc(ringColor, -90f, 360f * target, false, style = stroke,
                         topLeft = Offset(inset, inset), size = GeomSize(size.width - inset * 2, size.height - inset * 2))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
