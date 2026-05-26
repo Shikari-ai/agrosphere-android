@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.WaterDrop
@@ -284,7 +285,7 @@ private fun CareTab(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // ── Rescan card — primary action ──────────────────────────────────────
+        // ── Rescan card — shows last scan timestamp + a real Scan-now button ──
         item {
             GlassCard(
                 radius = 16.dp,
@@ -292,24 +293,65 @@ private fun CareTab(
                 background = androidx.compose.ui.graphics.Brush.linearGradient(
                     listOf(AgroPalette.Primary.copy(alpha = 0.20f), AgroPalette.Iris.copy(alpha = 0.08f))
                 ),
-                onClick = onRescan,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier.size(46.dp).clip(CircleShape).background(AgroPalette.Primary.copy(alpha = 0.22f)),
-                        contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Rounded.AutoAwesome, null, tint = AgroPalette.Primary, modifier = Modifier.size(22.dp)) }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Scan ${plant.name}", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
-                        Text(
-                            if (latest == null) "First scan — update its health profile"
-                            else "Last scanned ${relativeDays(latest.timestamp)} · update health & history",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AgroPalette.InkMuted,
-                        )
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.size(46.dp).clip(CircleShape).background(AgroPalette.Primary.copy(alpha = 0.22f)),
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Rounded.AutoAwesome, null, tint = AgroPalette.Primary, modifier = Modifier.size(22.dp)) }
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "LAST SCAN",
+                                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                                color = AgroPalette.InkMuted,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                if (latest == null) "Never scanned"
+                                else formatDateTime(latest.timestamp),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = AgroPalette.Ink,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            if (latest != null) {
+                                Text(
+                                    "${relativeDays(latest.timestamp)} · health ${latest.healthScore}/100",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = AgroPalette.InkMuted,
+                                )
+                            } else {
+                                Text(
+                                    "Scan to populate health, stage and care tips.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = AgroPalette.InkMuted,
+                                )
+                            }
+                        }
                     }
-                    Icon(Icons.Rounded.Refresh, null, tint = AgroPalette.Primary)
+                    Spacer(Modifier.height(12.dp))
+                    // Prominent Scan-now button — distinct affordance, not just a clickable card.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(AgroPalette.Primary)
+                            .clickable(onClick = onRescan)
+                            .padding(vertical = 13.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Rounded.CameraAlt, null, tint = AgroPalette.BgDeep, modifier = Modifier.size(18.dp))
+                            Text(
+                                if (latest == null) "Scan now" else "Scan again",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = AgroPalette.BgDeep,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
                 }
             }
         }
