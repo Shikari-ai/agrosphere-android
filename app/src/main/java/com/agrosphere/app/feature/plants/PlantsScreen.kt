@@ -349,7 +349,8 @@ private fun PlantCard(plant: PlantEntry, onClick: () -> Unit, onScan: () -> Unit
 
     GlassCard(radius = 16.dp, padding = 14.dp, onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Accent circle + icon
+            // Avatar — shows the plant's most recent scan photo if available,
+            // falls back to the LocalFlorist glyph tinted by accent otherwise.
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -357,7 +358,17 @@ private fun PlantCard(plant: PlantEntry, onClick: () -> Unit, onScan: () -> Unit
                     .background(plant.accent.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Rounded.LocalFlorist, null, tint = plant.accent, modifier = Modifier.size(22.dp))
+                val photo = plant.photoPath?.takeIf { java.io.File(it).exists() }
+                if (photo != null) {
+                    coil.compose.AsyncImage(
+                        model = java.io.File(photo),
+                        contentDescription = "${plant.name} photo",
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    )
+                } else {
+                    Icon(Icons.Rounded.LocalFlorist, null, tint = plant.accent, modifier = Modifier.size(22.dp))
+                }
             }
             Spacer(Modifier.width(12.dp))
             // Name + species + location

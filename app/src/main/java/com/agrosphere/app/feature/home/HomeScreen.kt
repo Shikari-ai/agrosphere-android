@@ -3280,13 +3280,27 @@ private fun MyPlantsCarousel(onOpenPlant: (String) -> Unit, onAddPlant: () -> Un
                 onClick  = { onOpenPlant(plant.id) },
             ) {
                 Column {
+                    // Avatar — most recent scan photo with LocalFlorist fallback,
+                    // mirrors the Plant Detail hero + Plants-list card avatars.
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(plant.accent.copy(alpha = 0.20f)),
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Rounded.LocalFlorist, null, tint = plant.accent) }
+                    ) {
+                        val photo = plant.photoPath?.takeIf { java.io.File(it).exists() }
+                        if (photo != null) {
+                            coil.compose.AsyncImage(
+                                model = java.io.File(photo),
+                                contentDescription = "${plant.name} photo",
+                                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            )
+                        } else {
+                            Icon(Icons.Rounded.LocalFlorist, null, tint = plant.accent)
+                        }
+                    }
                     Spacer(Modifier.height(10.dp))
                     Text(plant.name, style = MaterialTheme.typography.titleMedium, color = AgroPalette.Ink)
                     Text("${plant.species} · ${plant.location}", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
