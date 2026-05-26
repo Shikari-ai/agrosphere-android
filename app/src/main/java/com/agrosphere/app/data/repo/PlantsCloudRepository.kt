@@ -112,43 +112,51 @@ object PlantsCloudRepository {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun docToEntry(doc: DocumentSnapshot): PlantEntry? = try {
-        val argb = doc.getLong("accentArgb")?.toInt() ?: 0xFF00C853.toInt()
-        val scanHistory = (doc.get("scanHistory") as? List<Map<String, Any?>>).orEmpty().mapNotNull { raw ->
-            try {
-                PlantScanRecord(
-                    timestamp       = (raw["timestamp"] as? Number)?.toLong() ?: return@mapNotNull null,
-                    verdict         = raw["verdict"] as? String ?: "Healthy",
-                    healthScore     = (raw["healthScore"] as? Number)?.toInt() ?: 60,
-                    riskLevel       = raw["riskLevel"] as? String ?: "low",
-                    summary         = raw["summary"] as? String ?: "",
-                    recommendations = (raw["recommendations"] as? List<String>).orEmpty(),
-                    photoPath       = null,
-                )
-            } catch (_: Exception) { null }
-        }
-        val wateringLog = (doc.get("wateringLog") as? List<Number>).orEmpty().map { it.toLong() }
+    private fun docToEntry(doc: DocumentSnapshot): PlantEntry? {
+        return try {
+            // Hoist the required field out so the elvis-return lives in a normal
+            // block, not inside an expression-bodied function (Kotlin disallows
+            // explicit returns from expression bodies).
+            val name = doc.getString("name") ?: return null
+            val argb = doc.getLong("accentArgb")?.toInt() ?: 0xFF00C853.toInt()
+            val scanHistory = (doc.get("scanHistory") as? List<Map<String, Any?>>).orEmpty().mapNotNull { raw ->
+                try {
+                    PlantScanRecord(
+                        timestamp       = (raw["timestamp"] as? Number)?.toLong() ?: return@mapNotNull null,
+                        verdict         = raw["verdict"] as? String ?: "Healthy",
+                        healthScore     = (raw["healthScore"] as? Number)?.toInt() ?: 60,
+                        riskLevel       = raw["riskLevel"] as? String ?: "low",
+                        summary         = raw["summary"] as? String ?: "",
+                        recommendations = (raw["recommendations"] as? List<String>).orEmpty(),
+                        photoPath       = null,
+                    )
+                } catch (_: Exception) { null }
+            }
+            val wateringLog = (doc.get("wateringLog") as? List<Number>).orEmpty().map { it.toLong() }
 
-        PlantEntry(
-            id                   = doc.id,
-            name                 = doc.getString("name") ?: return null,
-            species              = doc.getString("species") ?: "",
-            location             = doc.getString("location") ?: "Living Room",
-            potSize              = doc.getString("potSize") ?: "Medium pot",
-            sunlightNeed         = doc.getString("sunlightNeed") ?: "Partial Shade",
-            wateringIntervalDays = (doc.getLong("wateringIntervalDays") ?: 7L).toInt(),
-            lastWateredMs        = doc.getLong("lastWateredMs") ?: 0L,
-            wateringLog          = wateringLog,
-            healthScore          = (doc.getLong("healthScore") ?: 75L).toInt(),
-            accent               = Color(argb),
-            stage                = doc.getString("stage") ?: "Growing",
-            scanHistory          = scanHistory,
-            lastScanMs           = doc.getLong("lastScanMs") ?: 0L,
-            photoPath            = null,
-            scientificName       = doc.getString("scientificName") ?: "",
-            variety              = doc.getString("variety") ?: "",
-            soilType             = doc.getString("soilType") ?: "",
-            careNote             = doc.getString("careNote") ?: "",
-        )
-    } catch (_: Exception) { null }
+            PlantEntry(
+                id                   = doc.id,
+                name                 = name,
+                species              = doc.getString("species") ?: "",
+                location             = doc.getString("location") ?: "Living Room",
+                potSize              = doc.getString("potSize") ?: "Medium pot",
+                sunlightNeed         = doc.getString("sunlightNeed") ?: "Partial Shade",
+                wateringIntervalDays = (doc.getLong("wateringIntervalDays") ?: 7L).toInt(),
+                lastWateredMs        = doc.getLong("lastWateredMs") ?: 0L,
+                wateringLog          = wateringLog,
+                healthScore          = (doc.getLong("healthScore") ?: 75L).toInt(),
+                accent               = Color(argb),
+                stage                = doc.getString("stage") ?: "Growing",
+                scanHistory          = scanHistory,
+                lastScanMs           = doc.getLong("lastScanMs") ?: 0L,
+                photoPath            = null,
+                scientificName       = doc.getString("scientificName") ?: "",
+                variety              = doc.getString("variety") ?: "",
+                soilType             = doc.getString("soilType") ?: "",
+                careNote             = doc.getString("careNote") ?: "",
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
 }

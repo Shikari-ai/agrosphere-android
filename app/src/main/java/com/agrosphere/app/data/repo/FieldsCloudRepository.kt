@@ -74,18 +74,23 @@ object FieldsCloudRepository {
         db.collection(COLLECTION).document(field.id).set(data).await()
     }
 
-    private fun docToField(doc: DocumentSnapshot): Field? = try {
-        val argb = doc.getLong("accentArgb")?.toInt() ?: 0xFF00C853.toInt()
-        Field(
-            id          = doc.id,
-            name        = doc.getString("name") ?: return null,
-            crop        = doc.getString("crop") ?: "Other",
-            areaHa      = doc.getDouble("areaHa") ?: 0.0,
-            healthScore = (doc.getLong("healthScore") ?: 70L).toInt(),
-            moisturePct = (doc.getLong("moisturePct") ?: 50L).toInt(),
-            stage       = doc.getString("stage") ?: "Growing",
-            sownDaysAgo = (doc.getLong("sownDaysAgo") ?: 0L).toInt(),
-            accent      = Color(argb),
-        )
-    } catch (_: Exception) { null }
+    private fun docToField(doc: DocumentSnapshot): Field? {
+        return try {
+            val name = doc.getString("name") ?: return null
+            val argb = doc.getLong("accentArgb")?.toInt() ?: 0xFF00C853.toInt()
+            Field(
+                id          = doc.id,
+                name        = name,
+                crop        = doc.getString("crop") ?: "Other",
+                areaHa      = doc.getDouble("areaHa") ?: 0.0,
+                healthScore = (doc.getLong("healthScore") ?: 70L).toInt(),
+                moisturePct = (doc.getLong("moisturePct") ?: 50L).toInt(),
+                stage       = doc.getString("stage") ?: "Growing",
+                sownDaysAgo = (doc.getLong("sownDaysAgo") ?: 0L).toInt(),
+                accent      = Color(argb),
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
 }
