@@ -55,17 +55,24 @@ object WeatherRepository {
             if (place.label.isNotBlank() && place.label != "Current location") place.label
             else LocationProvider.reverseGeocode(context, place.latitude, place.longitude) ?: place.label
         }
-        val r = weatherDeferred.await()
-        val label = labelDeferred.await()
-        val bundle = WeatherBundle(
-            snapshot = toSnapshot(label, r),
-            hourly = toHourly(r),
-            daily = toDaily(r),
-            insights = deriveInsights(r),
-            metrics = deriveMetrics(r),
-        )
-        _bundle.value = bundle
-        bundle
+        try {
+            val r = weatherDeferred.await()
+            val label = labelDeferred.await()
+            val bundle = WeatherBundle(
+                snapshot = toSnapshot(label, r),
+                hourly = toHourly(r),
+                daily = toDaily(r),
+                insights = deriveInsights(r),
+                metrics = deriveMetrics(r),
+            )
+            _bundle.value = bundle
+            bundle
+        } catch (e: Throwable) {
+            // Open-Meteo blip (502/503/timeout) after retries exhausted — fall back to
+            // the most recent successful bundle so screens stay populated. Only re-throw
+            // if we have absolutely nothing to show.
+            _bundle.value ?: throw e
+        }
     }
 
     // ─── Mapping ──────────────────────────────────────────────────────────
