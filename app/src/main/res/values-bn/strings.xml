@@ -329,4 +329,93 @@
     <string name="onb_skip_for_now">এখন এড়িয়ে যান</string>
     <string name="onb_next">পরবর্তী</string>
     <string name="onb_continue">চালিয়ে যান</string>
+
+    <string name="onb_mode_title">আপনি কী চাষ করেন?</string>
+    <string name="onb_mode_subtitle">আপনার প্রয়োজন অনুযায়ী AgroSphere সাজিয়ে দেব</string>
+    <string name="onb_mode_farmer">কৃষক</string>
+    <string name="onb_mode_farmer_desc">ক্ষেত, ফসল এবং ফলন পরিচালনা করুন</string>
+    <string name="onb_mode_plant">গাছ প্রেমী</string>
+    <string name="onb_mode_plant_desc">ফুল, ঘরোয়া গাছ এবং বাগান পর্যবেক্ষণ করুন</string>
+    <string name="onb_mode_both">দুটোই</string>
+    <string name="onb_mode_both_desc">সম্পূর্ণ অ্যাক্সেস — ক্ষেত এবং ঘরোয়া গাছ</string>
+    <string name="onb_quick_plant_title">আপনার প্রথম গাছ যোগ করুন</string>
+    <string name="onb_quick_plant_desc">জলের সময়সূচি, সূর্যালোকের প্রয়োজন এবং স্বাস্থ্য ট্র্যাক করুন। সঠিক সময়ে রিমাইন্ডার পান।</string>
+    <string name="onb_done_body_plant">আপনার গাছ সঙ্গী প্রস্তুত।\nপ্রতিটি গাছকে ভালোভাবে বাড়াতে সাহায্য করি।</string>
+    <string name="onb_done_body_both">আপনার সবুজ স্থান সঙ্গী প্রস্তুত।\nক্ষেত ও গাছ, সব এক জায়গায়।</string>
+
+    <string name="nav_plants">গাছ</string>
+
+    <string name="plants_eyebrow">আমার বাগান</string>
+    <string name="plants_title">ঘরোয়া গাছ</string>
+    <string name="plants_metric_plants">গাছ</string>
+    <string name="plants_metric_due">আজ প্রয়োজন</string>
+    <string name="plants_metric_healthy">সুস্থ</string>
+    <string name="plants_search_placeholder">গাছ খুঁজুন…</string>
+    <string name="plants_filter_all">সব</string>
+    <string name="plants_filter_flowering">ফুলদার</string>
+    <string name="plants_filter_indoor">ঘরোয়া</string>
+    <string name="plants_filter_succulent">রসালো</string>
+    <string name="plants_filter_herb">ভেষজ</string>
+    <string name="plants_filter_overdue">সময় পেরিয়েছে</string>
+    <string name="plants_results_count">%2$d এর মধ্যে %1$d গাছ</string>
+    <string name="plants_empty_title">এখনো কোনো গাছ নেই</string>
+    <string name="plants_empty_body">আপনার প্রথম গাছ যোগ করুন — জল, স্বাস্থ্য, যত্ন এক জায়গায়।</string>
+    <string name="plants_empty_filter_title">কোনো গাছ মেলেনি</string>
+    <string name="plants_empty_filter_body">সার্চ মুছে ফিল্টার পরিবর্তন করুন।</string>
+    <string name="plant_deleted_snackbar">"%1$s" সরানো হয়েছে</string>
+    <string name="plant_delete_confirm_title">গাছ সরাবেন?</string>
+    <string name="plant_delete_confirm_body">"%1$s" এবং এর সমস্ত ডেটা স্থায়ীভাবে মুছে যাবে।</string>
+
+    <string name="plant_add_title">গাছ যোগ করুন</string>
+    <string name="plant_add_nickname_label">ডাকনাম</string>
+    <string name="plant_add_nickname_hint">যেমন: ঠাকুমার গোলাপ</string>
+    <string name="plant_add_species_label">প্রজাতি</string>
+    <string name="plant_add_location_label">এটি কোথায়?</string>
+    <string name="plant_add_pot_label">টবের আকার</string>
+    <string name="plant_add_sun_label">সূর্যালোকের প্রয়োজন</string>
+    <string name="plant_add_water_label">প্রতি %1$d দিন%2$s জল দিন</string>
+    <string name="plant_add_btn">গাছ যোগ করুন</string>
+    <string name="plant_add_species_search_hint">প্রজাতি খুঁজুন…</string>
+
+    <string name="plant_detail_care_tab">যত্ন</string>
+    <string name="plant_detail_activity_tab">কার্যকলাপ</string>
+    <string name="plant_detail_health_tab">স্বাস্থ্য</string>
+    <string name="plant_water_log_btn">জল দেওয়ার রেকর্ড</string>
+    <string name="plant_water_logged">জল দেওয়া হয়েছে ✓</string>
+    <string name="plant_water_due_today">আজ প্রয়োজন</string>
+    <string name="plant_water_due_in">%1$d দিন%2$s পরে প্রয়োজন</string>
+    <string name="plant_water_overdue">%1$d দিন%2$s দেরি</string>
+    <string name="plant_water_never">কখনো রেকর্ড হয়নি</string>
+    <string name="plant_care_sunlight">সূর্যালোক</string>
+    <string name="plant_care_soil">মাটির ধরন</string>
+    <string name="plant_care_note">যত্ন টিপ</string>
+    <string name="plant_care_interval">জলের বিরতি</string>
+    <string name="plant_care_days">%1$d দিন</string>
+    <string name="plant_activity_empty">এখনো কোনো জল রেকর্ড নেই।\nযত্ন ট্যাবে \'জল দেওয়ার রেকর্ড\' ট্যাপ করুন।</string>
+    <string name="plant_delete_btn">গাছ সরান</string>
+
+    <string name="profile_menu_mode">অ্যাপ মোড</string>
+    <string name="profile_sub_mode_farmer">কৃষক — ক্ষেত, ফসল, ফলন</string>
+    <string name="profile_sub_mode_plant">গাছ প্রেমী — ঘরোয়া গাছ &amp; বাগান</string>
+    <string name="profile_sub_mode_both">দুটোই — ক্ষেত এবং ঘরোয়া গাছ</string>
+
+    <string name="section_my_space">আমার জায়গা</string>
+    <string name="action_add_plant">গাছ যোগ</string>
+    <string name="action_scan">স্ক্যান</string>
+    <string name="action_scan_plant">গাছ স্ক্যান</string>
+
+    <string name="section_plant_operations">গাছের কাজ</string>
+    <string name="plant_ops_no_plants_body">আজকের যত্নের কাজ দেখতে গাছ যোগ করুন।</string>
+    <string name="plant_ops_all_clear">সব ঠিক — সব গাছে জল এবং যত্ন পেয়েছে।</string>
+    <string name="plant_ops_tasks_suggested">আজ আপনার গাছের জন্য %1$d কাজ%2$s</string>
+
+    <string name="glance_plants">গাছ</string>
+    <string name="glance_species">প্রজাতি</string>
+    <string name="glance_water">জল</string>
+    <string name="glance_health">স্বাস্থ্য</string>
+    <string name="glance_growing_plants">বাড়ছে</string>
+    <string name="glance_varieties">ধরন</string>
+    <string name="glance_due_today">আজ প্রয়োজন</string>
+    <string name="glance_all_clear">সব ঠিক</string>
+    <string name="glance_average">গড়</string>
 </resources>

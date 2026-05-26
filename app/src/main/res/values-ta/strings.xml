@@ -329,4 +329,93 @@
     <string name="onb_skip_for_now">இப்போது தவிர்க்கவும்</string>
     <string name="onb_next">அடுத்து</string>
     <string name="onb_continue">தொடர</string>
+
+    <string name="onb_mode_title">நீங்கள் எதை வளர்க்கிறீர்கள்?</string>
+    <string name="onb_mode_subtitle">உங்கள் தேவைக்கேற்ப AgroSphere ஐ வடிவமைப்போம்</string>
+    <string name="onb_mode_farmer">விவசாயி</string>
+    <string name="onb_mode_farmer_desc">விவசாய வயல்கள், பயிர்கள் மற்றும் விளைச்சல் நிர்வாகம்</string>
+    <string name="onb_mode_plant">செடி காதலர்</string>
+    <string name="onb_mode_plant_desc">பூக்கள், வீட்டுச் செடிகள் மற்றும் தோட்டங்களைக் கண்காணியுங்கள்</string>
+    <string name="onb_mode_both">இரண்டும்</string>
+    <string name="onb_mode_both_desc">முழு அணுகல் — விவசாயம் மற்றும் வீட்டுச் செடிகள்</string>
+    <string name="onb_quick_plant_title">உங்கள் முதல் செடியைச் சேர்க்கவும்</string>
+    <string name="onb_quick_plant_desc">நீர் ஊற்றும் நேரம், சூரிய ஒளி தேவை மற்றும் ஆரோக்கியத்தை கண்காணியுங்கள். சரியான நேரத்தில் நினைவூட்டல்கள் பெறுங்கள்.</string>
+    <string name="onb_done_body_plant">உங்கள் செடி துணைவன் தயார்.\nஒவ்வொரு செடியும் செழித்து வளர உதவுவோம்.</string>
+    <string name="onb_done_body_both">உங்கள் பசுமை இட துணைவன் தயார்.\nவயல் மற்றும் செடிகள், ஒரே இடத்தில்.</string>
+
+    <string name="nav_plants">செடிகள்</string>
+
+    <string name="plants_eyebrow">என் தோட்டம்</string>
+    <string name="plants_title">வீட்டுச் செடிகள்</string>
+    <string name="plants_metric_plants">செடிகள்</string>
+    <string name="plants_metric_due">இன்று செய்ய</string>
+    <string name="plants_metric_healthy">ஆரோக்கியமான</string>
+    <string name="plants_search_placeholder">செடிகளைத் தேடு…</string>
+    <string name="plants_filter_all">அனைத்தும்</string>
+    <string name="plants_filter_flowering">பூக்கும்</string>
+    <string name="plants_filter_indoor">உள்ளிடம்</string>
+    <string name="plants_filter_succulent">சாறுள்ள</string>
+    <string name="plants_filter_herb">மூலிகை</string>
+    <string name="plants_filter_overdue">தாமதம்</string>
+    <string name="plants_results_count">%2$d இல் %1$d செடிகள்</string>
+    <string name="plants_empty_title">இன்னும் செடிகள் இல்லை</string>
+    <string name="plants_empty_body">உங்கள் முதல் செடியைச் சேர்க்கவும் — நீர், ஆரோக்கியம், பராமரிப்பு ஒரே இடத்தில்.</string>
+    <string name="plants_empty_filter_title">பொருந்தும் செடி இல்லை</string>
+    <string name="plants_empty_filter_body">தேடலை அழித்து வடிகட்டியை மாற்றவும்.</string>
+    <string name="plant_deleted_snackbar">"%1$s" அகற்றப்பட்டது</string>
+    <string name="plant_delete_confirm_title">செடியை அகற்றவா?</string>
+    <string name="plant_delete_confirm_body">"%1$s" மற்றும் அதன் தரவுகள் நிரந்தரமாக அகற்றப்படும்.</string>
+
+    <string name="plant_add_title">செடி சேர்க்க</string>
+    <string name="plant_add_nickname_label">செல்லப் பெயர்</string>
+    <string name="plant_add_nickname_hint">உதா: பாட்டியின் ரோஜா</string>
+    <string name="plant_add_species_label">இனம்</string>
+    <string name="plant_add_location_label">எங்கே உள்ளது?</string>
+    <string name="plant_add_pot_label">தொட்டியின் அளவு</string>
+    <string name="plant_add_sun_label">சூரிய ஒளி தேவை</string>
+    <string name="plant_add_water_label">ஒவ்வொரு %1$d நாள்%2$s நீர் ஊற்று</string>
+    <string name="plant_add_btn">செடி சேர்</string>
+    <string name="plant_add_species_search_hint">இனத்தைத் தேடு…</string>
+
+    <string name="plant_detail_care_tab">பராமரிப்பு</string>
+    <string name="plant_detail_activity_tab">செயல்பாடு</string>
+    <string name="plant_detail_health_tab">ஆரோக்கியம்</string>
+    <string name="plant_water_log_btn">நீர் பதிவு</string>
+    <string name="plant_water_logged">நீர் ஊற்றினேன் ✓</string>
+    <string name="plant_water_due_today">இன்று செய்ய</string>
+    <string name="plant_water_due_in">%1$d நாள்%2$s இல் செய்ய</string>
+    <string name="plant_water_overdue">%1$d நாள்%2$s தாமதம்</string>
+    <string name="plant_water_never">பதிவிடப்படவில்லை</string>
+    <string name="plant_care_sunlight">சூரிய ஒளி</string>
+    <string name="plant_care_soil">மண் வகை</string>
+    <string name="plant_care_note">பராமரிப்பு குறிப்பு</string>
+    <string name="plant_care_interval">நீர் இடைவெளி</string>
+    <string name="plant_care_days">%1$d நாள்</string>
+    <string name="plant_activity_empty">இன்னும் எந்த நீர்ப்பதிவும் இல்லை.\nபராமரிப்பு தாவலில் \'நீர் பதிவு\' தட்டவும்.</string>
+    <string name="plant_delete_btn">செடி அகற்று</string>
+
+    <string name="profile_menu_mode">பயன்பாட்டு முறை</string>
+    <string name="profile_sub_mode_farmer">விவசாயி — வயல்கள், பயிர்கள், விளைச்சல்</string>
+    <string name="profile_sub_mode_plant">செடி காதலர் — வீட்டுச் செடிகள் &amp; தோட்டம்</string>
+    <string name="profile_sub_mode_both">இரண்டும் — வயல் மற்றும் வீட்டுச் செடிகள்</string>
+
+    <string name="section_my_space">என் இடம்</string>
+    <string name="action_add_plant">செடி சேர்</string>
+    <string name="action_scan">ஸ்கேன்</string>
+    <string name="action_scan_plant">செடி ஸ்கேன்</string>
+
+    <string name="section_plant_operations">செடி செயல்பாடுகள்</string>
+    <string name="plant_ops_no_plants_body">இன்றைய பராமரிப்பு பணிகளைக் காண செடியைச் சேர்க்கவும்.</string>
+    <string name="plant_ops_all_clear">அனைத்தும் சரி — அனைத்துச் செடிகளுக்கும் நீரும் பராமரிப்பும் கிடைத்தது.</string>
+    <string name="plant_ops_tasks_suggested">இன்று உங்கள் செடிகளுக்கு %1$d பணி%2$s</string>
+
+    <string name="glance_plants">செடிகள்</string>
+    <string name="glance_species">இனங்கள்</string>
+    <string name="glance_water">நீர்</string>
+    <string name="glance_health">ஆரோக்கியம்</string>
+    <string name="glance_growing_plants">வளர்கிறது</string>
+    <string name="glance_varieties">வகைகள்</string>
+    <string name="glance_due_today">இன்று செய்ய</string>
+    <string name="glance_all_clear">அனைத்தும் சரி</string>
+    <string name="glance_average">சராசரி</string>
 </resources>

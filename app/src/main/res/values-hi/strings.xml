@@ -330,4 +330,94 @@
     <string name="onb_skip_for_now">अभी छोड़ें</string>
     <string name="onb_next">अगला</string>
     <string name="onb_continue">जारी रखें</string>
+
+    <!-- ─── Onboarding — mode selection step ───────────────────────────── -->
+    <string name="onb_mode_title">आप क्या उगाते हैं?</string>
+    <string name="onb_mode_subtitle">हम AgroSphere को आपकी ज़रूरत के मुताबिक ढालेंगे</string>
+    <string name="onb_mode_farmer">किसान</string>
+    <string name="onb_mode_farmer_desc">कृषि खेतों, फसलों और उपज का प्रबंधन</string>
+    <string name="onb_mode_plant">पौधा प्रेमी</string>
+    <string name="onb_mode_plant_desc">फूल, घरेलू पौधे और बगीचों पर नज़र रखें</string>
+    <string name="onb_mode_both">दोनों</string>
+    <string name="onb_mode_both_desc">पूर्ण पहुँच — खेत और घरेलू पौधे</string>
+    <string name="onb_quick_plant_title">अपना पहला पौधा जोड़ें</string>
+    <string name="onb_quick_plant_desc">पानी देने का समय, धूप की ज़रूरत और स्वास्थ्य को ट्रैक करें। ज़रूरत पड़ने पर समय पर रिमाइंडर पाएँ।</string>
+    <string name="onb_done_body_plant">आपका पौधा साथी तैयार है।\nहर पौधे को फलने-फूलने में मदद करें।</string>
+    <string name="onb_done_body_both">आपका हरित-स्थान साथी तैयार है।\nखेत और पौधे, सब एक जगह।</string>
+
+    <string name="nav_plants">पौधे</string>
+
+    <string name="plants_eyebrow">मेरा बगीचा</string>
+    <string name="plants_title">घरेलू पौधे</string>
+    <string name="plants_metric_plants">पौधे</string>
+    <string name="plants_metric_due">आज देय</string>
+    <string name="plants_metric_healthy">स्वस्थ</string>
+    <string name="plants_search_placeholder">पौधे खोजें…</string>
+    <string name="plants_filter_all">सभी</string>
+    <string name="plants_filter_flowering">फूलदार</string>
+    <string name="plants_filter_indoor">घर के अंदर</string>
+    <string name="plants_filter_succulent">रसीले</string>
+    <string name="plants_filter_herb">जड़ी-बूटी</string>
+    <string name="plants_filter_overdue">समय बीत गया</string>
+    <string name="plants_results_count">%2$d में से %1$d पौधे</string>
+    <string name="plants_empty_title">अभी कोई पौधा नहीं</string>
+    <string name="plants_empty_body">अपना पहला पौधा जोड़ें — पानी, स्वास्थ्य और देखभाल सब एक जगह।</string>
+    <string name="plants_empty_filter_title">कोई पौधा मेल नहीं खाता</string>
+    <string name="plants_empty_filter_body">खोज साफ़ करें या फ़िल्टर बदलें।</string>
+    <string name="plant_deleted_snackbar">"%1$s" हटा दिया गया</string>
+    <string name="plant_delete_confirm_title">पौधा हटाएँ?</string>
+    <string name="plant_delete_confirm_body">"%1$s" और इसका सारा डेटा स्थायी रूप से हट जाएगा।</string>
+
+    <string name="plant_add_title">पौधा जोड़ें</string>
+    <string name="plant_add_nickname_label">उपनाम</string>
+    <string name="plant_add_nickname_hint">जैसे: नानी का गुलाब</string>
+    <string name="plant_add_species_label">प्रजाति</string>
+    <string name="plant_add_location_label">यह कहाँ है?</string>
+    <string name="plant_add_pot_label">गमले का आकार</string>
+    <string name="plant_add_sun_label">धूप की ज़रूरत</string>
+    <string name="plant_add_water_label">हर %1$d दिन%2$s पानी दें</string>
+    <string name="plant_add_btn">पौधा जोड़ें</string>
+    <string name="plant_add_species_search_hint">प्रजाति खोजें…</string>
+
+    <string name="plant_detail_care_tab">देखभाल</string>
+    <string name="plant_detail_activity_tab">गतिविधि</string>
+    <string name="plant_detail_health_tab">स्वास्थ्य</string>
+    <string name="plant_water_log_btn">पानी देना दर्ज करें</string>
+    <string name="plant_water_logged">पानी दिया ✓</string>
+    <string name="plant_water_due_today">आज देय</string>
+    <string name="plant_water_due_in">%1$d दिन%2$s में देय</string>
+    <string name="plant_water_overdue">%1$d दिन%2$s से देय</string>
+    <string name="plant_water_never">कभी दर्ज नहीं</string>
+    <string name="plant_care_sunlight">धूप</string>
+    <string name="plant_care_soil">मिट्टी का प्रकार</string>
+    <string name="plant_care_note">देखभाल सुझाव</string>
+    <string name="plant_care_interval">पानी देने का अंतराल</string>
+    <string name="plant_care_days">%1$d दिन</string>
+    <string name="plant_activity_empty">अभी कोई पानी देना दर्ज नहीं।\nदेखभाल टैब में \'पानी देना दर्ज करें\' पर टैप करें।</string>
+    <string name="plant_delete_btn">पौधा हटाएँ</string>
+
+    <string name="profile_menu_mode">ऐप मोड</string>
+    <string name="profile_sub_mode_farmer">किसान — खेत, फसल, उपज</string>
+    <string name="profile_sub_mode_plant">पौधा प्रेमी — घरेलू पौधे और बगीचा</string>
+    <string name="profile_sub_mode_both">दोनों — खेत और घरेलू पौधे</string>
+
+    <string name="section_my_space">मेरा स्थान</string>
+    <string name="action_add_plant">पौधा जोड़ें</string>
+    <string name="action_scan">स्कैन</string>
+    <string name="action_scan_plant">पौधा स्कैन करें</string>
+
+    <string name="section_plant_operations">पौधों की क्रियाएँ</string>
+    <string name="plant_ops_no_plants_body">आज के देखभाल कार्य देखने के लिए पौधा जोड़ें।</string>
+    <string name="plant_ops_all_clear">सब ठीक है — सभी पौधों को पानी और देखभाल मिल चुकी है।</string>
+    <string name="plant_ops_tasks_suggested">आज आपके पौधों के लिए %1$d कार्य%2$s</string>
+
+    <string name="glance_plants">पौधे</string>
+    <string name="glance_species">प्रजातियाँ</string>
+    <string name="glance_water">पानी</string>
+    <string name="glance_health">स्वास्थ्य</string>
+    <string name="glance_growing_plants">बढ़ते हुए</string>
+    <string name="glance_varieties">किस्में</string>
+    <string name="glance_due_today">आज देय</string>
+    <string name="glance_all_clear">सब ठीक</string>
+    <string name="glance_average">औसत</string>
 </resources>

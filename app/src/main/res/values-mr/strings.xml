@@ -329,4 +329,93 @@
     <string name="onb_skip_for_now">आत्ता वगळा</string>
     <string name="onb_next">पुढे</string>
     <string name="onb_continue">पुढे जा</string>
+
+    <string name="onb_mode_title">तुम्ही काय वाढवता?</string>
+    <string name="onb_mode_subtitle">तुमच्या गरजेनुसार आम्ही AgroSphere जुळवू</string>
+    <string name="onb_mode_farmer">शेतकरी</string>
+    <string name="onb_mode_farmer_desc">शेतजमीन, पिकं आणि उत्पादन व्यवस्थापित करा</string>
+    <string name="onb_mode_plant">वनस्पतीप्रेमी</string>
+    <string name="onb_mode_plant_desc">फुलं, घरगुती रोपं आणि घरगुती बागांचे निरीक्षण</string>
+    <string name="onb_mode_both">दोन्ही</string>
+    <string name="onb_mode_both_desc">पूर्ण प्रवेश — शेतजमीन आणि घरगुती रोपं</string>
+    <string name="onb_quick_plant_title">तुमचं पहिलं रोप जोडा</string>
+    <string name="onb_quick_plant_desc">पाणी देण्याचं वेळापत्रक, सूर्यप्रकाश आणि आरोग्य ट्रॅक करा. वेळेवर सूचना मिळवा.</string>
+    <string name="onb_done_body_plant">तुमचा रोप साथीदार तयार आहे.\nप्रत्येक रोप समृद्ध करूया.</string>
+    <string name="onb_done_body_both">तुमचा हरित-जागा साथीदार तयार आहे.\nशेत आणि रोपं, सर्व एका ठिकाणी.</string>
+
+    <string name="nav_plants">रोपं</string>
+
+    <string name="plants_eyebrow">माझी बाग</string>
+    <string name="plants_title">घरगुती रोपं</string>
+    <string name="plants_metric_plants">रोपं</string>
+    <string name="plants_metric_due">आज देय</string>
+    <string name="plants_metric_healthy">निरोगी</string>
+    <string name="plants_search_placeholder">रोपं शोधा…</string>
+    <string name="plants_filter_all">सर्व</string>
+    <string name="plants_filter_flowering">फुलणारी</string>
+    <string name="plants_filter_indoor">घरगुती</string>
+    <string name="plants_filter_succulent">रसयुक्त</string>
+    <string name="plants_filter_herb">औषधी</string>
+    <string name="plants_filter_overdue">मुदत संपली</string>
+    <string name="plants_results_count">%2$d पैकी %1$d रोपं</string>
+    <string name="plants_empty_title">अजून कोणतंच रोप नाही</string>
+    <string name="plants_empty_body">तुमचं पहिलं रोप जोडा — पाणी, आरोग्य आणि काळजी एका जागी.</string>
+    <string name="plants_empty_filter_title">कोणतंच रोप जुळत नाही</string>
+    <string name="plants_empty_filter_body">शोध साफ करा किंवा फिल्टर बदला.</string>
+    <string name="plant_deleted_snackbar">"%1$s" काढून टाकलं</string>
+    <string name="plant_delete_confirm_title">रोप काढायचं?</string>
+    <string name="plant_delete_confirm_body">"%1$s" आणि त्याचा सर्व डेटा कायमचा काढून टाकला जाईल.</string>
+
+    <string name="plant_add_title">रोप जोडा</string>
+    <string name="plant_add_nickname_label">टोपण नाव</string>
+    <string name="plant_add_nickname_hint">उदा: आजीचा गुलाब</string>
+    <string name="plant_add_species_label">प्रजाती</string>
+    <string name="plant_add_location_label">हे कुठे आहे?</string>
+    <string name="plant_add_pot_label">कुंडीचा आकार</string>
+    <string name="plant_add_sun_label">सूर्यप्रकाशाची गरज</string>
+    <string name="plant_add_water_label">दर %1$d दिवस%2$s पाणी द्या</string>
+    <string name="plant_add_btn">रोप जोडा</string>
+    <string name="plant_add_species_search_hint">प्रजाती शोधा…</string>
+
+    <string name="plant_detail_care_tab">काळजी</string>
+    <string name="plant_detail_activity_tab">हालचाल</string>
+    <string name="plant_detail_health_tab">आरोग्य</string>
+    <string name="plant_water_log_btn">पाणी नोंदवा</string>
+    <string name="plant_water_logged">पाणी दिलं ✓</string>
+    <string name="plant_water_due_today">आज देय</string>
+    <string name="plant_water_due_in">%1$d दिवस%2$s नंतर देय</string>
+    <string name="plant_water_overdue">%1$d दिवस%2$s ने उशीर</string>
+    <string name="plant_water_never">कधीच नोंदलं नाही</string>
+    <string name="plant_care_sunlight">सूर्यप्रकाश</string>
+    <string name="plant_care_soil">माती प्रकार</string>
+    <string name="plant_care_note">काळजी टिप</string>
+    <string name="plant_care_interval">पाणी देण्याचा अंतर</string>
+    <string name="plant_care_days">%1$d दिवस</string>
+    <string name="plant_activity_empty">अजून कोणतीही पाणीनोंद नाही.\nकाळजी टॅबमध्ये \'पाणी नोंदवा\' टॅप करा.</string>
+    <string name="plant_delete_btn">रोप काढा</string>
+
+    <string name="profile_menu_mode">अॅप मोड</string>
+    <string name="profile_sub_mode_farmer">शेतकरी — शेतं, पिकं, उत्पादन</string>
+    <string name="profile_sub_mode_plant">वनस्पतीप्रेमी — घरगुती रोपं आणि बाग</string>
+    <string name="profile_sub_mode_both">दोन्ही — शेत आणि घरगुती रोपं</string>
+
+    <string name="section_my_space">माझी जागा</string>
+    <string name="action_add_plant">रोप जोडा</string>
+    <string name="action_scan">स्कॅन</string>
+    <string name="action_scan_plant">रोप स्कॅन</string>
+
+    <string name="section_plant_operations">रोप क्रिया</string>
+    <string name="plant_ops_no_plants_body">आजचे काळजी कार्य पाहण्यासाठी रोप जोडा.</string>
+    <string name="plant_ops_all_clear">सर्व व्यवस्थित — सर्व रोपांना पाणी आणि काळजी मिळाली.</string>
+    <string name="plant_ops_tasks_suggested">आज तुमच्या रोपांसाठी %1$d कार्य%2$s</string>
+
+    <string name="glance_plants">रोपं</string>
+    <string name="glance_species">प्रजाती</string>
+    <string name="glance_water">पाणी</string>
+    <string name="glance_health">आरोग्य</string>
+    <string name="glance_growing_plants">वाढत आहेत</string>
+    <string name="glance_varieties">प्रकार</string>
+    <string name="glance_due_today">आज देय</string>
+    <string name="glance_all_clear">सर्व ठीक</string>
+    <string name="glance_average">सरासरी</string>
 </resources>

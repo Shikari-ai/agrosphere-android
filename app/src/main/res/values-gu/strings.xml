@@ -329,4 +329,93 @@
     <string name="onb_skip_for_now">હવે છોડો</string>
     <string name="onb_next">આગળ</string>
     <string name="onb_continue">આગળ વધો</string>
+
+    <string name="onb_mode_title">તમે શું ઉગાડો છો?</string>
+    <string name="onb_mode_subtitle">તમારી જરૂરિયાત મુજબ AgroSphere ગોઠવીશું</string>
+    <string name="onb_mode_farmer">ખેડૂત</string>
+    <string name="onb_mode_farmer_desc">ખેતરો, પાક અને ઉપજનું સંચાલન કરો</string>
+    <string name="onb_mode_plant">છોડ પ્રેમી</string>
+    <string name="onb_mode_plant_desc">ફૂલો, ઘરના છોડ અને બાગનું નિરીક્ષણ કરો</string>
+    <string name="onb_mode_both">બંને</string>
+    <string name="onb_mode_both_desc">પૂર્ણ ઍક્સેસ — ખેતર અને ઘરના છોડ</string>
+    <string name="onb_quick_plant_title">તમારો પ્રથમ છોડ ઉમેરો</string>
+    <string name="onb_quick_plant_desc">પાણી આપવાનો સમય, સૂર્યપ્રકાશની જરૂરિયાત અને સ્વાસ્થ્ય ટ્રૅક કરો. યોગ્ય સમયે રિમાઇન્ડર મેળવો.</string>
+    <string name="onb_done_body_plant">તમારો છોડ સાથી તૈયાર છે.\nદરેક છોડને ખીલવા માટે મદદ કરીએ.</string>
+    <string name="onb_done_body_both">તમારો લીલા-સ્થાન સાથી તૈયાર છે.\nખેતર અને છોડ, બધું એક જગ્યાએ.</string>
+
+    <string name="nav_plants">છોડ</string>
+
+    <string name="plants_eyebrow">મારો બગીચો</string>
+    <string name="plants_title">ઘરના છોડ</string>
+    <string name="plants_metric_plants">છોડ</string>
+    <string name="plants_metric_due">આજે કરવાનું</string>
+    <string name="plants_metric_healthy">સ્વસ્થ</string>
+    <string name="plants_search_placeholder">છોડ શોધો…</string>
+    <string name="plants_filter_all">બધા</string>
+    <string name="plants_filter_flowering">ફૂલવાળા</string>
+    <string name="plants_filter_indoor">ઘરના</string>
+    <string name="plants_filter_succulent">રસવાળા</string>
+    <string name="plants_filter_herb">ઔષધિ</string>
+    <string name="plants_filter_overdue">સમય વીતી ગયો</string>
+    <string name="plants_results_count">%2$d માંથી %1$d છોડ</string>
+    <string name="plants_empty_title">હજુ કોઈ છોડ નથી</string>
+    <string name="plants_empty_body">તમારો પ્રથમ છોડ ઉમેરો — પાણી, સ્વાસ્થ્ય અને સંભાળ એક જગ્યાએ.</string>
+    <string name="plants_empty_filter_title">કોઈ છોડ મેળ ખાતો નથી</string>
+    <string name="plants_empty_filter_body">શોધ સાફ કરો અથવા ફિલ્ટર બદલો.</string>
+    <string name="plant_deleted_snackbar">"%1$s" દૂર કર્યું</string>
+    <string name="plant_delete_confirm_title">છોડ દૂર કરવો?</string>
+    <string name="plant_delete_confirm_body">"%1$s" અને તેનો બધો ડેટા કાયમ માટે દૂર થઈ જશે.</string>
+
+    <string name="plant_add_title">છોડ ઉમેરો</string>
+    <string name="plant_add_nickname_label">ઉપનામ</string>
+    <string name="plant_add_nickname_hint">દા.ત: દાદીનો ગુલાબ</string>
+    <string name="plant_add_species_label">જાતિ</string>
+    <string name="plant_add_location_label">તે ક્યાં છે?</string>
+    <string name="plant_add_pot_label">કુંડાનું માપ</string>
+    <string name="plant_add_sun_label">સૂર્યપ્રકાશની જરૂરિયાત</string>
+    <string name="plant_add_water_label">દર %1$d દિવસ%2$s પાણી આપો</string>
+    <string name="plant_add_btn">છોડ ઉમેરો</string>
+    <string name="plant_add_species_search_hint">જાતિ શોધો…</string>
+
+    <string name="plant_detail_care_tab">સંભાળ</string>
+    <string name="plant_detail_activity_tab">પ્રવૃત્તિ</string>
+    <string name="plant_detail_health_tab">સ્વાસ્થ્ય</string>
+    <string name="plant_water_log_btn">પાણી નોંધો</string>
+    <string name="plant_water_logged">પાણી આપ્યું ✓</string>
+    <string name="plant_water_due_today">આજે કરવાનું</string>
+    <string name="plant_water_due_in">%1$d દિવસ%2$s માં કરવાનું</string>
+    <string name="plant_water_overdue">%1$d દિવસ%2$s મોડું</string>
+    <string name="plant_water_never">ક્યારેય નોંધાયું નથી</string>
+    <string name="plant_care_sunlight">સૂર્યપ્રકાશ</string>
+    <string name="plant_care_soil">માટીનો પ્રકાર</string>
+    <string name="plant_care_note">સંભાળ ટિપ</string>
+    <string name="plant_care_interval">પાણીનો અંતરાલ</string>
+    <string name="plant_care_days">%1$d દિવસ</string>
+    <string name="plant_activity_empty">હજુ કોઈ પાણી નોંધ નથી.\nસંભાળ ટૅબમાં \'પાણી નોંધો\' ટૅપ કરો.</string>
+    <string name="plant_delete_btn">છોડ દૂર કરો</string>
+
+    <string name="profile_menu_mode">ઍપ મોડ</string>
+    <string name="profile_sub_mode_farmer">ખેડૂત — ખેતરો, પાક, ઉપજ</string>
+    <string name="profile_sub_mode_plant">છોડ પ્રેમી — ઘરના છોડ &amp; બગીચો</string>
+    <string name="profile_sub_mode_both">બંને — ખેતર અને ઘરના છોડ</string>
+
+    <string name="section_my_space">મારી જગ્યા</string>
+    <string name="action_add_plant">છોડ ઉમેરો</string>
+    <string name="action_scan">સ્કેન</string>
+    <string name="action_scan_plant">છોડ સ્કેન</string>
+
+    <string name="section_plant_operations">છોડની ક્રિયાઓ</string>
+    <string name="plant_ops_no_plants_body">આજના સંભાળ કાર્યો જોવા માટે છોડ ઉમેરો.</string>
+    <string name="plant_ops_all_clear">બધું બરાબર — બધા છોડને પાણી અને સંભાળ મળી.</string>
+    <string name="plant_ops_tasks_suggested">આજે તમારા છોડ માટે %1$d કાર્ય%2$s</string>
+
+    <string name="glance_plants">છોડ</string>
+    <string name="glance_species">જાતિઓ</string>
+    <string name="glance_water">પાણી</string>
+    <string name="glance_health">સ્વાસ્થ્ય</string>
+    <string name="glance_growing_plants">વધી રહ્યા</string>
+    <string name="glance_varieties">પ્રકાર</string>
+    <string name="glance_due_today">આજે કરવાનું</string>
+    <string name="glance_all_clear">બધું બરાબર</string>
+    <string name="glance_average">સરેરાશ</string>
 </resources>

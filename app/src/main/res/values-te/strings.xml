@@ -329,4 +329,93 @@
     <string name="onb_skip_for_now">ఇప్పటికి దాటవేయి</string>
     <string name="onb_next">తదుపరి</string>
     <string name="onb_continue">కొనసాగించు</string>
+
+    <string name="onb_mode_title">మీరు ఏం పెంచుతారు?</string>
+    <string name="onb_mode_subtitle">మీ అవసరానికి తగినట్లుగా AgroSphere ను సర్దుబాటు చేస్తాం</string>
+    <string name="onb_mode_farmer">రైతు</string>
+    <string name="onb_mode_farmer_desc">పొలాలు, పంటలు మరియు దిగుబడిని నిర్వహించండి</string>
+    <string name="onb_mode_plant">మొక్కల ప్రేమికుడు</string>
+    <string name="onb_mode_plant_desc">పూలు, ఇంటి మొక్కలు మరియు ఇంటి తోటలను పర్యవేక్షించండి</string>
+    <string name="onb_mode_both">రెండూ</string>
+    <string name="onb_mode_both_desc">పూర్తి యాక్సెస్ — పొలాలు మరియు ఇంటి మొక్కలు</string>
+    <string name="onb_quick_plant_title">మీ మొదటి మొక్కను జోడించండి</string>
+    <string name="onb_quick_plant_desc">నీళ్ళు పోసే సమయం, ఎండ అవసరం, ఆరోగ్యం ట్రాక్ చేయండి. సరైన సమయంలో రిమైండర్‌లు పొందండి.</string>
+    <string name="onb_done_body_plant">మీ మొక్క సహచరి సిద్ధంగా ఉంది.\nప్రతి మొక్క బాగా పెరిగేలా చూద్దాం.</string>
+    <string name="onb_done_body_both">మీ ఆకుపచ్చ-స్థల సహచరి సిద్ధంగా ఉంది.\nపొలాలు మరియు మొక్కలు, అన్నీ ఒక చోట.</string>
+
+    <string name="nav_plants">మొక్కలు</string>
+
+    <string name="plants_eyebrow">నా తోట</string>
+    <string name="plants_title">ఇంటి మొక్కలు</string>
+    <string name="plants_metric_plants">మొక్కలు</string>
+    <string name="plants_metric_due">ఈరోజు చేయాలి</string>
+    <string name="plants_metric_healthy">ఆరోగ్యవంతం</string>
+    <string name="plants_search_placeholder">మొక్కలను వెతకండి…</string>
+    <string name="plants_filter_all">అన్నీ</string>
+    <string name="plants_filter_flowering">పూలు పూసే</string>
+    <string name="plants_filter_indoor">ఇంటిలో</string>
+    <string name="plants_filter_succulent">రసవంతమైన</string>
+    <string name="plants_filter_herb">ఔషధ</string>
+    <string name="plants_filter_overdue">ఆలస్యమైంది</string>
+    <string name="plants_results_count">%2$d లో %1$d మొక్కలు</string>
+    <string name="plants_empty_title">ఇంకా మొక్కలు లేవు</string>
+    <string name="plants_empty_body">మీ మొదటి మొక్కను జోడించండి — నీళ్ళు, ఆరోగ్యం, సంరక్షణ ఒకే చోట.</string>
+    <string name="plants_empty_filter_title">సరిపోలే మొక్క లేదు</string>
+    <string name="plants_empty_filter_body">శోధనను తొలగించండి లేదా ఫిల్టర్‌ను మార్చండి.</string>
+    <string name="plant_deleted_snackbar">"%1$s" తొలగించబడింది</string>
+    <string name="plant_delete_confirm_title">మొక్కను తొలగించాలా?</string>
+    <string name="plant_delete_confirm_body">"%1$s" మరియు దాని డేటా శాశ్వతంగా తొలగించబడుతుంది.</string>
+
+    <string name="plant_add_title">మొక్క జోడించండి</string>
+    <string name="plant_add_nickname_label">ముద్దుపేరు</string>
+    <string name="plant_add_nickname_hint">ఉదా: అమ్మమ్మ గులాబీ</string>
+    <string name="plant_add_species_label">జాతి</string>
+    <string name="plant_add_location_label">ఇది ఎక్కడ ఉంది?</string>
+    <string name="plant_add_pot_label">కుండీ పరిమాణం</string>
+    <string name="plant_add_sun_label">ఎండ అవసరం</string>
+    <string name="plant_add_water_label">ప్రతి %1$d రోజు%2$s నీళ్ళు పోయండి</string>
+    <string name="plant_add_btn">మొక్క జోడించు</string>
+    <string name="plant_add_species_search_hint">జాతిని వెతకండి…</string>
+
+    <string name="plant_detail_care_tab">సంరక్షణ</string>
+    <string name="plant_detail_activity_tab">కార్యకలాపం</string>
+    <string name="plant_detail_health_tab">ఆరోగ్యం</string>
+    <string name="plant_water_log_btn">నీళ్ళు పోశానని నమోదు</string>
+    <string name="plant_water_logged">నీళ్ళు పోశా ✓</string>
+    <string name="plant_water_due_today">ఈరోజు చేయాలి</string>
+    <string name="plant_water_due_in">%1$d రోజు%2$s లో చేయాలి</string>
+    <string name="plant_water_overdue">%1$d రోజు%2$s ఆలస్యం</string>
+    <string name="plant_water_never">ఎప్పుడూ నమోదవ్వలేదు</string>
+    <string name="plant_care_sunlight">ఎండ</string>
+    <string name="plant_care_soil">నేల రకం</string>
+    <string name="plant_care_note">సంరక్షణ సూచన</string>
+    <string name="plant_care_interval">నీళ్ళ వ్యవధి</string>
+    <string name="plant_care_days">%1$d రోజులు</string>
+    <string name="plant_activity_empty">ఇంకా నీళ్ళ నమోదు లేదు.\nసంరక్షణ ట్యాబ్ లో \'నీళ్ళు పోశానని నమోదు\' నొక్కండి.</string>
+    <string name="plant_delete_btn">మొక్క తొలగించు</string>
+
+    <string name="profile_menu_mode">యాప్ మోడ్</string>
+    <string name="profile_sub_mode_farmer">రైతు — పొలాలు, పంటలు, దిగుబడి</string>
+    <string name="profile_sub_mode_plant">మొక్కల ప్రేమికుడు — ఇంటి మొక్కలు &amp; తోట</string>
+    <string name="profile_sub_mode_both">రెండూ — పొలాలు మరియు ఇంటి మొక్కలు</string>
+
+    <string name="section_my_space">నా స్థలం</string>
+    <string name="action_add_plant">మొక్క జోడించు</string>
+    <string name="action_scan">స్కాన్</string>
+    <string name="action_scan_plant">మొక్క స్కాన్</string>
+
+    <string name="section_plant_operations">మొక్కల పనులు</string>
+    <string name="plant_ops_no_plants_body">ఈరోజు సంరక్షణ పనులను చూడటానికి మొక్కను జోడించండి.</string>
+    <string name="plant_ops_all_clear">అన్నీ సరిగ్గా ఉన్నాయి — అన్ని మొక్కలకు నీరు మరియు సంరక్షణ లభించాయి.</string>
+    <string name="plant_ops_tasks_suggested">ఈరోజు మీ మొక్కలకు %1$d పని%2$s</string>
+
+    <string name="glance_plants">మొక్కలు</string>
+    <string name="glance_species">జాతులు</string>
+    <string name="glance_water">నీరు</string>
+    <string name="glance_health">ఆరోగ్యం</string>
+    <string name="glance_growing_plants">పెరుగుతున్నాయి</string>
+    <string name="glance_varieties">రకాలు</string>
+    <string name="glance_due_today">ఈరోజు చేయాలి</string>
+    <string name="glance_all_clear">అన్నీ సరి</string>
+    <string name="glance_average">సగటు</string>
 </resources>
