@@ -257,6 +257,7 @@ fun AgroSphereApp() {
                     padding     = innerPadding,
                     onOpenPlant = { id -> navController.navigate(Dest.PlantDetail.build(id)) },
                     onAddPlant  = { navController.navigate(Dest.AddPlant.route) },
+                    onScanPlant = { id -> navController.navigate(Dest.RescanPlant.build(id)) },
                 )
             }
             composable(Dest.AddPlant.route) {

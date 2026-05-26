@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Search
@@ -88,6 +89,7 @@ fun PlantsScreen(
     padding: PaddingValues,
     onOpenPlant: (String) -> Unit,
     onAddPlant: () -> Unit,
+    onScanPlant: (String) -> Unit = {},
     vm: PlantsViewModel = viewModel(factory = PlantsViewModel.Factory),
 ) {
     val context = LocalContext.current
@@ -167,6 +169,7 @@ fun PlantsScreen(
                 PlantCard(
                     plant    = plant,
                     onClick  = { onOpenPlant(plant.id) },
+                    onScan   = { onScanPlant(plant.id) },
                     onDelete = {
                         vm.deletePlant(plant.id)
                         scope.launch {
@@ -327,7 +330,7 @@ private fun PlantFilterPill(label: String, selected: Boolean, onClick: () -> Uni
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun PlantCard(plant: PlantEntry, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun PlantCard(plant: PlantEntry, onClick: () -> Unit, onScan: () -> Unit, onDelete: () -> Unit) {
     var showDelete by remember { mutableStateOf(false) }
     val status = PlantRepository.wateringStatus(plant)
 
@@ -367,6 +370,19 @@ private fun PlantCard(plant: PlantEntry, onClick: () -> Unit, onDelete: () -> Un
                     WaterChip(label = waterLabel, color = waterColor)
                 }
             }
+            // Scan button — quick rescan to update health stats without opening detail.
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickable { onScan() }
+                    .background(AgroPalette.Sky.copy(alpha = 0.16f))
+                    .border(1.dp, AgroPalette.Sky.copy(alpha = 0.35f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.CameraAlt, "Scan plant", tint = AgroPalette.Sky, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(10.dp))
             // Health score
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(

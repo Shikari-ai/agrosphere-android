@@ -177,7 +177,9 @@ fun AddPlantFlow(
                             PlantScanRecord(
                                 timestamp       = System.currentTimeMillis(),
                                 verdict         = "Identified — ${id.commonName}",
-                                healthScore     = 80,                       // healthy assumption at creation
+                                // Initial seed mirrors the AI's identification confidence —
+                                // a confidently-IDd plant starts higher than a low-confidence one.
+                                healthScore     = PlantRepository.riskToHealthScore("healthy", id.confidence),
                                 riskLevel       = "healthy",
                                 summary         = listOfNotNull(
                                     id.scientificName.takeIf { it.isNotBlank() },

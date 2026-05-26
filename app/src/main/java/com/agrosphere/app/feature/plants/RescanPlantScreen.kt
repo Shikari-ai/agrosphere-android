@@ -275,7 +275,7 @@ private fun runScan(
             val record = PlantScanRecord(
                 timestamp       = ts,
                 verdict         = diag.diseaseName.ifBlank { "Healthy" },
-                healthScore     = PlantRepository.riskToHealthScore(diag.riskLevel),
+                healthScore     = PlantRepository.riskToHealthScore(diag.riskLevel, diag.confidence),
                 riskLevel       = diag.riskLevel,
                 summary         = diag.summary.ifBlank { diag.narrative },
                 recommendations = diag.recommendations,

@@ -160,13 +160,30 @@ object PlantRepository {
     fun isDueOrOverdue(plant: PlantEntry): Boolean =
         wateringStatus(plant).let { it is WateringStatus.DueToday || it is WateringStatus.Overdue }
 
-    /** Maps an AI risk level → 0..100 health score. */
-    fun riskToHealthScore(riskLevel: String): Int = when (riskLevel.lowercase()) {
-        "healthy" -> 95
-        "low"     -> 78
-        "medium"  -> 50
-        "high"    -> 22
-        else      -> 60
+    /** Maps an AI risk level + confidence → 0..100 health score.
+     *
+     *  Each risk tier is a band, not a single value — the AI's confidence
+     *  modulates where the score lands within its band. So two healthy
+     *  scans can produce 88 vs 97 if the model felt different levels of
+     *  certainty, and the user sees genuine movement after every rescan
+     *  rather than the same 5 fixed numbers. */
+    fun riskToHealthScore(riskLevel: String, confidence: Int = 70): Int {
+        val base = when (riskLevel.lowercase()) {
+            "healthy" -> 92
+            "low"     -> 76
+            "medium"  -> 50
+            "high"    -> 22
+            else      -> 60
+        }
+        // -8 (very unsure, confidence ≤ 30) … +6 (very confident, confidence ≥ 100)
+        val swing = ((confidence.coerceIn(30, 100) - 70) / 5).coerceIn(-8, 6)
+        return when (riskLevel.lowercase()) {
+            "healthy" -> (base + swing).coerceIn(82, 99)
+            "low"     -> (base + swing / 2).coerceIn(66, 84)
+            "medium"  -> (base - swing / 2).coerceIn(40, 60)
+            "high"    -> (base - swing).coerceIn(8, 35)
+            else      -> (base + swing / 2).coerceIn(45, 70)
+        }
     }
 
     // ─── Preset options ──────────────────────────────────────────────────────
