@@ -5,10 +5,14 @@ import androidx.compose.ui.graphics.Color
 import com.agrosphere.app.data.model.PlantEntry
 import com.agrosphere.app.data.model.PlantScanRecord
 import com.agrosphere.app.ui.theme.AgroPalette
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 sealed class WateringStatus {
     data object NeverLogged : WateringStatus()
@@ -35,11 +39,31 @@ object PlantRepository {
     /** Held statically so mutation methods can persist without re-passing context. */
     @Volatile private var appContext: Context? = null
 
-    /** Idempotent — call from Application.onCreate(). */
+    /** Background scope for fire-and-forget cloud sync. */
+    private val cloudScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Idempotent — call from Application.onCreate(). Loads from disk
+     *  immediately, then kicks off a cloud-pull in the background that merges
+     *  any plants we don't have locally (new-device sign-in recovery). */
     fun init(context: Context) {
         if (appContext != null) return
         appContext = context.applicationContext
         _plants.value = LocalPlantStore.load(appContext!!)
+        cloudScope.launch {
+            runCatching {
+                val cloud = PlantsCloudRepository.pullAll()
+                if (cloud.isEmpty()) return@runCatching
+                // Cloud-only plants get merged in. For plants present in both
+                // we keep the local copy as-is (current session is freshest);
+                // the next mutation will push it back to cloud anyway.
+                val localIds = _plants.value.map { it.id }.toSet()
+                val newcomers = cloud.filter { it.id !in localIds }
+                if (newcomers.isNotEmpty()) {
+                    _plants.update { it + newcomers }
+                    persist()
+                }
+            }
+        }
     }
 
     fun current(): List<PlantEntry> = _plants.value
@@ -81,12 +105,14 @@ object PlantRepository {
         )
         _plants.update { it + entry }
         persist()
+        PlantsCloudRepository.saveAsync(entry)
         return entry
     }
 
     fun removePlant(id: String) {
         _plants.update { it.filterNot { p -> p.id == id } }
         persist()
+        PlantsCloudRepository.deleteAsync(id)
     }
 
     /** Records a watering event — updates lastWateredMs and prepends to wateringLog. */
@@ -101,6 +127,7 @@ object PlantRepository {
             }
         }
         persist()
+        byId(id)?.let { PlantsCloudRepository.saveAsync(it) }
     }
 
     /**
@@ -120,6 +147,7 @@ object PlantRepository {
             }
         }
         persist()
+        byId(id)?.let { PlantsCloudRepository.saveAsync(it) }
     }
 
     /** Manually set the growth stage (user picks from a chip in the detail screen). */
@@ -128,6 +156,7 @@ object PlantRepository {
             list.map { if (it.id == id) it.copy(stage = stage) else it }
         }
         persist()
+        byId(id)?.let { PlantsCloudRepository.saveAsync(it) }
     }
 
     /** Updates healthScore for a plant — called after a scan result is processed. */
@@ -136,6 +165,7 @@ object PlantRepository {
             list.map { if (it.id == id) it.copy(healthScore = score.coerceIn(0, 100)) else it }
         }
         persist()
+        byId(id)?.let { PlantsCloudRepository.saveAsync(it) }
     }
 
     // ─── Persistence ─────────────────────────────────────────────────────────

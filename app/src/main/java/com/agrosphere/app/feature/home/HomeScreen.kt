@@ -1877,125 +1877,17 @@ private fun OperationsPager(
 // surface here so daily care is visible and rewarding.
 // ═════════════════════════════════════════════════════════════════════════════
 
-private const val MS_PER_DAY = 86_400_000L
-
-data class PlantAnalytics(
-    val totalPlants: Int,
-    val avgHealth: Int,
-    val careStreak: Int,           // consecutive days of any care activity
-    val watersMonth: Int,          // total waterings in last 30 days
-    val scansMonth: Int,           // total scans in last 30 days
-    val watersByDay14: List<Int>,  // last 14 days, oldest first
-    val scansByDay14: List<Int>,
-    val watersByDay30: List<Int>,
-    val scansByDay30: List<Int>,
-    val perPlant: List<PerPlantStats>,
-)
-
-data class PerPlantStats(
-    val plant: PlantEntry,
-    val watersMonth: Int,
-    val scansMonth: Int,
-    val plantStreak: Int,          // consecutive days this plant was watered
-)
-
-private fun computePlantAnalytics(plants: List<PlantEntry>): PlantAnalytics {
-    val now      = System.currentTimeMillis()
-    val today    = now / MS_PER_DAY
-    val cutoff30 = now - 30 * MS_PER_DAY
-
-    // Aggregate per-day buckets for last 30 days (index 0 = 30 days ago, 29 = today).
-    val watersByDay30 = IntArray(30)
-    val scansByDay30  = IntArray(30)
-    plants.forEach { p ->
-        p.wateringLog.filter { it >= cutoff30 }.forEach {
-            val idx = (29 - (today - it / MS_PER_DAY).toInt()).coerceIn(0, 29)
-            watersByDay30[idx]++
-        }
-        p.scanHistory.filter { it.timestamp >= cutoff30 }.forEach {
-            val idx = (29 - (today - it.timestamp / MS_PER_DAY).toInt()).coerceIn(0, 29)
-            scansByDay30[idx]++
-        }
-    }
-
-    // Global care streak — consecutive days with ANY activity ending today (or yesterday as grace).
-    val activeDays = mutableSetOf<Long>()
-    plants.forEach { p ->
-        p.wateringLog.forEach { activeDays += it / MS_PER_DAY }
-        p.scanHistory.forEach { activeDays += it.timestamp / MS_PER_DAY }
-    }
-    var streak = 0
-    var day = today
-    if (!activeDays.contains(day) && activeDays.contains(day - 1)) day = day - 1
-    while (activeDays.contains(day)) { streak++; day-- }
-
-    // Per-plant breakdown.
-    val perPlant = plants.map { p ->
-        val pWaters = p.wateringLog.count { it >= cutoff30 }
-        val pScans  = p.scanHistory.count { it.timestamp >= cutoff30 }
-        val pDays   = p.wateringLog.map { it / MS_PER_DAY }.toSet()
-        var pStreak = 0
-        var d = today
-        if (!pDays.contains(d) && pDays.contains(d - 1)) d = d - 1
-        while (pDays.contains(d)) { pStreak++; d-- }
-        PerPlantStats(p, pWaters, pScans, pStreak)
-    }.sortedByDescending { it.watersMonth + it.scansMonth }
-
-    return PlantAnalytics(
-        totalPlants  = plants.size,
-        avgHealth    = if (plants.isEmpty()) 0 else plants.map { it.healthScore }.average().toInt(),
-        careStreak   = streak,
-        watersMonth  = watersByDay30.sum(),
-        scansMonth   = scansByDay30.sum(),
-        watersByDay14 = watersByDay30.takeLast(14),
-        scansByDay14  = scansByDay30.takeLast(14),
-        watersByDay30 = watersByDay30.toList(),
-        scansByDay30  = scansByDay30.toList(),
-        perPlant     = perPlant,
-    )
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Field Analytics — mirror of Plant Analytics, but for crop fields.
-// Stats come from FieldRepository + LocalScanStore (the disease-scan history).
-// ═════════════════════════════════════════════════════════════════════════════
-
-data class FieldAnalytics(
-    val totalFields: Int,
-    val totalAreaHa: Double,
-    val avgHealth: Int,
-    val avgMoisture: Int,
-    val scansMonth: Int,
-    val scansByDay14: List<Int>,
-    val scansByDay30: List<Int>,
-    val perField: List<Field>,
-)
-
-private fun computeFieldAnalytics(
-    fields: List<Field>,
-    scans: List<com.agrosphere.app.data.repo.SavedScan>,
-): FieldAnalytics {
-    val now = System.currentTimeMillis()
-    val today = now / MS_PER_DAY
-    val cutoff30 = now - 30 * MS_PER_DAY
-
-    val scansByDay30 = IntArray(30)
-    scans.filter { it.createdAtMillis >= cutoff30 }.forEach {
-        val idx = (29 - (today - it.createdAtMillis / MS_PER_DAY).toInt()).coerceIn(0, 29)
-        scansByDay30[idx]++
-    }
-
-    return FieldAnalytics(
-        totalFields = fields.size,
-        totalAreaHa = fields.sumOf { it.areaHa },
-        avgHealth   = if (fields.isEmpty()) 0 else fields.map { it.healthScore }.average().toInt(),
-        avgMoisture = if (fields.isEmpty()) 0 else fields.map { it.moisturePct }.average().toInt(),
-        scansMonth  = scansByDay30.sum(),
-        scansByDay14 = scansByDay30.takeLast(14),
-        scansByDay30 = scansByDay30.toList(),
-        perField    = fields.sortedByDescending { it.healthScore },
-    )
-}
+// Analytics types and compute functions live in AnalyticsRepository — the
+// dashboard cards just call the pure compute() helpers with the lists they
+// already collected from local Flows. The same types power the cloud-aware
+// query*() entry points in the repository.
+private typealias PlantAnalytics  = com.agrosphere.app.data.repo.PlantAnalytics
+private typealias PerPlantStats   = com.agrosphere.app.data.repo.PerPlantStats
+private typealias FieldAnalytics  = com.agrosphere.app.data.repo.FieldAnalytics
+private fun computePlantAnalytics(plants: List<PlantEntry>) =
+    com.agrosphere.app.data.repo.AnalyticsRepository.computePlantAnalytics(plants)
+private fun computeFieldAnalytics(fields: List<Field>, scans: List<com.agrosphere.app.data.repo.SavedScan>) =
+    com.agrosphere.app.data.repo.AnalyticsRepository.computeFieldAnalytics(fields, scans)
 
 @Composable
 private fun FieldAnalyticsCard(onOpenFields: () -> Unit) {
