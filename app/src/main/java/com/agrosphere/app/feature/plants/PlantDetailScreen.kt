@@ -589,29 +589,21 @@ private fun ScanRow(record: PlantScanRecord) {
 
 @Composable
 private fun HealthTab(plant: PlantEntry) {
-    val score   = plant.healthScore
-    val target  by animateFloatAsState(score / 100f, tween(800), label = "ring")
-    val ringColor = when {
-        score >= 75 -> AgroPalette.Primary
-        score >= 50 -> AgroPalette.Amber
-        else        -> AgroPalette.Rose
-    }
-    val verdict = when {
-        score >= 85 -> "Excellent"
-        score >= 70 -> "Good"
-        score >= 55 -> "Watch"
-        else        -> "At risk"
-    }
+    val score      = plant.healthScore
+    val target     by animateFloatAsState(score / 100f, tween(800), label = "ring")
+    val grade      = healthGrade(score)
+    val ringColor  = gradeColor(grade)
+    val latestScan = plant.scanHistory.firstOrNull()
 
     LazyColumn(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxSize(),
     ) {
+        // ── Animated health ring + grade label ────────────────────────────────
         item {
-            // Health ring
-            Box(modifier = Modifier.size(160.dp), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.size(170.dp), contentAlignment = Alignment.Center) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val stroke = Stroke(14.dp.toPx(), cap = StrokeCap.Round)
                     val inset  = 8.dp.toPx()
@@ -621,22 +613,224 @@ private fun HealthTab(plant: PlantEntry) {
                         topLeft = Offset(inset, inset), size = GeomSize(size.width - inset * 2, size.height - inset * 2))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("$score", style = MaterialTheme.typography.displaySmall, color = ringColor, fontWeight = FontWeight.ExtraBold)
-                    Text(verdict, style = MaterialTheme.typography.labelMedium, color = AgroPalette.InkMuted)
+                    Text("$score", style = MaterialTheme.typography.displayMedium, color = ringColor, fontWeight = FontWeight.ExtraBold)
+                    Text("of 100", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
                 }
             }
         }
+
+        // Big grade label under the ring
         item {
-            Text(
-                "Health score is derived from scan history. Run a scan with the camera to update it.",
-                style = MaterialTheme.typography.bodySmall,
-                color = AgroPalette.InkMuted,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 24.dp),
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(grade.uppercase(), style = MaterialTheme.typography.headlineSmall.copy(letterSpacing = 2.sp), color = ringColor, fontWeight = FontWeight.ExtraBold)
+                if (plant.lastScanMs > 0L) {
+                    Text(
+                        "Assessed ${relativeDays(plant.lastScanMs)} from a real scan",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AgroPalette.InkDim,
+                    )
+                } else {
+                    Text(
+                        "Default score — no scans yet",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AgroPalette.InkDim,
+                    )
+                }
+            }
         }
+
+        // ── 7-grade ladder (visual scale) ──────────────────────────────────────
+        item { GradeLadder(currentGrade = grade) }
+
+        // ── Description card — what this grade means ───────────────────────────
+        item {
+            GlassCard(radius = 16.dp, padding = 16.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.size(28.dp).clip(CircleShape).background(ringColor.copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Rounded.Lightbulb, null, tint = ringColor, modifier = Modifier.size(15.dp)) }
+                        Spacer(Modifier.width(10.dp))
+                        Text("What \"$grade\" means", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                    }
+                    Text(
+                        gradeDescription(grade),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = AgroPalette.InkMuted,
+                        lineHeight = 20.sp,
+                    )
+                }
+            }
+        }
+
+        // ── How to improve — combines latest scan recs + grade-based guidance ─
+        item {
+            GlassCard(radius = 16.dp, padding = 16.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.size(28.dp).clip(CircleShape).background(AgroPalette.Sky.copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Rounded.AutoAwesome, null, tint = AgroPalette.Sky, modifier = Modifier.size(15.dp)) }
+                        Spacer(Modifier.width(10.dp))
+                        Text("How to improve", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                    }
+                    val tips = buildImprovementTips(plant, grade, latestScan)
+                    if (tips.isEmpty()) {
+                        Text(
+                            "Run a scan with the camera — AI will spot any issues and suggest specific fixes.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AgroPalette.InkMuted,
+                        )
+                    } else {
+                        tips.forEachIndexed { idx, tip ->
+                            Row(verticalAlignment = Alignment.Top) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 4.dp)
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(ringColor.copy(alpha = 0.16f)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        "${idx + 1}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        color = ringColor,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Text(tip, style = MaterialTheme.typography.bodySmall, color = AgroPalette.Ink, modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Latest scan summary (if any) ───────────────────────────────────────
+        if (latestScan != null) {
+            item {
+                GlassCard(radius = 16.dp, padding = 16.dp) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("LAST AI ASSESSMENT", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = AgroPalette.InkMuted, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            Text(relativeDays(latestScan.timestamp), style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
+                        }
+                        Text(latestScan.verdict, style = MaterialTheme.typography.titleSmall, color = ringColor, fontWeight = FontWeight.Bold)
+                        if (latestScan.summary.isNotBlank()) {
+                            Text(latestScan.summary, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                        }
+                    }
+                }
+            }
+        }
+
         item { Spacer(Modifier.height(80.dp)) }
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7-grade ladder visual — shows where this plant sits on the scale
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun GradeLadder(currentGrade: String) {
+    // Worst → Bad → Okay → Moderate → Good → Great → Epic (ascending)
+    val grades = listOf("Worst", "Bad", "Okay", "Moderate", "Good", "Great", "Epic")
+    GlassCard(radius = 14.dp, padding = 12.dp) {
+        Column {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                grades.forEach { g ->
+                    val active = g == currentGrade
+                    val color = gradeColor(g)
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 1.dp)
+                                .fillMaxWidth()
+                                .height(if (active) 10.dp else 6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(if (active) color else color.copy(alpha = 0.18f)),
+                        )
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            g,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            color = if (active) color else AgroPalette.InkDim,
+                            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grade scale: maps 0-100 → one of 7 grades; tint + description for each.
+// ─────────────────────────────────────────────────────────────────────────────
+
+private fun healthGrade(score: Int): String = when {
+    score >= 95 -> "Epic"
+    score >= 85 -> "Great"
+    score >= 70 -> "Good"
+    score >= 55 -> "Moderate"
+    score >= 40 -> "Okay"
+    score >= 25 -> "Bad"
+    else        -> "Worst"
+}
+
+private fun gradeColor(grade: String): Color = when (grade) {
+    "Epic"     -> Color(0xFF34D399)   // brightest emerald
+    "Great"    -> AgroPalette.Primary
+    "Good"     -> AgroPalette.Sky
+    "Moderate" -> AgroPalette.Amber
+    "Okay"     -> AgroPalette.Orange
+    "Bad"      -> AgroPalette.Rose
+    "Worst"    -> Color(0xFFC0223C)   // deep crimson
+    else       -> AgroPalette.InkDim
+}
+
+private fun gradeDescription(grade: String): String = when (grade) {
+    "Epic"     -> "Picture-perfect. Lush, vigorous, no visible stress anywhere. Whatever you're doing, keep doing it — this plant is thriving in its current conditions."
+    "Great"    -> "Strong and healthy. Foliage is dense, colour is vibrant, growth is consistent. Minor cosmetic issues at most — stay on the same rhythm."
+    "Good"     -> "Generally healthy with a few small areas to watch. No major problems but worth checking on weekly so anything new doesn't escalate."
+    "Moderate" -> "Some signs of stress are showing. Could be early disease pressure, watering imbalance, or wrong light. Catch it now and recovery is quick."
+    "Okay"     -> "Visible decline. Yellowing, drooping, or patchy growth. The plant is telling you something — adjust care and re-scan in a few days."
+    "Bad"      -> "Significant damage or active disease. Needs intervention now — likely pest, fungal infection, root issues, or severe environmental mismatch."
+    "Worst"    -> "Critical condition. Major dieback, heavy infestation, or near-failure. Quarantine from other plants, treat aggressively, prune affected parts."
+    else       -> "—"
+}
+
+/** Builds the ranked improvement list — AI scan recommendations first (they're
+ *  plant-specific and live data), grade-based generic tips after, and the
+ *  species' own care note (from PlantData / AI ID) as a baseline reminder. */
+private fun buildImprovementTips(plant: PlantEntry, grade: String, latestScan: PlantScanRecord?): List<String> {
+    val out = mutableListOf<String>()
+    // 1. Real AI recommendations from the most recent scan — top 3.
+    latestScan?.recommendations?.take(3)?.forEach { out += it }
+    // 2. Grade-based generic guidance — picked so it doesn't repeat scan advice tone.
+    out += when (grade) {
+        "Epic"     -> "Maintain the current watering and light setup — don't change a winning routine."
+        "Great"    -> "Inspect new growth weekly for the first sign of pests or yellowing."
+        "Good"     -> "Wipe leaves with a damp cloth monthly so dust doesn't block photosynthesis."
+        "Moderate" -> "Check soil moisture with a finger — top 2 cm should dry between waterings."
+        "Okay"     -> "Move closer to its preferred light, rotate weekly for even growth, hold back on fertiliser until it stabilises."
+        "Bad"      -> "Re-scan now with a closer photo of the affected area to identify the exact issue."
+        "Worst"    -> "Isolate from other plants immediately. Prune all severely affected parts with a sterile blade."
+        else       -> ""
+    }
+    // 3. Species-specific tip (from AI ID or catalog) — only if non-empty.
+    if (plant.careNote.isNotBlank() && out.none { it.equals(plant.careNote, ignoreCase = true) }) {
+        out += plant.careNote
+    }
+    return out.filter { it.isNotBlank() }.distinct().take(5)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
