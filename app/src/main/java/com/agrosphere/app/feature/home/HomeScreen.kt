@@ -2976,6 +2976,12 @@ private fun AtAGlancePager(state: HomeUiState, plants: List<PlantEntry>) {
 
     when {
         showFarm && showPlant -> {
+            // Same "populated side leads" rule the Health Monitor pager uses:
+            // a both-mode user who's only added plants lands on the plant grid
+            // first, so they see their real data instead of a sea of zeroes.
+            val hasFields = state.fieldsCount > 0
+            val hasPlants = plants.isNotEmpty()
+            val plantFirst = hasPlants && !hasFields
             val pagerState = rememberPagerState(pageCount = { 2 })
             LaunchedEffect(pagerState.isScrollInProgress, pagerState.currentPage) {
                 if (!pagerState.isScrollInProgress) {
@@ -2988,9 +2994,11 @@ private fun AtAGlancePager(state: HomeUiState, plants: List<PlantEntry>) {
             }
             Column {
                 HorizontalPager(state = pagerState) { page ->
-                    when (page) {
-                        0    -> AtAGlanceGrid(state = state)
-                        else -> PlantAtAGlanceGrid(plants = plants)
+                    val showPlantOnThisPage = if (plantFirst) page == 0 else page == 1
+                    if (showPlantOnThisPage) {
+                        PlantAtAGlanceGrid(plants = plants)
+                    } else {
+                        AtAGlanceGrid(state = state)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
