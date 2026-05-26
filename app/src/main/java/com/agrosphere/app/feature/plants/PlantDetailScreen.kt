@@ -6,7 +6,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,7 +69,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Spa
 import com.agrosphere.app.ui.components.GlassCard
 import com.agrosphere.app.ui.components.PrimaryButton
-import com.agrosphere.app.ui.theme.AgroBrushes
 import com.agrosphere.app.ui.theme.AgroPalette
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -112,7 +110,6 @@ fun PlantDetailScreen(
                     plant = currentPlant,
                     onLogWatering = { PlantRepository.logWatering(currentPlant.id) },
                     onRescan      = onRescan,
-                    onSetStage    = { stage -> PlantRepository.setStage(currentPlant.id, stage) },
                 )
                 PlantDetailTab.Activity -> ActivityTab(plant = currentPlant)
                 PlantDetailTab.Health   -> HealthTab(plant = currentPlant)
@@ -160,33 +157,77 @@ fun PlantDetailScreen(
 
 @Composable
 private fun PlantHeroBar(plant: PlantEntry, onBack: () -> Unit) {
-    GlassCard(background = AgroBrushes.leafCard, radius = 0.dp, padding = 0.dp) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(
+                        plant.accent.copy(alpha = 0.22f),
+                        plant.accent.copy(alpha = 0.06f),
+                        AgroPalette.BgDeep,
+                    ),
+                ),
+            ),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = AgroPalette.Ink)
                 }
-                Spacer(Modifier.width(4.dp))
-                Text("Plant", style = MaterialTheme.typography.labelMedium, color = AgroPalette.InkMuted)
+                Spacer(Modifier.width(2.dp))
+                Text(
+                    "PLANT",
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.4.sp),
+                    color = AgroPalette.InkMuted,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(58.dp)
                         .clip(CircleShape)
-                        .background(plant.accent.copy(alpha = 0.22f)),
+                        .background(plant.accent.copy(alpha = 0.28f))
+                        .border(1.5.dp, plant.accent.copy(alpha = 0.55f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Rounded.LocalFlorist, null, tint = plant.accent)
+                    Icon(Icons.Rounded.LocalFlorist, null, tint = plant.accent, modifier = Modifier.size(30.dp))
                 }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(plant.name, style = MaterialTheme.typography.displaySmall.copy(fontSize = 26.sp), color = AgroPalette.Ink, fontWeight = FontWeight.ExtraBold)
-                    Text("${plant.species} · ${plant.location}", style = MaterialTheme.typography.bodyMedium, color = AgroPalette.InkMuted)
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        plant.name,
+                        style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp),
+                        color = AgroPalette.Ink,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(plant.species, style = MaterialTheme.typography.bodyMedium, color = AgroPalette.InkMuted, maxLines = 1)
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(3.dp)
+                                .clip(CircleShape)
+                                .background(AgroPalette.InkDim),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(plant.location, style = MaterialTheme.typography.bodyMedium, color = AgroPalette.InkMuted, maxLines = 1)
+                    }
                 }
             }
         }
+        // Subtle bottom hairline so the hero reads as a distinct section
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(AgroPalette.SurfaceGlassBorder),
+        )
     }
 }
 
@@ -234,7 +275,6 @@ private fun CareTab(
     plant: PlantEntry,
     onLogWatering: () -> Unit,
     onRescan: () -> Unit,
-    onSetStage: (String) -> Unit,
 ) {
     val status    = PlantRepository.wateringStatus(plant)
     val speciesInfo = PlantData.find(plant.species)
@@ -274,27 +314,34 @@ private fun CareTab(
             }
         }
 
-        // ── Stage chip selector ───────────────────────────────────────────────
+        // ── Growth stage — auto-detected from scans, read-only ────────────────
         item {
-            GlassCard(radius = 16.dp, padding = 14.dp) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Spa, null, tint = AgroPalette.Iris, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Growth stage", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.weight(1f))
-                        Text(plant.stage, style = MaterialTheme.typography.labelMedium, color = AgroPalette.Iris, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    Row(
+            val stageTint = stageColor(plant.stage)
+            val hasScanned = plant.lastScanMs > 0L
+            GlassCard(radius = 16.dp, padding = 16.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(androidx.compose.foundation.rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(stageTint.copy(alpha = 0.18f))
+                            .border(1.dp, stageTint.copy(alpha = 0.35f), CircleShape),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        PlantRepository.stagePresets.forEach { st ->
-                            StageChip(label = st, selected = st == plant.stage, onClick = { onSetStage(st) })
-                        }
+                        Icon(stageIcon(plant.stage), null, tint = stageTint, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("GROWTH STAGE", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = AgroPalette.InkMuted, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(2.dp))
+                        Text(plant.stage, style = MaterialTheme.typography.titleLarge, color = stageTint, fontWeight = FontWeight.ExtraBold)
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            if (hasScanned) "Assessed from scan ${relativeDays(plant.lastScanMs)}"
+                            else "Scan the plant to assess its current stage",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AgroPalette.InkMuted,
+                        )
                     }
                 }
             }
@@ -613,25 +660,26 @@ private fun relativeDays(ms: Long): String {
     }
 }
 
-@Composable
-private fun StageChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(if (selected) AgroPalette.Iris.copy(alpha = 0.20f) else AgroPalette.SurfaceGlass)
-            .border(
-                1.dp,
-                if (selected) AgroPalette.Iris.copy(alpha = 0.45f) else AgroPalette.SurfaceGlassBorder,
-                RoundedCornerShape(50),
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-    ) {
-        Text(
-            label,
-            style     = MaterialTheme.typography.labelSmall,
-            color     = if (selected) AgroPalette.Iris else AgroPalette.InkMuted,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-        )
-    }
+/** Tint for each canonical growth stage — used by the stage card on the Care tab. */
+private fun stageColor(stage: String): Color = when (stage) {
+    "Seedling"   -> AgroPalette.Sky
+    "Growing"    -> AgroPalette.Primary
+    "Mature"     -> AgroPalette.Iris
+    "Flowering"  -> AgroPalette.Rose
+    "Fruiting"   -> AgroPalette.Amber
+    "Dormant"    -> AgroPalette.InkMuted
+    "Recovering" -> AgroPalette.Orange
+    else         -> AgroPalette.InkDim
+}
+
+/** Icon for each canonical growth stage. */
+private fun stageIcon(stage: String): androidx.compose.ui.graphics.vector.ImageVector = when (stage) {
+    "Seedling"   -> Icons.Rounded.Spa
+    "Growing"    -> Icons.Rounded.Grass
+    "Mature"     -> Icons.Rounded.LocalFlorist
+    "Flowering"  -> Icons.Rounded.LocalFlorist
+    "Fruiting"   -> Icons.Rounded.AutoAwesome
+    "Dormant"    -> Icons.Rounded.WaterDrop
+    "Recovering" -> Icons.Rounded.Refresh
+    else         -> Icons.Rounded.Spa
 }

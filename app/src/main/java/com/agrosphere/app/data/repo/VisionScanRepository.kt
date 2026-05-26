@@ -42,6 +42,8 @@ data class VisionDiagnosis(
     val partOfPlant: String,
     val narrative: String,
     val treatments: List<VisionTreatment>,
+    // Growth stage detected from the photo — one of the canonical seven, or "" if not assessed.
+    val growthStage: String = "",
 )
 
 /**
@@ -176,6 +178,22 @@ object VisionScanRepository {
             )
         }?.take(5) ?: emptyList()
 
+        // Growth stage — map free-form AI output to our canonical seven stages.
+        val allowedStages = setOf("Seedling", "Growing", "Mature", "Flowering", "Fruiting", "Dormant", "Recovering")
+        val rawStage = str("growthStage").trim()
+        val stage = when {
+            rawStage in allowedStages -> rawStage
+            rawStage.equals("vegetative", true)   -> "Growing"
+            rawStage.equals("juvenile",   true)   -> "Seedling"
+            rawStage.equals("sprout",     true)   -> "Seedling"
+            rawStage.equals("bloom",      true)   -> "Flowering"
+            rawStage.equals("flowering bud", true) -> "Flowering"
+            rawStage.equals("fruit",      true)   -> "Fruiting"
+            rawStage.equals("ripening",   true)   -> "Fruiting"
+            rawStage.equals("recovery",   true)   -> "Recovering"
+            else -> ""  // Empty means "couldn't determine" — UI keeps the previous stage.
+        }
+
         return VisionDiagnosis(
             diseaseName = str("diseaseName").ifEmpty { "Unknown" },
             scientificName = str("scientificName"),
@@ -187,6 +205,7 @@ object VisionScanRepository {
             partOfPlant = str("partOfPlant").lowercase(),
             narrative = str("narrative"),
             treatments = treatments,
+            growthStage = stage,
         )
     }
 
@@ -212,6 +231,7 @@ Return ONLY a single valid JSON object — no prose, no markdown, no explanation
   "recommendations": ["specific field action 1", "specific field action 2", "up to 5 total"],
   "plantType": "species + part, e.g. 'Tomato leaf', 'Wheat flag leaf', 'Mango fruit', or 'Unidentified plant'",
   "partOfPlant": "leaf | fruit | stem | whole plant | root | seed | ",
+  "growthStage": "EXACTLY one of: Seedling | Growing | Mature | Flowering | Fruiting | Dormant | Recovering — pick based on what's visible in the photo (foliage maturity, flowers, fruit, dormancy cues, signs of recovery from past damage). If you genuinely cannot tell, return empty string.",
   "narrative": "Start with 'It looks like' — name the plant, describe what you see, give your verdict in 2-3 sentences",
   "treatments": [
     {"type": "chemical",    "name": "exact product e.g. Mancozeb 75% WP", "usage": "e.g. Mix 2.5 g/L, spray every 7-10 days"},

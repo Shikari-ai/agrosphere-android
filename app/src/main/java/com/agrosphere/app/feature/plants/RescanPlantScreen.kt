@@ -281,6 +281,12 @@ private fun runScan(
                 recommendations = diag.recommendations,
                 photoPath       = photoPath,
             )
+            // Update growth stage from the AI's read of the photo — only when the
+            // model gave us a confident stage (empty string means "couldn't tell",
+            // in which case we keep the plant's current stage untouched).
+            if (diag.growthStage.isNotBlank()) {
+                PlantRepository.setStage(plantId, diag.growthStage)
+            }
             onComplete(record)
         } catch (e: Throwable) {
             onError(e.message ?: "Scan failed")
