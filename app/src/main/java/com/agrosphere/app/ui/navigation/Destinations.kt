@@ -42,6 +42,7 @@ sealed class Dest(val route: String) {
     }
     data object PlantAnalytics : Dest("plant-analytics")
     data object FieldAnalytics : Dest("field-analytics")
+    data object RankProgress   : Dest("rank-progress")
 }
 
 /** Section ids consumed by [ProfileDetail] — kept as constants so the menu + screen can't drift. */

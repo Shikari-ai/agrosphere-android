@@ -296,12 +296,19 @@ fun AgroSphereApp() {
             }
             composable(Dest.PlantAnalytics.route) {
                 com.agrosphere.app.feature.analytics.PlantAnalyticsScreen(
-                    padding = innerPadding,
-                    onBack  = { navController.popBackStack() },
+                    padding    = innerPadding,
+                    onBack     = { navController.popBackStack() },
+                    onOpenRank = { navController.navigate(Dest.RankProgress.route) },
                 )
             }
             composable(Dest.FieldAnalytics.route) {
                 com.agrosphere.app.feature.analytics.FieldAnalyticsScreen(
+                    padding = innerPadding,
+                    onBack  = { navController.popBackStack() },
+                )
+            }
+            composable(Dest.RankProgress.route) {
+                com.agrosphere.app.feature.analytics.RankProgressScreen(
                     padding = innerPadding,
                     onBack  = { navController.popBackStack() },
                 )

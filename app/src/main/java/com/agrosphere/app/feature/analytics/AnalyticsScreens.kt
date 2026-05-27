@@ -60,6 +60,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -101,6 +102,7 @@ import com.agrosphere.app.ui.theme.AgroPalette
 fun PlantAnalyticsScreen(
     padding: PaddingValues,
     onBack: () -> Unit,
+    onOpenRank: () -> Unit = {},
 ) {
     val plants by PlantRepository.plants.collectAsState()
     val analytics = remember(plants) { AnalyticsRepository.computePlantAnalytics(plants) }
@@ -127,7 +129,7 @@ fun PlantAnalyticsScreen(
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     StreakCard(analytics = analytics, modifier = Modifier.weight(1f))
-                    RankCard(analytics = analytics, modifier = Modifier.weight(1f))
+                    RankCard(analytics = analytics, onClick = onOpenRank, modifier = Modifier.weight(1f))
                 }
             }
 
@@ -269,7 +271,7 @@ private fun StreakCard(analytics: PlantAnalytics, modifier: Modifier = Modifier)
 // Rank card — current rank, next-rank progress bar
 // ═════════════════════════════════════════════════════════════════════════════
 @Composable
-private fun RankCard(analytics: PlantAnalytics, modifier: Modifier = Modifier) {
+private fun RankCard(analytics: PlantAnalytics, onClick: () -> Unit = {}, modifier: Modifier = Modifier) {
     val rank = analytics.rank
     val xp = analytics.totalScore
     val cap = rank.nextThreshold
@@ -283,6 +285,7 @@ private fun RankCard(analytics: PlantAnalytics, modifier: Modifier = Modifier) {
         background = Brush.linearGradient(
             listOf(AgroPalette.Primary.copy(alpha = 0.18f), AgroPalette.Iris.copy(alpha = 0.08f), AgroPalette.BgDeep),
         ),
+        onClick = onClick,
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -374,61 +377,65 @@ private fun TotalScoreCard(analytics: PlantAnalytics) {
     val delta = analytics.scoreDeltaPct
 
     GlassCard(radius = 18.dp, padding = 18.dp) {
-        Row(verticalAlignment = Alignment.Top) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Total Score", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(4.dp))
-                    Box(
-                        modifier = Modifier.size(14.dp).clip(CircleShape).background(AgroPalette.SurfaceGlass),
-                        contentAlignment = Alignment.Center,
-                    ) { Text("i", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = AgroPalette.InkMuted) }
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    formatThousands(analytics.totalScore),
-                    style = MaterialTheme.typography.displayMedium.copy(fontSize = 36.sp),
-                    color = AgroPalette.Ink,
-                    fontWeight = FontWeight.Black,
-                )
-                Spacer(Modifier.height(4.dp))
-                DeltaText(deltaPct = delta, suffix = "vs last 30 days")
-            }
-            Box(modifier = Modifier.size(90.dp), contentAlignment = Alignment.Center) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val stroke = 8f
-                    val inset = stroke / 2f
-                    val arc = size.minDimension - stroke
-                    drawArc(
-                        color = AgroPalette.SurfaceGlassBorder,
-                        startAngle = 135f, sweepAngle = 270f, useCenter = false,
-                        topLeft = Offset(inset, inset),
-                        size = GeomSize(arc, arc),
-                        style = Stroke(width = stroke, cap = StrokeCap.Round),
+        // GlassCard wraps its content in a Box — siblings would stack on top
+        // of each other without an explicit Column wrapper here.
+        Column {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Total Score", style = MaterialTheme.typography.titleSmall, color = AgroPalette.Ink, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(4.dp))
+                        Box(
+                            modifier = Modifier.size(14.dp).clip(CircleShape).background(AgroPalette.SurfaceGlass),
+                            contentAlignment = Alignment.Center,
+                        ) { Text("i", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = AgroPalette.InkMuted) }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        formatThousands(analytics.totalScore),
+                        style = MaterialTheme.typography.displayMedium.copy(fontSize = 36.sp),
+                        color = AgroPalette.Ink,
+                        fontWeight = FontWeight.Black,
                     )
-                    if (animatedRing > 0f) {
+                    Spacer(Modifier.height(4.dp))
+                    DeltaText(deltaPct = delta, suffix = "vs last 30 days")
+                }
+                Box(modifier = Modifier.size(90.dp), contentAlignment = Alignment.Center) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val stroke = 8f
+                        val inset = stroke / 2f
+                        val arc = size.minDimension - stroke
                         drawArc(
-                            brush = Brush.sweepGradient(listOf(AgroPalette.Primary, AgroPalette.Sky, AgroPalette.Primary)),
-                            startAngle = 135f, sweepAngle = 270f * animatedRing, useCenter = false,
+                            color = AgroPalette.SurfaceGlassBorder,
+                            startAngle = 135f, sweepAngle = 270f, useCenter = false,
                             topLeft = Offset(inset, inset),
                             size = GeomSize(arc, arc),
                             style = Stroke(width = stroke, cap = StrokeCap.Round),
                         )
+                        if (animatedRing > 0f) {
+                            drawArc(
+                                brush = Brush.sweepGradient(listOf(AgroPalette.Primary, AgroPalette.Sky, AgroPalette.Primary)),
+                                startAngle = 135f, sweepAngle = 270f * animatedRing, useCenter = false,
+                                topLeft = Offset(inset, inset),
+                                size = GeomSize(arc, arc),
+                                style = Stroke(width = stroke, cap = StrokeCap.Round),
+                            )
+                        }
                     }
+                    Icon(Icons.Rounded.Eco, null, tint = AgroPalette.Primary, modifier = Modifier.size(28.dp))
                 }
-                Icon(Icons.Rounded.Eco, null, tint = AgroPalette.Primary, modifier = Modifier.size(28.dp))
             }
-        }
-        Spacer(Modifier.height(12.dp))
-        // 4-stat row at the bottom
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            ScoreSubStat(icon = Icons.Rounded.Search,      value = "${analytics.scansMonth}",   label = "Scans",          delta = analytics.scansDelta,        tint = AgroPalette.Amber,  modifier = Modifier.weight(1f))
-            ScoreSubStat(icon = Icons.Rounded.WaterDrop,   value = "${analytics.watersMonth}",  label = "Waterings",      delta = analytics.watersDelta,       tint = AgroPalette.Sky,    modifier = Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            ScoreSubStat(icon = Icons.Rounded.Eco,         value = "${analytics.careActionsMonth}", label = "Care Actions",  delta = analytics.careActionsDelta,  tint = AgroPalette.Primary, modifier = Modifier.weight(1f))
-            ScoreSubStat(icon = Icons.Rounded.Favorite,    value = "${analytics.avgHealth}%",   label = "Avg Plant Health", delta = analytics.healthDelta,       tint = AgroPalette.Rose,   modifier = Modifier.weight(1f))
+            Spacer(Modifier.height(16.dp))
+            // 2×2 grid of sub-stats
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                ScoreSubStat(icon = Icons.Rounded.Search,      value = "${analytics.scansMonth}",   label = "Scans",          delta = analytics.scansDelta,        tint = AgroPalette.Amber,  modifier = Modifier.weight(1f))
+                ScoreSubStat(icon = Icons.Rounded.WaterDrop,   value = "${analytics.watersMonth}",  label = "Waterings",      delta = analytics.watersDelta,       tint = AgroPalette.Sky,    modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                ScoreSubStat(icon = Icons.Rounded.Eco,         value = "${analytics.careActionsMonth}", label = "Care Actions",  delta = analytics.careActionsDelta,  tint = AgroPalette.Primary, modifier = Modifier.weight(1f))
+                ScoreSubStat(icon = Icons.Rounded.Favorite,    value = "${analytics.avgHealth}%",   label = "Avg Plant Health", delta = analytics.healthDelta,       tint = AgroPalette.Rose,   modifier = Modifier.weight(1f))
+            }
         }
     }
 }
@@ -977,6 +984,277 @@ private fun formatThousands(n: Int): String {
     if (n < 1000) return n.toString()
     val s = n.toString().reversed().chunked(3).joinToString(",").reversed()
     return s
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Rank Progress — dedicated screen showing the full 6-tier ladder, current
+// position, XP to next rank, and what each tier unlocks. Opened from the
+// Rank card on the Plant Analytics dashboard.
+// ═════════════════════════════════════════════════════════════════════════════
+
+private data class RankPerk(val title: String, val description: String)
+
+private fun perksFor(rank: PlantRank): List<RankPerk> = when (rank) {
+    PlantRank.SEEDLING -> listOf(
+        RankPerk("Plant tracking",       "Add plants, log waterings, store care notes."),
+        RankPerk("Camera identification", "Snap a photo, get a species ID with care profile."),
+    )
+    PlantRank.SPROUT -> listOf(
+        RankPerk("Watering reminders",   "Notification when each plant is due."),
+        RankPerk("Daily streak tracker", "Earn streaks for consistent care."),
+        RankPerk("Growth stage tracker", "Plants auto-tag Seedling / Growing / Flowering / etc."),
+    )
+    PlantRank.SAPLING -> listOf(
+        RankPerk("Scan history",         "Every AI scan saved with verdict + recommendations."),
+        RankPerk("Health trend chart",   "See per-plant and overall health over time."),
+        RankPerk("Pest predictions",     "Weather-driven threat list per plant species."),
+    )
+    PlantRank.GREEN_GROWER -> listOf(
+        RankPerk("Advanced analytics",   "Full activity breakdown by week and month."),
+        RankPerk("Per-plant streaks",    "Track watering consistency for each plant."),
+        RankPerk("AI Insights card",     "Personalised recommendations based on your data."),
+    )
+    PlantRank.PLANT_MASTER -> listOf(
+        RankPerk("Master badge",         "Exclusive badge displayed on your Profile."),
+        RankPerk("Care notes export",    "Download your full plant journal as a file."),
+        RankPerk("Custom care plans",    "Override AI-recommended intervals per plant."),
+    )
+    PlantRank.BOTANIST_LEGEND -> listOf(
+        RankPerk("Legendary status",     "Top 1% — Botanist Legend badge unlocked."),
+        RankPerk("Early access",         "Try new AgroSphere features before everyone else."),
+        RankPerk("Annual plant report",  "Year-in-review summary with achievements."),
+    )
+}
+
+@Composable
+fun RankProgressScreen(
+    padding: PaddingValues,
+    onBack: () -> Unit,
+) {
+    val plants by PlantRepository.plants.collectAsState()
+    val analytics = remember(plants) { AnalyticsRepository.computePlantAnalytics(plants) }
+    val current = analytics.rank
+    val xp = analytics.totalScore
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(bottom = padding.calculateBottomPadding()),
+    ) {
+        AnalyticsHeaderBar(
+            title = "Rank Progress",
+            subtitle = "${current.displayName} · $xp XP",
+            emoji = "🏆",
+            onBack = onBack,
+        )
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // ── Top hero banner with current rank + progress ──────────────────
+            item {
+                GlassCard(
+                    radius = 18.dp,
+                    padding = 18.dp,
+                    background = Brush.linearGradient(
+                        listOf(AgroPalette.Primary.copy(alpha = 0.22f), AgroPalette.Iris.copy(alpha = 0.10f), AgroPalette.BgDeep),
+                    ),
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RankShield(rank = current, size = 72.dp)
+                            Spacer(Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("CURRENT RANK", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp), color = AgroPalette.InkMuted, fontWeight = FontWeight.SemiBold)
+                                Text(current.displayName, style = MaterialTheme.typography.headlineSmall, color = AgroPalette.Primary, fontWeight = FontWeight.ExtraBold)
+                                Text("$xp Earned XP", style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                            }
+                        }
+                        if (current.next != null) {
+                            val cap = current.nextThreshold
+                            val pct = ((xp - current.minXp).toFloat() / (cap - current.minXp)).coerceIn(0f, 1f)
+                            val animated by animateFloatAsState(pct, tween(1400, easing = LinearOutSlowInEasing), label = "hero-rank")
+                            Spacer(Modifier.height(14.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Next: ", style = MaterialTheme.typography.labelMedium, color = AgroPalette.InkMuted)
+                                Text(current.next!!.displayName, style = MaterialTheme.typography.labelMedium, color = AgroPalette.Sky, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.weight(1f))
+                                Text("${cap - xp} XP to go", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkDim)
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(AgroPalette.SurfaceGlassBorder.copy(alpha = 0.4f)),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(animated)
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(Brush.horizontalGradient(listOf(AgroPalette.Primary, AgroPalette.Sky))),
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text("$xp / $cap XP", style = MaterialTheme.typography.labelSmall, color = AgroPalette.InkMuted)
+                        } else {
+                            Spacer(Modifier.height(10.dp))
+                            Text("You've reached the top tier. Congratulations!", style = MaterialTheme.typography.bodySmall, color = AgroPalette.Amber, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+
+            // ── Section label ─────────────────────────────────────────────────
+            item {
+                Text(
+                    "RANK LADDER",
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.sp),
+                    color = AgroPalette.InkMuted,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+                )
+            }
+
+            // ── All 6 tier cards ──────────────────────────────────────────────
+            items(PlantRank.values().toList()) { tier ->
+                RankTierCard(
+                    tier = tier,
+                    currentRank = current,
+                    currentXp = xp,
+                )
+            }
+
+            item { Spacer(Modifier.height(40.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun RankTierCard(
+    tier: PlantRank,
+    currentRank: PlantRank,
+    currentXp: Int,
+) {
+    val isCurrent  = tier == currentRank
+    val isAchieved = tier.ordinal <= currentRank.ordinal
+    val isLocked   = !isAchieved
+    val tint = when (tier) {
+        PlantRank.SEEDLING        -> AgroPalette.Sky
+        PlantRank.SPROUT          -> AgroPalette.Primary
+        PlantRank.SAPLING         -> AgroPalette.Primary
+        PlantRank.GREEN_GROWER    -> AgroPalette.Primary
+        PlantRank.PLANT_MASTER    -> AgroPalette.Iris
+        PlantRank.BOTANIST_LEGEND -> AgroPalette.Amber
+    }
+    val perks = perksFor(tier)
+
+    GlassCard(
+        radius = 18.dp,
+        padding = 16.dp,
+        background = if (isCurrent)
+            Brush.linearGradient(listOf(tint.copy(alpha = 0.22f), tint.copy(alpha = 0.04f), AgroPalette.BgDeep))
+        else if (isLocked)
+            androidx.compose.ui.graphics.SolidColor(AgroPalette.SurfaceGlass.copy(alpha = 0.5f))
+        else
+            androidx.compose.ui.graphics.SolidColor(AgroPalette.SurfaceGlass),
+        border = if (isCurrent)
+            androidx.compose.foundation.BorderStroke(1.5.dp, tint.copy(alpha = 0.7f))
+        else
+            androidx.compose.foundation.BorderStroke(1.dp, AgroPalette.SurfaceGlassBorder),
+    ) {
+        Column {
+            // Header row — shield + name + XP threshold + status badge
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.alpha(if (isLocked) 0.45f else 1f)) {
+                    RankShield(rank = tier, size = 52.dp)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            tier.displayName,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (isLocked) AgroPalette.InkMuted else tint,
+                            fontWeight = FontWeight.ExtraBold,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        if (isCurrent) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(tint.copy(alpha = 0.20f))
+                                    .border(1.dp, tint.copy(alpha = 0.5f), RoundedCornerShape(50))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                            ) { Text("CURRENT", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, letterSpacing = 1.sp), color = tint, fontWeight = FontWeight.Bold) }
+                        } else if (isLocked) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Rounded.Lock, null, tint = AgroPalette.InkDim, modifier = Modifier.size(12.dp))
+                                Spacer(Modifier.width(3.dp))
+                                Text(
+                                    "${tier.minXp - currentXp} XP",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = AgroPalette.InkDim,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Rounded.Check, null, tint = AgroPalette.Primary, modifier = Modifier.size(12.dp))
+                                Spacer(Modifier.width(3.dp))
+                                Text("CLEARED", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, letterSpacing = 1.sp), color = AgroPalette.Primary, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    Text(
+                        "Requires ${formatThousands(tier.minXp)} XP",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AgroPalette.InkDim,
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            // Perks list
+            Text(
+                "UNLOCKS",
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.4.sp, fontSize = 9.sp),
+                color = AgroPalette.InkMuted,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(6.dp))
+            perks.forEach { perk ->
+                Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (isLocked) AgroPalette.InkDim else tint),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            perk.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isLocked) AgroPalette.InkMuted else AgroPalette.Ink,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            perk.description,
+                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 14.sp),
+                            color = AgroPalette.InkMuted,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
