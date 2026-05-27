@@ -40,6 +40,8 @@ sealed class Dest(val route: String) {
     data object RescanPlant : Dest("plant/{id}/rescan") {
         fun build(id: String) = "plant/$id/rescan"
     }
+    data object PlantAnalytics : Dest("plant-analytics")
+    data object FieldAnalytics : Dest("field-analytics")
 }
 
 /** Section ids consumed by [ProfileDetail] — kept as constants so the menu + screen can't drift. */

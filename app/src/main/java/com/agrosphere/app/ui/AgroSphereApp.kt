@@ -224,6 +224,8 @@ fun AgroSphereApp() {
                     onOpenPlants = { navController.navigate(Dest.Plants.route) },
                     onOpenPlant = { id -> navController.navigate(Dest.PlantDetail.build(id)) },
                     onAddPlant = { navController.navigate(Dest.AddPlant.route) },
+                    onOpenPlantAnalytics = { navController.navigate(Dest.PlantAnalytics.route) },
+                    onOpenFieldAnalytics = { navController.navigate(Dest.FieldAnalytics.route) },
                 )
             }
             composable(Dest.Fields.route) {
@@ -291,6 +293,18 @@ fun AgroSphereApp() {
                         onFinished = { navController.popBackStack() },
                     )
                 }
+            }
+            composable(Dest.PlantAnalytics.route) {
+                com.agrosphere.app.feature.analytics.PlantAnalyticsScreen(
+                    padding = innerPadding,
+                    onBack  = { navController.popBackStack() },
+                )
+            }
+            composable(Dest.FieldAnalytics.route) {
+                com.agrosphere.app.feature.analytics.FieldAnalyticsScreen(
+                    padding = innerPadding,
+                    onBack  = { navController.popBackStack() },
+                )
             }
             composable(Dest.Scanner.route) {
                 ScannerScreen(

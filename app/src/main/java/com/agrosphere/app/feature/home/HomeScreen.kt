@@ -136,6 +136,8 @@ fun HomeScreen(
     onOpenPlants: () -> Unit = {},
     onOpenPlant: (String) -> Unit = {},
     onAddPlant: () -> Unit = {},
+    onOpenPlantAnalytics: () -> Unit = {},
+    onOpenFieldAnalytics: () -> Unit = {},
     vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by vm.state.collectAsState()
@@ -213,10 +215,12 @@ fun HomeScreen(
             if (showOpsForFarmer || showOpsForPlant || showOpsForBoth) {
                 item { EntranceItem(itemVisible[3]) {
                     OperationsPager(
-                        hasFields    = hasFieldsForOps,
-                        hasPlants    = hasPlantsForOps,
-                        onOpenFields = onOpenFields,
-                        onOpenPlants = onOpenPlants,
+                        hasFields            = hasFieldsForOps,
+                        hasPlants            = hasPlantsForOps,
+                        onOpenFields         = onOpenFields,
+                        onOpenPlants         = onOpenPlants,
+                        onOpenPlantAnalytics = onOpenPlantAnalytics,
+                        onOpenFieldAnalytics = onOpenFieldAnalytics,
                     )
                 } }
             }
@@ -1822,6 +1826,8 @@ private fun OperationsPager(
     hasPlants: Boolean,
     onOpenFields: () -> Unit,
     onOpenPlants: () -> Unit,
+    onOpenPlantAnalytics: () -> Unit,
+    onOpenFieldAnalytics: () -> Unit,
 ) {
     val mode by AppPreferences.userMode.collectAsState()
     // The call site already guarantees we have at least one populated side, so
@@ -1844,8 +1850,8 @@ private fun OperationsPager(
             Column {
                 HorizontalPager(state = pagerState) { page ->
                     when (page) {
-                        0    -> FieldAnalyticsCard(onOpenFields = onOpenFields)
-                        else -> PlantAnalyticsCard(onOpenPlants = onOpenPlants)
+                        0    -> FieldAnalyticsCard(onOpenAnalytics = onOpenFieldAnalytics)
+                        else -> PlantAnalyticsCard(onOpenAnalytics = onOpenPlantAnalytics)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -1866,8 +1872,8 @@ private fun OperationsPager(
                 }
             }
         }
-        showField -> FieldAnalyticsCard(onOpenFields = onOpenFields)
-        showPlant -> PlantAnalyticsCard(onOpenPlants = onOpenPlants)
+        showField -> FieldAnalyticsCard(onOpenAnalytics = onOpenFieldAnalytics)
+        showPlant -> PlantAnalyticsCard(onOpenAnalytics = onOpenPlantAnalytics)
     }
 }
 
@@ -1890,14 +1896,13 @@ private fun computeFieldAnalytics(fields: List<Field>, scans: List<com.agrospher
     com.agrosphere.app.data.repo.AnalyticsRepository.computeFieldAnalytics(fields, scans)
 
 @Composable
-private fun FieldAnalyticsCard(onOpenFields: () -> Unit) {
+private fun FieldAnalyticsCard(onOpenAnalytics: () -> Unit) {
     val context = LocalContext.current
     val fields by FieldRepository.fields.collectAsState()
     val scans = remember(fields) { LocalScanStore.load(context) }
     val analytics = remember(fields, scans) { computeFieldAnalytics(fields, scans) }
-    var showSheet by remember { mutableStateOf(false) }
 
-    GlassCard(radius = 22.dp, padding = 18.dp, onClick = onOpenFields) {
+    GlassCard(radius = 22.dp, padding = 18.dp, onClick = onOpenAnalytics) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Grass, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
@@ -1909,7 +1914,7 @@ private fun FieldAnalyticsCard(onOpenFields: () -> Unit) {
                         .clip(CircleShape)
                         .background(AgroPalette.Primary.copy(alpha = 0.16f))
                         .border(1.dp, AgroPalette.Primary.copy(alpha = 0.35f), CircleShape)
-                        .clickable { showSheet = true },
+                        .clickable(onClick = onOpenAnalytics),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.Rounded.BarChart, "Open analytics", tint = AgroPalette.Primary, modifier = Modifier.size(18.dp))
@@ -1946,9 +1951,6 @@ private fun FieldAnalyticsCard(onOpenFields: () -> Unit) {
         }
     }
 
-    if (showSheet) {
-        FieldAnalyticsSheet(analytics = analytics, onDismiss = { showSheet = false })
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -2099,12 +2101,11 @@ private fun FieldAnalyticsSheet(analytics: FieldAnalytics, onDismiss: () -> Unit
 }
 
 @Composable
-private fun PlantAnalyticsCard(onOpenPlants: () -> Unit) {
+private fun PlantAnalyticsCard(onOpenAnalytics: () -> Unit) {
     val plants by PlantRepository.plants.collectAsState()
     val analytics = remember(plants) { computePlantAnalytics(plants) }
-    var showSheet by remember { mutableStateOf(false) }
 
-    GlassCard(radius = 22.dp, padding = 18.dp, onClick = onOpenPlants) {
+    GlassCard(radius = 22.dp, padding = 18.dp, onClick = onOpenAnalytics) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Spa, null, tint = AgroPalette.Primary, modifier = Modifier.size(20.dp))
@@ -2117,7 +2118,7 @@ private fun PlantAnalyticsCard(onOpenPlants: () -> Unit) {
                         .clip(CircleShape)
                         .background(AgroPalette.Primary.copy(alpha = 0.16f))
                         .border(1.dp, AgroPalette.Primary.copy(alpha = 0.35f), CircleShape)
-                        .clickable { showSheet = true },
+                        .clickable(onClick = onOpenAnalytics),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.Rounded.BarChart, "Open analytics", tint = AgroPalette.Primary, modifier = Modifier.size(18.dp))
@@ -2158,13 +2159,10 @@ private fun PlantAnalyticsCard(onOpenPlants: () -> Unit) {
         }
     }
 
-    if (showSheet) {
-        PlantAnalyticsSheet(analytics = analytics, onDismiss = { showSheet = false })
-    }
 }
 
 @Composable
-private fun AnalyticsStatChip(
+internal fun AnalyticsStatChip(
     value: String,
     label: String,
     tint: Color,
@@ -2193,7 +2191,7 @@ private fun AnalyticsStatChip(
 }
 
 @Composable
-private fun LegendDot(color: Color, label: String) {
+internal fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(color))
         Spacer(Modifier.width(4.dp))
@@ -2203,7 +2201,7 @@ private fun LegendDot(color: Color, label: String) {
 
 /** Bars are stacked: waters on the bottom (sky), scans on top (amber). */
 @Composable
-private fun StackedBarChart(
+internal fun StackedBarChart(
     waters: List<Int>,
     scans: List<Int>,
     modifier: Modifier = Modifier,
@@ -2415,7 +2413,7 @@ private fun PlantAnalyticsSheet(analytics: PlantAnalytics, onDismiss: () -> Unit
 }
 
 @Composable
-private fun MilestoneRow(label: String, achieved: Boolean) {
+internal fun MilestoneRow(label: String, achieved: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
@@ -2442,7 +2440,7 @@ private fun MilestoneRow(label: String, achieved: Boolean) {
 }
 
 @Composable
-private fun MicroStat(emoji: String, value: String, label: String, tint: Color, modifier: Modifier = Modifier) {
+internal fun MicroStat(emoji: String, value: String, label: String, tint: Color, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
