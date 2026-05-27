@@ -62,14 +62,13 @@ data class PlantAnalytics(
     val rank: PlantRank get() = PlantRank.forScore(totalScore)
 }
 
-/** 6-tier gamification ladder. Earned XP = totalScore. */
+/** 5-tier gamification ladder. Earned XP = totalScore. */
 enum class PlantRank(val displayName: String, val minXp: Int) {
     SEEDLING("Seedling", 0),
-    SPROUT("Sprout", 500),
-    SAPLING("Sapling", 1500),
-    GREEN_GROWER("Green Grower", 3000),
-    PLANT_MASTER("Plant Master", 6000),
-    BOTANIST_LEGEND("Botanist Legend", 10000);
+    GREEN_GROWER("Green Grower", 500),
+    PLANT_EXPERT("Plant Expert", 1500),
+    PLANT_MASTER("Plant Master", 3000),
+    AGRO_LEGEND("Agro Legend", 6000);
 
     /** The next tier up, or null if this is the cap. */
     val next: PlantRank? get() = values().getOrNull(ordinal + 1)
