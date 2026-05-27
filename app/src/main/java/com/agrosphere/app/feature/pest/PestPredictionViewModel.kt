@@ -5,8 +5,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.agrosphere.app.R
 import com.agrosphere.app.data.model.Field
+import com.agrosphere.app.data.model.PlantEntry
 import com.agrosphere.app.data.model.WeatherSnapshot
 import com.agrosphere.app.data.repo.FieldRepository
+import com.agrosphere.app.data.repo.PlantRepository
 import com.agrosphere.app.data.repo.NeighbourAlert
 import com.agrosphere.app.data.repo.PestScenario
 import com.agrosphere.app.data.repo.PestVerifyRepository
@@ -21,7 +23,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Per-field pest pressure derived locally from weather + crop. */
+/** Per-entity pest pressure derived locally from weather + crop/species.
+ *  The same data class powers both fields and home plants — [isPlant] flips
+ *  the icon + section UI uses to distinguish the two. */
 data class FieldPestRisk(
     val fieldName: String,
     val crop: String,
@@ -29,6 +33,7 @@ data class FieldPestRisk(
     val pressurePct: Int,        // 0..100
     val threats: List<String>,
     val factors: String,         // "28°C · 82% humidity"
+    val isPlant: Boolean = false,
 )
 
 enum class RiskLevel { HIGH, MEDIUM, LOW }
@@ -89,22 +94,30 @@ class PestPredictionViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun compute() {
         val fields = FieldRepository.current()
+        val plants = PlantRepository.current()
         val w = weather
         val humid = (w?.humidityPct ?: 0) >= 70
         val hot   = (w?.tempC ?: 0) >= 30
 
-        val risks = fields.map { f -> riskFor(f, w, humid, hot) }
-        val top = risks.maxByOrNull { it.pressurePct }
+        // Field risks + plant risks merged into a single list. Both face pest
+        // pressure from the same climate drivers; only the threat dictionary
+        // differs (crop pests vs houseplant pests).
+        val fieldRisks = fields.map { f -> riskFor(f, w, humid, hot) }
+        val plantRisks = plants.map { p -> riskForPlant(p, w, humid, hot) }
+        val risks = (fieldRisks + plantRisks).sortedByDescending { it.pressurePct }
+        val top = risks.firstOrNull()
 
         _state.update {
             it.copy(
                 loading = false,
-                hasFields = fields.isNotEmpty(),
+                // hasFields here actually means "has anything to predict for" —
+                // gate the EmptyBlock on green space, not strictly fields.
+                hasFields = fields.isNotEmpty() || plants.isNotEmpty(),
                 region = w?.location ?: "",
                 highCount = risks.count { r -> r.level == RiskLevel.HIGH },
                 medCount  = risks.count { r -> r.level == RiskLevel.MEDIUM },
                 lowCount  = risks.count { r -> r.level == RiskLevel.LOW },
-                risks = risks.sortedByDescending { r -> r.pressurePct },
+                risks = risks,
                 scenarios = if (top != null) localScenarios(top.threats.firstOrNull() ?: "pest pressure", humid) else emptyList(),
             )
         }
@@ -136,6 +149,107 @@ class PestPredictionViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ─── Risk model ─────────────────────────────────────────────────────────────
+
+    /** Pest pressure for a home plant — same weather-driven model as fields,
+     *  but the threat dictionary swaps to houseplant pests (spider mites,
+     *  mealybugs, fungus gnats) instead of crop pests. */
+    private fun riskForPlant(p: PlantEntry, w: WeatherSnapshot?, humid: Boolean, hot: Boolean): FieldPestRisk {
+        // Indoor plants are slightly buffered from outdoor humidity swings —
+        // damp the pressure a touch when the user told us it lives indoors.
+        val raw = if (w == null) 0
+        else ((w.humidityPct / 2) + (w.tempC - 20).coerceAtLeast(0))
+        val isIndoor = p.location.lowercase().let { loc ->
+            loc.contains("living") || loc.contains("bedroom") || loc.contains("kitchen") ||
+            loc.contains("indoor")  || loc.contains("corridor") || loc.contains("window")
+        }
+        val pressure = (if (isIndoor) (raw * 0.85f).toInt() else raw).coerceIn(0, 100)
+        val level = when {
+            pressure >= 65 -> RiskLevel.HIGH
+            pressure >= 35 -> RiskLevel.MEDIUM
+            else           -> RiskLevel.LOW
+        }
+        val ctx = getApplication<Application>()
+        val factors = if (w != null)
+            ctx.getString(R.string.pest_factors, w.tempC, w.humidityPct)
+        else
+            ctx.getString(R.string.pest_factors_nodata)
+        return FieldPestRisk(
+            fieldName = p.name,
+            crop      = p.species,
+            level     = level,
+            pressurePct = pressure,
+            threats   = plantThreatsFor(p.species, isIndoor, humid, hot),
+            factors   = factors,
+            isPlant   = true,
+        )
+    }
+
+    /** Likely pests for a home plant species under the current conditions.
+     *  Houseplants face a very different threat profile from crops — dry
+     *  indoor air drives spider mites, overwatering causes fungus gnats,
+     *  warm-humid breeds mealybugs and scale insects. */
+    private fun plantThreatsFor(species: String, isIndoor: Boolean, humid: Boolean, hot: Boolean): List<String> {
+        val s = species.lowercase()
+        val speciesPests = when {
+            // Flowering — aphids and powdery mildew are perennial enemies
+            "rose" in s                           -> listOf("Aphids", "Black spot", "Powdery mildew")
+            "hibiscus" in s || "jasmine" in s     -> listOf("Aphids", "Whitefly", "Mealybugs")
+            "marigold" in s                       -> listOf("Aphids", "Spider mites", "Leaf spot")
+            "dahlia" in s   || "chrysanthemum" in s -> listOf("Aphids", "Earwigs", "Powdery mildew")
+            "petunia" in s                        -> listOf("Aphids", "Thrips", "Tobacco budworm")
+            "sunflower" in s                      -> listOf("Aphids", "Caterpillars", "Rust")
+            "lavender" in s                       -> listOf("Spittlebugs", "Whitefly", "Root rot")
+            "bougainvillea" in s                  -> listOf("Aphids", "Mealybugs", "Caterpillars")
+
+            // Indoor foliage — spider mites + mealybugs + scale dominate
+            "money" in s || "pothos" in s         -> listOf("Spider mites", "Mealybugs", "Fungus gnats")
+            "snake plant" in s || "zz plant" in s -> listOf("Root rot", "Mealybugs", "Spider mites")
+            "peace lily" in s                     -> listOf("Spider mites", "Aphids", "Mealybugs")
+            "spider plant" in s                   -> listOf("Spider mites", "Scale", "Tip burn")
+            "rubber" in s   || "fiddle" in s      -> listOf("Spider mites", "Scale insects", "Thrips")
+            "monstera" in s || "philodendron" in s -> listOf("Spider mites", "Thrips", "Mealybugs")
+            "boston fern" in s                    -> listOf("Spider mites", "Scale", "Mealybugs")
+            "dracaena" in s                       -> listOf("Spider mites", "Tip browning", "Mealybugs")
+            "chinese evergreen" in s              -> listOf("Spider mites", "Mealybugs", "Aphids")
+
+            // Succulents + cacti — overwatering and warm-humid are the issues
+            "aloe" in s     || "jade" in s        -> listOf("Mealybugs", "Root rot", "Scale insects")
+            "echeveria" in s|| "haworthia" in s   -> listOf("Mealybugs", "Aphids", "Root rot")
+            "sedum" in s                          -> listOf("Mealybugs", "Aphids", "Root rot")
+            "cactus" in s                         -> listOf("Mealybugs", "Scale insects", "Root rot")
+
+            // Herbs + edibles
+            "basil" in s                          -> listOf("Aphids", "Whitefly", "Downy mildew")
+            "mint" in s                           -> listOf("Aphids", "Spider mites", "Rust")
+            "tulsi" in s    || "holy basil" in s  -> listOf("Aphids", "Whitefly", "Leaf spot")
+            "coriander" in s                      -> listOf("Aphids", "Powdery mildew", "Whitefly")
+            "curry leaf" in s                     -> listOf("Psyllids", "Citrus leafminer", "Scale")
+            "lemongrass" in s                     -> listOf("Rust", "Spider mites", "Leaf blight")
+            "tomato" in s                         -> listOf("Whitefly", "Spider mites", "Early blight")
+            "chilli" in s   || "chili" in s       -> listOf("Thrips", "Aphids", "Spider mites")
+            "spinach" in s                        -> listOf("Aphids", "Leaf miner", "Downy mildew")
+
+            // Climbers
+            "passion" in s                        -> listOf("Whitefly", "Mealybugs", "Spider mites")
+            "morning glory" in s                  -> listOf("Aphids", "Spider mites", "Leaf miner")
+            "aparajita" in s|| "butterfly pea" in s -> listOf("Aphids", "Caterpillars", "Powdery mildew")
+
+            // Trees
+            "neem" in s                           -> listOf("Scale insects", "Whitefly", "Leaf miner")
+            "bamboo" in s                         -> listOf("Mites", "Aphids", "Root rot")
+            "ficus" in s                          -> listOf("Spider mites", "Scale insects", "Mealybugs")
+
+            // Default fallback — generic houseplant trio
+            else                                   -> listOf("Aphids", "Spider mites", "Mealybugs")
+        }
+        // Condition-driven additions that match where this plant lives
+        val conditionPests = buildList {
+            if (humid && !isIndoor)          { add("Fungal blight"); add("Powdery mildew") }
+            if (hot && !humid)                add("Spider mites")     // dry air → mites
+            if (isIndoor && !humid)           add("Fungus gnats")     // overwatering signal
+        }
+        return (speciesPests + conditionPests).distinct().take(3)
+    }
 
     private fun riskFor(f: Field, w: WeatherSnapshot?, humid: Boolean, hot: Boolean): FieldPestRisk {
         // Warm + humid favours most pests/fungi. Same heuristic as the home card,

@@ -285,7 +285,7 @@
     <string name="pest_screen_title">Pest Prediction</string>
     <string name="pest_back">Back</string>
     <string name="pest_refresh">Refresh</string>
-    <string name="pest_section_field_risk">Field risk</string>
+    <string name="pest_section_field_risk">Per-entity risk</string>
     <string name="pest_section_scenarios">Possible scenarios</string>
     <string name="pest_section_verified">Verified prediction</string>
     <string name="pest_today_pressure">Today\'s pest pressure</string>
@@ -297,8 +297,8 @@
     <string name="pest_verified_badge">Verified</string>
     <string name="pest_confidence">%1$d%% confidence</string>
     <string name="pest_sources">Sources</string>
-    <string name="pest_empty_title">No fields yet</string>
-    <string name="pest_empty_body">Add a field to get pest predictions based on your crop and live weather.</string>
+    <string name="pest_empty_title">Nothing to predict yet</string>
+    <string name="pest_empty_body">Add a field or plant to get pest predictions based on its species and live weather conditions.</string>
     <string name="pest_factors">%1$d°C · %2$d%% humidity</string>
     <string name="pest_factors_nodata">No weather data</string>
     <string name="pest_scenario_localised_title">Localised to your fields</string>

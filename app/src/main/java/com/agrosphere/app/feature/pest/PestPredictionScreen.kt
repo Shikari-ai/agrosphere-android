@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
@@ -298,11 +299,24 @@ private fun RiskCard(risk: FieldPestRisk) {
                 Box(
                     modifier = Modifier.size(40.dp).clip(CircleShape).background(tint.copy(alpha = 0.16f)),
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Rounded.BugReport, null, tint = tint, modifier = Modifier.size(20.dp)) }
+                ) {
+                    // Plant cards get the florist glyph; field cards keep the
+                    // bug-report icon so the entity type is obvious at a glance.
+                    Icon(
+                        if (risk.isPlant) Icons.Rounded.LocalFlorist else Icons.Rounded.BugReport,
+                        null,
+                        tint = tint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(risk.fieldName, style = MaterialTheme.typography.bodyLarge, color = AgroPalette.Ink, fontWeight = FontWeight.SemiBold)
-                    Text(risk.crop, style = MaterialTheme.typography.bodySmall, color = AgroPalette.InkMuted)
+                    Text(
+                        if (risk.isPlant) "${risk.crop} · plant" else risk.crop,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AgroPalette.InkMuted,
+                    )
                 }
                 RiskBadge(risk.level)
             }
